@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -13,11 +12,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { ar } from "date-fns/locale";
 import { CalendarIcon, MapPin, Bus, Search, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 
-const cities = ["Riyadh", "Amman", "Damascus", "Aleppo", "Homs", "Zarqa"];
+const cities = ["الرياض", "عمان", "دمشق", "حلب", "حمص", "الزرقاء"];
 
 export default function HomePage() {
   const router = useRouter();
@@ -38,8 +38,8 @@ export default function HomePage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-2xl font-bold text-primary font-headline">Al-Awajan Travel</h1>
-          <p className="text-sm text-muted-foreground">العوجان للسياحة والسفر</p>
+          <h1 className="text-2xl font-bold text-primary font-headline">العوجان للسياحة والسفر</h1>
+          <p className="text-sm text-muted-foreground italic">Al-Awajan Travel</p>
         </div>
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
           <Bus className="h-6 w-6 text-primary" />
@@ -58,7 +58,7 @@ export default function HomePage() {
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
-          <p className="text-white font-semibold text-lg">Safe and Comfortable Trips Across Borders</p>
+          <p className="text-white font-semibold text-lg">رحلات آمنة ومريحة عبر الحدود</p>
         </div>
       </div>
 
@@ -66,18 +66,18 @@ export default function HomePage() {
         <CardHeader>
           <CardTitle className="text-xl font-headline flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
-            Find Your Trip
+            ابحث عن رحلتك
           </CardTitle>
-          <CardDescription>Select your destination and travel date</CardDescription>
+          <CardDescription>اختر وجهتك وتاريخ السفر</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="from">From</Label>
+                <Label htmlFor="from">من</Label>
                 <Select onValueChange={setFrom} value={from}>
                   <SelectTrigger id="from" className="bg-background">
-                    <SelectValue placeholder="Select origin city" />
+                    <SelectValue placeholder="اختر مدينة الانطلاق" />
                   </SelectTrigger>
                   <SelectContent>
                     {cities.map(city => (
@@ -88,10 +88,10 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="to">To</Label>
+                <Label htmlFor="to">إلى</Label>
                 <Select onValueChange={setTo} value={to}>
                   <SelectTrigger id="to" className="bg-background">
-                    <SelectValue placeholder="Select destination city" />
+                    <SelectValue placeholder="اختر وجهة الوصول" />
                   </SelectTrigger>
                   <SelectContent>
                     {cities.map(city => (
@@ -103,18 +103,18 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Date of Travel</Label>
+              <Label>تاريخ السفر</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal bg-background",
+                      "w-full justify-start text-right font-normal bg-background",
                       !date && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a travel date</span>}
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {date ? format(date, "PPP", { locale: ar }) : <span>اختر تاريخ السفر</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -124,13 +124,14 @@ export default function HomePage() {
                     onSelect={setDate}
                     initialFocus
                     disabled={(date) => date < new Date()}
+                    locale={ar}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <Button type="submit" className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 transition-all hover:scale-[1.01] active:scale-[0.98]" disabled={!from || !to || !date}>
-              Search Trips
+              بحث عن الرحلات
             </Button>
           </form>
         </CardContent>
@@ -140,13 +141,13 @@ export default function HomePage() {
         <Button variant="outline" className="h-auto flex-col py-6 gap-2 border-primary/20 hover:border-primary bg-white/50" asChild>
           <Link href="/track">
             <MapPin className="h-6 w-6 text-primary" />
-            <span>Track Trip</span>
+            <span>تتبع الرحلة</span>
           </Link>
         </Button>
         <Button variant="outline" className="h-auto flex-col py-6 gap-2 border-primary/20 hover:border-primary bg-white/50" asChild>
           <Link href="/parcels">
             <Package className="h-6 w-6 text-primary" />
-            <span>Track Parcel</span>
+            <span>تتبع الطرود</span>
           </Link>
         </Button>
       </div>

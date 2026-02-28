@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, User, Luggage } from "lucide-react";
+import { ArrowRight, User, Luggage } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -32,8 +32,8 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const handleNext = () => {
     if (selectedSeats.length === 0) {
       toast({
-        title: "No seats selected",
-        description: "Please select at least one seat to continue.",
+        title: "لم يتم اختيار مقاعد",
+        description: "يرجى اختيار مقعد واحد على الأقل للمتابعة.",
         variant: "destructive"
       });
       return;
@@ -49,9 +49,9 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
     <div className="space-y-6">
       <header className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => step === 1 ? router.back() : setStep(1)}>
-          <ArrowLeft className="h-6 w-6" />
+          <ArrowRight className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold">{step === 1 ? "Select Seats" : "Passenger Details"}</h1>
+        <h1 className="text-xl font-bold">{step === 1 ? "اختيار المقاعد" : "بيانات المسافرين"}</h1>
       </header>
 
       {step === 1 ? (
@@ -59,21 +59,21 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
           <div className="flex justify-center gap-6 text-sm mb-4">
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 rounded-sm bg-primary" />
-              <span>Selected</span>
+              <span>مختار</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 rounded-sm bg-muted border" />
-              <span>Booked</span>
+              <span>محجوز</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 rounded-sm border-primary/30 border" />
-              <span>Available</span>
+              <span>متاح</span>
             </div>
           </div>
 
           <Card className="max-w-xs mx-auto border-2 border-primary/10">
             <CardHeader className="pb-2 text-center border-b bg-muted/30">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Front of Bus</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">مقدمة الحافلة</p>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="grid grid-cols-4 gap-4">
@@ -98,7 +98,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
 
           <div className="fixed bottom-20 left-4 right-4 md:static">
             <Button onClick={handleNext} className="w-full h-14 text-lg shadow-xl md:max-w-md mx-auto block">
-              Continue ({selectedSeats.length} Seats)
+              متابعة ({selectedSeats.length} مقاعد)
             </Button>
           </div>
         </div>
@@ -106,22 +106,22 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Selected Seats: {selectedSeats.join(", ")}</CardTitle>
+              <CardTitle className="text-lg">المقاعد المختارة: {selectedSeats.join(", ")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedSeats.map((seat, index) => (
-                <div key={seat} className="p-4 border rounded-lg space-y-3 bg-white">
+                <div key={seat} className="p-4 border rounded-lg space-y-3 bg-white text-right">
                   <div className="flex items-center gap-2 text-primary font-semibold">
                     <User className="h-4 w-4" />
-                    <span>Passenger {index + 1} (Seat {seat})</span>
+                    <span>المسافر {index + 1} (مقعد {seat})</span>
                   </div>
                   <div className="space-y-2">
-                    <Label>Full Name</Label>
-                    <input className="w-full p-2 border rounded-md" placeholder="Enter full name" />
+                    <Label>الاسم الكامل</Label>
+                    <input className="w-full p-2 border rounded-md" placeholder="أدخل الاسم الكامل" />
                   </div>
                   <div className="space-y-2">
-                    <Label>Passport/ID Number</Label>
-                    <input className="w-full p-2 border rounded-md" placeholder="Enter ID number" />
+                    <Label>رقم الهوية / جواز السفر</Label>
+                    <input className="w-full p-2 border rounded-md" placeholder="أدخل رقم الهوية" />
                   </div>
                 </div>
               ))}
@@ -129,24 +129,24 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
           </Card>
 
           <Card>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 space-y-4 text-right">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Trip Fare x {selectedSeats.length}</span>
+                <span className="text-muted-foreground">سعر التذكرة x {selectedSeats.length}</span>
                 <span className="font-bold">${350 * selectedSeats.length}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Booking Fee</span>
+                <span className="text-muted-foreground">رسوم الحجز</span>
                 <span className="font-bold">$10</span>
               </div>
               <div className="pt-4 border-t flex justify-between items-center text-xl font-bold text-primary">
-                <span>Total Amount</span>
+                <span>المبلغ الإجمالي</span>
                 <span>${(350 * selectedSeats.length) + 10}</span>
               </div>
             </CardContent>
           </Card>
 
           <Button onClick={handlePayment} className="w-full h-14 text-lg shadow-xl">
-            Proceed to Payment
+            الانتقال للدفع
           </Button>
         </div>
       )}

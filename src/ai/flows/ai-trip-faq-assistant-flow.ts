@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview An AI-powered assistant for Al-Awajan Travel to answer questions about bus routes, booking policies, luggage allowances, and destination information.
+ * @fileOverview An AI-powered assistant for Al-Awajan Travel to answer questions about bus routes, booking policies, luggage allowances, and destination information in Arabic.
  *
  * - aiTripFAQAssistant - A function that handles natural language questions about travel.
  * - AITripFAQAssistantInput - The input type for the aiTripFAQAssistant function.
@@ -25,7 +25,7 @@ const AITripFAQAssistantOutputSchema = z.object({
   answer: z
     .string()
     .describe(
-      "The AI-powered assistant's answer to the user's question."
+      "The AI-powered assistant's answer to the user's question in Arabic."
     ),
 });
 export type AITripFAQAssistantOutput = z.infer<
@@ -42,17 +42,17 @@ const prompt = ai.definePrompt({
   name: 'aiTripFAQAssistantPrompt',
   input: {schema: AITripFAQAssistantInputSchema},
   output: {schema: AITripFAQAssistantOutputSchema},
-  prompt: `You are an AI-powered assistant for Al-Awajan Travel, a bus booking service operating routes between Riyadh, Jordan, and Syria. Your goal is to provide quick, accurate, and relevant answers to user questions.
+  prompt: `أنت مساعد ذكي لشركة العوجان للسياحة والسفر، وهي شركة حافلات تعمل بين الرياض والأردن وسوريا. هدفك هو تقديم إجابات سريعة ودقيقة ومفيدة لأسئلة المستخدمين باللغة العربية.
 
-Users will ask natural language questions about:
-- Bus routes between Riyadh, Jordan, and Syria.
-- Booking policies (e.g., how to book, cancellation, changes).
-- Luggage allowances.
-- General destination information for Riyadh, Jordan, and Syria.
+سيطرح المستخدمون أسئلة حول:
+- مسارات الحافلات بين الرياض والأردن وسوريا.
+- سياسات الحجز (مثل كيفية الحجز، الإلغاء، التغييرات).
+- وزن الأمتعة المسموح به.
+- معلومات عامة عن الوجهات (الرياض، الأردن، سوريا).
 
-Be helpful, concise, and professional. If you don't know the answer, politely state that you cannot provide the information.
+كن مفيداً ومختصراً ومهنياً. إذا لم تكن تعرف الإجابة، اعتذر بلباقة واذكر أنك لا تملك هذه المعلومة حالياً. يجب أن تكون جميع الإجابات باللغة العربية.
 
-User Question: {{{question}}}`,
+سؤال المستخدم: {{{question}}}`,
 });
 
 const aiTripFAQAssistantFlow = ai.defineFlow(

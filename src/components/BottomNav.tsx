@@ -6,11 +6,11 @@ import { Search, MapPin, Package, MessageSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Book", href: "/", icon: Search },
-  { label: "Track", href: "/track", icon: MapPin },
-  { label: "Parcels", href: "/parcels", icon: Package },
-  { label: "AI Help", href: "/assistant", icon: MessageSquare },
-  { label: "Profile", href: "/profile", icon: User },
+  { label: "حجز", href: "/", icon: Search },
+  { label: "تتبع", href: "/track", icon: MapPin },
+  { label: "طرود", href: "/parcels", icon: Package },
+  { label: "المساعد الآلي", href: "/assistant", icon: MessageSquare },
+  { label: "حسابي", href: "/profile", icon: User },
 ];
 
 export default function BottomNav() {
