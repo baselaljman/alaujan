@@ -100,7 +100,6 @@ export default function ParcelsPage() {
             <CardContent className="p-4 flex flex-col items-center text-center gap-2">
               <Truck className="h-8 w-8 text-primary" />
               <h4 className="font-bold text-sm">شحن سريع</h4>
-              <p className="text-xs text-muted-foreground">من مدينة لمدينة في أقل من 24 ساعة</p>
             </CardContent>
           </Card>
           <Card className="bg-primary/5 border-none">
