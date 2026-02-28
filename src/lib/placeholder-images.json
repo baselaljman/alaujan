@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bus",
+      "description": "Modern travel bus on a highway",
+      "imageUrl": "https://images.unsplash.com/photo-1658727965704-081e5ca55269?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx0cmF2ZWwlMjBidXN8ZW58MHx8fHwxNzcyMTg4Mjc5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "travel bus"
+    },
+    {
+      "id": "riyadh",
+      "description": "Riyadh city skyline",
+      "imageUrl": "https://images.unsplash.com/photo-1663900108404-a05e8bf82cda?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyaXlhZGglMjBza3lsaW5lfGVufDB8fHx8MTc3MjI0NDM2MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "riyadh skyline"
+    },
+    {
+      "id": "jordan",
+      "description": "Petra, Jordan landscape",
+      "imageUrl": "https://images.unsplash.com/photo-1554357475-accb8a88a330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXRyYSUyMGpvcmRhbnxlbnwwfHx8fDE3NzIyNDQzNjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "petra jordan"
+    },
+    {
+      "id": "syria",
+      "description": "Damascus old city",
+      "imageUrl": "https://images.unsplash.com/photo-1695779878298-a3377ff99609?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZGFtYXNjdXMlMjBjaXR5fGVufDB8fHx8MTc3MjI0NDM2MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "damascus city"
+    }
+  ]
 }
