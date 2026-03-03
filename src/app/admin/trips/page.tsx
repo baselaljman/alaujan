@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
-import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, ChevronLeft } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -23,6 +23,8 @@ export default function AdminTrips() {
   
   // States for the new trip form
   const [busId, setBusId] = useState("");
+  const [originId, setOriginId] = useState("");
+  const [destinationId, setDestinationId] = useState("");
   const [status, setStatus] = useState("Scheduled");
   const [pricePerSeat, setPricePerSeat] = useState(350);
   const [availableSeats, setAvailableSeats] = useState(40);
@@ -33,19 +35,37 @@ export default function AdminTrips() {
   const [arrivalDate, setArrivalDate] = useState<Date>();
   const [arrivalTime, setArrivalTime] = useState("20:00");
 
+  // Fetch Locations for the selects
+  const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
+  const { data: locations } = useCollection(locationsRef);
+
+  // Fetch Trips
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!busId || !departureDate || !arrivalDate) {
+    if (!busId || !departureDate || !arrivalDate || !originId || !destinationId) {
       toast({ 
         title: "بيانات ناقصة", 
-        description: "يرجى اختيار التاريخ ورقم الحافلة",
+        description: "يرجى اختيار المدن والتاريخ ورقم الحافلة",
         variant: "destructive"
       });
       return;
     }
+
+    if (originId === destinationId) {
+      toast({ 
+        title: "خطأ في المسار", 
+        description: "لا يمكن أن تكون مدينة الانطلاق هي نفسها مدينة الوصول",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Find location names for denormalization (easier to display later)
+    const originName = locations?.find(l => l.id === originId)?.name || "";
+    const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
 
     // Construct ISO strings
     const depDateTime = new Date(departureDate);
@@ -58,6 +78,10 @@ export default function AdminTrips() {
 
     addDocumentNonBlocking(tripsRef, {
       busId,
+      originId,
+      originName,
+      destinationId,
+      destinationName,
       status,
       pricePerSeat: Number(pricePerSeat),
       availableSeats: Number(availableSeats),
@@ -74,6 +98,8 @@ export default function AdminTrips() {
 
   const resetForm = () => {
     setBusId("");
+    setOriginId("");
+    setDestinationId("");
     setDepartureDate(undefined);
     setArrivalDate(undefined);
     setPricePerSeat(350);
@@ -103,6 +129,36 @@ export default function AdminTrips() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddTrip} className="space-y-6 text-right">
+              {/* Route Selection */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>من (مدينة الانطلاق)</Label>
+                  <Select onValueChange={setOriginId} value={originId}>
+                    <SelectTrigger className="rounded-xl h-12">
+                      <SelectValue placeholder="اختر مدينة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations?.map(loc => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name} - {loc.country}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>إلى (الوجهة)</Label>
+                  <Select onValueChange={setDestinationId} value={destinationId}>
+                    <SelectTrigger className="rounded-xl h-12">
+                      <SelectValue placeholder="اختر وجهة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations?.map(loc => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name} - {loc.country}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>رقم الحافلة</Label>
@@ -110,13 +166,13 @@ export default function AdminTrips() {
                     placeholder="مثلاً: AWJ-700" 
                     value={busId}
                     onChange={e => setBusId(e.target.value)}
-                    className="rounded-xl"
+                    className="rounded-xl h-12"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>الحالة</Label>
                   <Select onValueChange={setStatus} defaultValue="Scheduled">
-                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="rounded-xl h-12"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Scheduled">مجدولة</SelectItem>
                       <SelectItem value="Departed">انطلقت</SelectItem>
@@ -244,14 +300,16 @@ export default function AdminTrips() {
                   <Bus className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-sm">حافلة: {trip.busId}</p>
-                  <div className="flex flex-col gap-0.5 mt-1">
+                  <div className="flex items-center gap-2 font-bold text-sm text-primary mb-1">
+                    <span>{trip.originName || "غير محدد"}</span>
+                    <ArrowLeft className="h-3 w-3" />
+                    <span>{trip.destinationName || "غير محدد"}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <CalendarIcon className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      <CalendarIcon className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </p>
-                    <p className="text-[10px] text-primary font-bold flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> الساعة {new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground">حافلة: {trip.busId}</p>
                   </div>
                 </div>
               </div>
