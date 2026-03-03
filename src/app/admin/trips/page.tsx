@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -26,6 +26,14 @@ export default function AdminTrips() {
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   
+  // State for editing a passenger
+  const [editingPassenger, setEditingPassenger] = useState<{
+    bookingId: string;
+    passengerIndex: number;
+    fullName: string;
+    passportNumber: string;
+  } | null>(null);
+
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -96,6 +104,27 @@ export default function AdminTrips() {
     }
   };
 
+  const handleUpdatePassenger = () => {
+    if (!editingPassenger || !manifestBookings) return;
+
+    const booking = manifestBookings.find(b => b.id === editingPassenger.bookingId);
+    if (!booking) return;
+
+    const updatedPassengers = [...booking.passengers];
+    updatedPassengers[editingPassenger.passengerIndex] = {
+      ...updatedPassengers[editingPassenger.passengerIndex],
+      fullName: editingPassenger.fullName,
+      passportNumber: editingPassenger.passportNumber
+    };
+
+    updateDocumentNonBlocking(doc(firestore, "bookings", editingPassenger.bookingId), {
+      passengers: updatedPassengers
+    });
+
+    toast({ title: "تم التحديث", description: "تم تعديل بيانات المسافر بنجاح" });
+    setEditingPassenger(null);
+  };
+
   return (
     <div className="space-y-6 pb-20">
       <header className="flex items-center justify-between">
@@ -104,6 +133,42 @@ export default function AdminTrips() {
           {isAdding ? "إلغاء" : <><Plus className="h-4 w-4" /> إضافة رحلة</>}
         </Button>
       </header>
+
+      {/* Edit Passenger Dialog */}
+      <Dialog open={!!editingPassenger} onOpenChange={(open) => !open && setEditingPassenger(null)}>
+        <DialogContent className="text-right">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 justify-end">
+              <span>تعديل بيانات المسافر</span>
+              <Edit className="h-5 w-5 text-primary" />
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>الاسم الكامل</Label>
+              <Input 
+                value={editingPassenger?.fullName || ""} 
+                onChange={(e) => setEditingPassenger(prev => prev ? {...prev, fullName: e.target.value} : null)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>رقم جواز السفر</Label>
+              <Input 
+                value={editingPassenger?.passportNumber || ""} 
+                onChange={(e) => setEditingPassenger(prev => prev ? {...prev, passportNumber: e.target.value} : null)}
+                className="rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-row-reverse gap-2">
+            <Button onClick={handleUpdatePassenger} className="rounded-xl gap-2">
+              <Save className="h-4 w-4" /> حفظ التعديلات
+            </Button>
+            <Button variant="outline" onClick={() => setEditingPassenger(null)} className="rounded-xl">إلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
         <AlertDialogContent className="text-right">
@@ -245,11 +310,12 @@ export default function AdminTrips() {
                               <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
                               <TableHead className="text-right font-bold">الأمتعة</TableHead>
                               <TableHead className="text-right font-bold">الدفع</TableHead>
+                              <TableHead className="text-center font-bold">إجراءات</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {manifestBookings?.length === 0 ? (
-                              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
                             ) : manifestBookings?.map(booking => (
                               booking.passengers?.map((p: any, idx: number) => (
                                 <TableRow key={`${booking.id}-${idx}`} className={idx === 0 ? "border-t-2" : ""}>
@@ -280,6 +346,21 @@ export default function AdminTrips() {
                                         {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
                                       </Badge>
                                     </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 text-primary hover:bg-primary/10"
+                                      onClick={() => setEditingPassenger({
+                                        bookingId: booking.id,
+                                        passengerIndex: idx,
+                                        fullName: p.fullName,
+                                        passportNumber: p.passportNumber
+                                      })}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
                                   </TableCell>
                                 </TableRow>
                               ))
