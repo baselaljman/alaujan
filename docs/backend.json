@@ -1,73 +1,609 @@
-
 {
   "entities": {
-    "Trip": {
-      "title": "Trip",
-      "description": "بيانات الرحلة المجدولة والموقع المباشر",
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
       "type": "object",
+      "description": "Represents a user registered in the application, storing personal information and references to their bookings and other activities. This entity assumes an external authentication system manages sensitive credentials.",
       "properties": {
-        "id": { "type": "string" },
-        "busNumber": { "type": "string" },
-        "driverId": { "type": "string" },
-        "status": { "type": "string", "enum": ["scheduled", "active", "completed"] },
-        "currentLocation": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" },
-            "lastUpdated": { "type": "string", "format": "date-time" }
-          }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
         },
-        "from": { "type": "string" },
-        "to": { "type": "string" },
-        "departureTime": { "type": "string" }
+        "email": {
+          "type": "string",
+          "description": "The user's email address, used for communication and identification.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The user's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The user's last name."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's contact phone number."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
       },
-      "required": ["busNumber", "status"]
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "phoneNumber",
+        "createdAt"
+      ]
     },
-    "Ticket": {
-      "title": "Ticket",
-      "description": "تذكرة حجز الراكب",
+    "Location": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Location",
       "type": "object",
+      "description": "Defines a physical location such as a city or a specific bus station, used as origin, destination, or intermediate stops for routes and parcels.",
       "properties": {
-        "id": { "type": "string" },
-        "tripId": { "type": "string" },
-        "passengerName": { "type": "string" },
-        "seatNumber": { "type": "number" },
-        "checkedIn": { "type": "boolean" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Location entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the location (e.g., 'Riyadh', 'Amman', 'Damascus')."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country where the location is situated."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the location, e.g., 'Main bus terminal'."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "country"
+      ]
+    },
+    "Bus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Bus",
+      "type": "object",
+      "description": "Represents a specific physical bus vehicle with its unique characteristics and capacity.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Bus entity."
+        },
+        "licensePlate": {
+          "type": "string",
+          "description": "The license plate number of the bus."
+        },
+        "model": {
+          "type": "string",
+          "description": "The model or type of the bus (e.g., 'Mercedes-Benz Travego')."
+        },
+        "capacity": {
+          "type": "number",
+          "description": "The total number of seats available on the bus."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "The name of the company operating the bus (e.g., 'Al-Awajan Travel')."
+        },
+        "features": {
+          "type": "array",
+          "description": "A list of features available on the bus (e.g., 'AC', 'Wi-Fi', 'Restroom').",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "licensePlate",
+        "model",
+        "capacity",
+        "companyName"
+      ]
+    },
+    "BusRoute": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BusRoute",
+      "type": "object",
+      "description": "Defines a predefined path between an origin and a destination, potentially with intermediate stops, regardless of a specific scheduled trip.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BusRoute entity."
+        },
+        "originLocationId": {
+          "type": "string",
+          "description": "Reference to the starting Location for this route. (Relationship: Location 1:N BusRoute)"
+        },
+        "destinationLocationId": {
+          "type": "string",
+          "description": "Reference to the final destination Location for this route. (Relationship: Location 1:N BusRoute)"
+        },
+        "routeName": {
+          "type": "string",
+          "description": "A descriptive name for the route (e.g., 'Riyadh to Damascus via Amman')."
+        },
+        "distanceKm": {
+          "type": "number",
+          "description": "The total distance of the route in kilometers."
+        },
+        "estimatedDurationHours": {
+          "type": "number",
+          "description": "The estimated duration of the entire route in hours."
+        },
+        "intermediateStopLocationIds": {
+          "type": "array",
+          "description": "References to Location entities that serve as intermediate stops on this route. (Relationship: Location N:N BusRoute)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "originLocationId",
+        "destinationLocationId",
+        "routeName",
+        "distanceKm",
+        "estimatedDurationHours"
+      ]
+    },
+    "BusTrip": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BusTrip",
+      "type": "object",
+      "description": "Represents a single scheduled instance of a bus route at a specific date and time, carrying passengers and potentially parcels.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BusTrip entity."
+        },
+        "busRouteId": {
+          "type": "string",
+          "description": "Reference to the BusRoute that this trip follows. (Relationship: BusRoute 1:N BusTrip)"
+        },
+        "busId": {
+          "type": "string",
+          "description": "Reference to the specific Bus vehicle assigned to this trip. (Relationship: Bus 1:N BusTrip)"
+        },
+        "departureTime": {
+          "type": "string",
+          "description": "The scheduled date and time of departure for this trip.",
+          "format": "date-time"
+        },
+        "arrivalTime": {
+          "type": "string",
+          "description": "The estimated date and time of arrival for this trip.",
+          "format": "date-time"
+        },
+        "availableSeats": {
+          "type": "number",
+          "description": "The current number of seats available for booking on this trip."
+        },
+        "totalSeats": {
+          "type": "number",
+          "description": "The total capacity of seats on this trip."
+        },
+        "pricePerSeat": {
+          "type": "number",
+          "description": "The price for a single seat on this trip."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the trip (e.g., 'Scheduled', 'Departed', 'Arrived', 'Cancelled', 'Delayed')."
+        }
+      },
+      "required": [
+        "id",
+        "busRouteId",
+        "busId",
+        "departureTime",
+        "arrivalTime",
+        "availableSeats",
+        "totalSeats",
+        "pricePerSeat",
+        "status"
+      ]
+    },
+    "Booking": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Booking",
+      "type": "object",
+      "description": "Represents a user's reservation for one or more seats on a specific bus trip.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Booking entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who made the booking. (Relationship: UserProfile 1:N Booking)"
+        },
+        "busTripId": {
+          "type": "string",
+          "description": "Reference to the BusTrip for which seats are booked. (Relationship: BusTrip 1:N Booking)"
+        },
+        "numberOfSeats": {
+          "type": "number",
+          "description": "The number of seats booked in this reservation."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total monetary amount for this booking."
+        },
+        "bookingDate": {
+          "type": "string",
+          "description": "The date and time when the booking was made.",
+          "format": "date-time"
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The status of the payment for this booking (e.g., 'Pending', 'Completed', 'Failed', 'Refunded')."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "The method used for payment (e.g., 'Credit Card', 'Apple Pay', 'Google Pay', 'Cash on Delivery')."
+        },
+        "status": {
+          "type": "string",
+          "description": "The overall status of the booking (e.g., 'Confirmed', 'Cancelled', 'Modified')."
+        },
+        "seatNumbers": {
+          "type": "array",
+          "description": "An array of specific seat numbers assigned to this booking (e.g., ['A1', 'A2']).",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "busTripId",
+        "numberOfSeats",
+        "totalAmount",
+        "bookingDate",
+        "paymentStatus",
+        "paymentMethod",
+        "status"
+      ]
     },
     "Parcel": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Parcel",
-      "description": "بيانات الطرد وربطه بالرحلة والمحافظة",
       "type": "object",
+      "description": "Represents a package or item being transported by the bus service, with tracking capabilities.",
       "properties": {
-        "id": { "type": "string" },
-        "tripId": { "type": "string" },
-        "senderName": { "type": "string" },
-        "receiverName": { "type": "string" },
-        "destinationProvince": { "type": "string" },
-        "currentProvince": { "type": "string" },
-        "status": { "type": "string", "enum": ["received", "on-bus", "arrived-at-hub", "delivered"] },
-        "description": { "type": "string" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Parcel entity."
+        },
+        "trackingNumber": {
+          "type": "string",
+          "description": "A unique alphanumeric code used to track the parcel's journey."
+        },
+        "senderUserId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who sent the parcel, if applicable. (Relationship: UserProfile 1:N Parcel)"
+        },
+        "recipientName": {
+          "type": "string",
+          "description": "The full name of the parcel recipient."
+        },
+        "recipientPhoneNumber": {
+          "type": "string",
+          "description": "The contact phone number of the parcel recipient."
+        },
+        "recipientAddress": {
+          "type": "string",
+          "description": "The full delivery address for the parcel."
+        },
+        "originLocationId": {
+          "type": "string",
+          "description": "Reference to the Location where the parcel was dropped off or originated. (Relationship: Location 1:N Parcel)"
+        },
+        "destinationLocationId": {
+          "type": "string",
+          "description": "Reference to the final Location for the parcel's delivery. (Relationship: Location 1:N Parcel)"
+        },
+        "weightKg": {
+          "type": "number",
+          "description": "The weight of the parcel in kilograms."
+        },
+        "dimensionsCm": {
+          "type": "string",
+          "description": "The dimensions of the parcel (e.g., '10x20x30' for LxWxH in cm)."
+        },
+        "declaredValue": {
+          "type": "number",
+          "description": "The declared monetary value of the parcel's contents for insurance purposes."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the parcel (e.g., 'Pending Pickup', 'In Transit', 'Out for Delivery', 'Delivered', 'Held')."
+        },
+        "currentLocationDescription": {
+          "type": "string",
+          "description": "A descriptive string indicating the parcel's current physical location or processing hub."
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "description": "Timestamp when the parcel's status or location was last updated.",
+          "format": "date-time"
+        },
+        "expectedDeliveryDate": {
+          "type": "string",
+          "description": "The estimated date for the parcel's delivery.",
+          "format": "date-time"
+        },
+        "busTripId": {
+          "type": "string",
+          "description": "Reference to the BusTrip on which this parcel is currently being transported. (Relationship: BusTrip 1:N Parcel)"
+        }
       },
-      "required": ["id", "destinationProvince", "status"]
+      "required": [
+        "id",
+        "trackingNumber",
+        "recipientName",
+        "recipientPhoneNumber",
+        "recipientAddress",
+        "originLocationId",
+        "destinationLocationId",
+        "weightKg",
+        "status",
+        "lastUpdatedAt"
+      ]
+    },
+    "Review": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Review",
+      "type": "object",
+      "description": "Stores user feedback, including ratings and comments, for completed bus trips to help improve service quality.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Review entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who submitted the review. (Relationship: UserProfile 1:N Review)"
+        },
+        "busTripId": {
+          "type": "string",
+          "description": "Reference to the BusTrip that is being reviewed. (Relationship: BusTrip 1:N Review)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "The rating given by the user, typically on a scale (e.g., 1-5 stars)."
+        },
+        "comment": {
+          "type": "string",
+          "description": "The textual feedback or comment provided by the user."
+        },
+        "reviewDate": {
+          "type": "string",
+          "description": "The date and time when the review was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "busTripId",
+        "rating",
+        "reviewDate"
+      ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents an alert or message sent to a specific user regarding trip updates, parcel status, or other app-related information.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Notification entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who is the recipient of this notification. (Relationship: UserProfile 1:N Notification)"
+        },
+        "type": {
+          "type": "string",
+          "description": "The category or type of the notification (e.g., 'TripUpdate', 'ParcelStatus', 'Promotion')."
+        },
+        "message": {
+          "type": "string",
+          "description": "The actual content or text of the notification message."
+        },
+        "relatedEntityId": {
+          "type": "string",
+          "description": "Optional reference to an entity related to this notification (e.g., a 'busTripId' or 'parcelId' for deep linking)."
+        },
+        "isRead": {
+          "type": "boolean",
+          "description": "A boolean indicating whether the user has read or viewed the notification."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the notification was created and sent.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "type",
+        "message",
+        "isRead",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com", "password"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/trips/{tripId}": {
-      "schema": "Trip",
-      "description": "مستندات الرحلات ومواقعها المباشرة"
-    },
-    "/trips/{tripId}/tickets/{ticketId}": {
-      "schema": "Ticket",
-      "description": "تذاكر الركاب التابعة لرحلة معينة"
-    },
-    "/parcels/{parcelId}": {
-      "schema": "Parcel",
-      "description": "بيانات الطرود الموزعة عبر الرحلات"
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. The document ID '{userId}' must match the Firebase Authentication UID of the user. This path enforces path-based ownership for private user data."
+        }
+      },
+      {
+        "path": "/users/{userId}/bookings/{bookingId}",
+        "definition": {
+          "entityName": "Booking",
+          "schema": {
+            "$ref": "#/backend/entities/Booking"
+          },
+          "description": "Contains bookings made by a specific user. The '{userId}' in the path ties bookings directly to the owner, ensuring private and easily secured access. The 'userId' field within the document is denormalized for query validation.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who owns this booking, matching Firebase Authentication UID."
+            },
+            {
+              "name": "bookingId",
+              "description": "The unique identifier for the booking document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications specific to a user. The '{userId}' in the path ensures that only the intended recipient can access their notifications. The 'userId' field within the document is denormalized for query validation.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who is the recipient of this notification, matching Firebase Authentication UID."
+            },
+            {
+              "name": "notificationId",
+              "description": "The unique identifier for the notification document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/locations/{locationId}",
+        "definition": {
+          "entityName": "Location",
+          "schema": {
+            "$ref": "#/backend/entities/Location"
+          },
+          "description": "Stores definitions of physical locations (cities, stations). These are generally public read and admin-managed. No user-specific authorization denormalization is required."
+        }
+      },
+      {
+        "path": "/buses/{busId}",
+        "definition": {
+          "entityName": "Bus",
+          "schema": {
+            "$ref": "#/backend/entities/Bus"
+          },
+          "description": "Contains details about bus vehicles. This collection is primarily admin-managed and system-read. No user-specific authorization denormalization is required."
+        }
+      },
+      {
+        "path": "/busRoutes/{busRouteId}",
+        "definition": {
+          "entityName": "BusRoute",
+          "schema": {
+            "$ref": "#/backend/entities/BusRoute"
+          },
+          "description": "Defines fixed bus paths between locations. These are publicly readable for trip search functionality and admin-managed. No user-specific authorization denormalization is required."
+        }
+      },
+      {
+        "path": "/busTrips/{busTripId}",
+        "definition": {
+          "entityName": "BusTrip",
+          "schema": {
+            "$ref": "#/backend/entities/BusTrip"
+          },
+          "description": "Represents scheduled instances of bus routes. These are publicly readable for users to find and book trips, and admin-managed. No user-specific authorization denormalization is required."
+        }
+      },
+      {
+        "path": "/parcels/{parcelId}",
+        "definition": {
+          "entityName": "Parcel",
+          "schema": {
+            "$ref": "#/backend/entities/Parcel"
+          },
+          "description": "Stores information about parcels being transported. Includes denormalized 'senderUserId' for authorization independence, allowing logged-in senders to manage and view their parcels. This supports efficient list queries by sender and public tracking via 'trackingNumber' (though public tracking may require a Cloud Function for secure rule enforcement beyond simple document IDs).",
+          "params": [
+            {
+              "name": "parcelId",
+              "description": "The unique identifier for the parcel document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/reviews/{reviewId}",
+        "definition": {
+          "entityName": "Review",
+          "schema": {
+            "$ref": "#/backend/entities/Review"
+          },
+          "description": "Contains user reviews for bus trips. Includes denormalized 'userId' for authorization independence, allowing the reviewer to modify their own review. This collection is publicly readable to display feedback for specific trips and supports efficient list queries by 'busTripId'.",
+          "params": [
+            {
+              "name": "reviewId",
+              "description": "The unique identifier for the review document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "Role",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Defines administrative roles based on user UIDs. The existence of a document at '/roles_admin/{adminId}' where '{adminId}' matches a user's UID grants administrative privileges. This uses DBAC (Database Access Control) for authorization checks.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The unique identifier of a user with administrative privileges, matching Firebase Authentication UID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure prioritizes Authorization Independence and Query-Agnostic Rules (QAPs) by strategically employing path-based ownership, structural segregation, and denormalization of authorization context. \n\n**Authorization Independence:**\n1.  **Path-Based Ownership:** For entities strictly owned by a single user (e.g., `UserProfile`, `Booking`, `Notification`), data is nested under `/users/{userId}`. This ensures that `request.auth.uid` can be directly matched against the `{userId}` wildcard in the path, eliminating the need for `get()` calls to parent documents for authorization checks. For example, a user's bookings are at `/users/{userId}/bookings/{bookingId}`, where `{userId}` directly identifies the owner.\n2.  **Denormalization:** For entities that need broader access or are top-level but have owner-specific actions (e.g., `Parcel`, `Review`), the `userId` of the owner/creator is denormalized and stored directly within the document itself. For instance, a `Parcel` document at `/parcels/{parcelId}` will include `senderUserId` to allow the sender to query or manage their parcels without relying on a parent document. Similarly, a `Review` document at `/reviews/{reviewId}` will contain the `userId` of the reviewer, enabling them to modify their own reviews while allowing public read access. This eliminates hierarchical authorization dependencies and supports atomic write operations (e.g., creating a Parcel doesn't require reading a UserProfile for authorization).\n\n**Query-Agnostic Rules (QAPs):**\n1.  **Structural Segregation:** Publicly readable data (e.g., `Location`, `BusRoute`, `BusTrip`) is placed in top-level collections (`/locations`, `/busRoutes`, `/busTrips`). This allows for efficient and secure `list` queries without complex filtering logic in security rules. For example, users can query for available `BusTrips` based on origin, destination, and date without rules filtering the results.\n2.  **Denormalization for User-Specific Lists:** For user-owned data in top-level collections (like `Parcels` and `Reviews`), the `senderUserId` or `userId` is denormalized into the document. This enables efficient `list` operations for authenticated users (e.g., a user can query `parcels.where('senderUserId', '==', request.auth.uid)`) because the authorization field is present in every document, preventing rules from acting as filters.\n3.  **Dedicated Role Collections:** Administrative roles are managed via a dedicated collection `/roles_admin/{adminId}`. The mere existence of a document at `/roles_admin/$(request.auth.uid)` grants admin privileges, enabling simple `exists()` checks in security rules to allow management of public entities like `Locations`, `Buses`, `BusRoutes`, and `BusTrips`.\n\nThis design ensures that security rules remain simple, explicit, and debuggable, while maintaining high performance for both individual document access and collection queries, fulfilling all core design principles and strategy mandates."
   }
 }

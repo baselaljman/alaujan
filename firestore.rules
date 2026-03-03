@@ -1,0 +1,168 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * APP SECURITY STRATEGY: Bus & Parcel Service
+     * 
+     * Core Philosophy:
+     * This ruleset implements a hybrid security model designed for high-performance bus booking 
+     * and parcel tracking. It prioritizes Authorization Independence to minimize costly 
+     * cross-document lookups (get() calls).
+     * 
+     * Data Structure:
+     * 1. Private User Data: Nested under /users/{userId}/... using Path-Based Ownership. 
+     *    This includes profiles, bookings, and notifications.
+     * 2. Public Catalog: Top-level collections (/locations, /busRoutes, /busTrips) are 
+     *    publicly readable for search functionality but strictly admin-managed.
+     * 3. Flat Ownership: Entities like Parcels and Reviews live at the top level for 
+     *    global accessibility (tracking/feedback) but use internal owner IDs (senderUserId/userId) 
+     *    for write authorization.
+     * 
+     * Key Security Decisions:
+     * - RBAC (Role-Based Access Control): Admin privileges are determined by the existence 
+     *   of a document in the /roles_admin collection matching the user's UID.
+     * - Relational Integrity: On creation of user-scoped documents, the internal UID field 
+     *   must match the path UID to prevent cross-user data injection.
+     * - Prototyping Mode: Schema validation (data types) is omitted to allow rapid iteration 
+     *   while maintaining strict identity-based access control.
+     */
+
+    // --- Helper Functions ---
+
+    // Basic authentication check
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Path-based ownership check
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Verify document existence and ownership for destructive operations
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // Check for administrative privileges via the dedicated roles collection
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // Validates that a specific field in the incoming data matches the user's identity
+    function isValidOwnership(field) {
+      return request.resource.data[field] == request.auth.uid;
+    }
+
+    // Ensures a field cannot be changed during an update
+    function isImmutable(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Administrative role assignments. Existence of a UID here grants global admin rights.
+     * @path /roles_admin/{adminId}
+     * @allow (get) If the requesting user is an admin.
+     * @deny (create) All client-side writes; roles should be managed via console or secure script.
+     * @principle Database-level Access Control (DBAC).
+     */
+    match /roles_admin/{adminId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Private user profiles. Document ID must match Auth UID.
+     * @path /users/{userId}
+     * @allow (create) If the UID in the path matches the Auth UID.
+     * @deny (update) If the request comes from a different user.
+     * @principle Path-based ownership.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update, delete: if isExistingOwner(userId);
+
+      /**
+       * @description Bookings owned by a specific user.
+       * @path /users/{userId}/bookings/{bookingId}
+       * @allow (create) If the ownerId in data matches the path and the user is the owner.
+       * @principle Relational integrity between path and document data.
+       */
+      match /bookings/{bookingId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && isImmutable('userId');
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Notifications for a specific user. Usually system-generated.
+       * @path /users/{userId}/notifications/{notificationId}
+       * @allow (update) User marking a notification as read.
+       * @principle Restricted subcollection access.
+       */
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isAdmin();
+        allow update, delete: if isExistingOwner(userId);
+      }
+    }
+
+    /**
+     * @description Publicly readable entities managed by administrators.
+     * @path /locations/{id}, /buses/{id}, /busRoutes/{id}, /busTrips/{id}
+     * @allow (list) Any user (including anonymous) can browse trips and locations.
+     * @deny (write) Any non-admin user.
+     * @principle Public read with admin-only writes.
+     */
+    match /locations/{locationId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /buses/{busId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /busRoutes/{busRouteId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /busTrips/{busTripId} {
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Parcel tracking information. Senders can manage their own parcels.
+     * @path /parcels/{parcelId}
+     * @allow (get) Public tracking.
+     * @allow (create) Signed-in user setting themselves as the senderUserId.
+     * @principle Owner-only writes using internal document fields.
+     */
+    match /parcels/{parcelId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidOwnership('senderUserId');
+      allow update, delete: if isAdmin() || (resource != null && isOwner(resource.data.senderUserId));
+    }
+
+    /**
+     * @description User-submitted feedback for trips.
+     * @path /reviews/{reviewId}
+     * @allow (list) Publicly viewable feedback.
+     * @allow (update) The original reviewer modifying their comment.
+     * @principle Public consumption with authenticated author control.
+     */
+    match /reviews/{reviewId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidOwnership('userId');
+      allow update, delete: if isAdmin() || (resource != null && isOwner(resource.data.userId));
+    }
+  }
+}
