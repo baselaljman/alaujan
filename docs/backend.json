@@ -35,6 +35,22 @@
         "seatNumber": { "type": "number" },
         "checkedIn": { "type": "boolean" }
       }
+    },
+    "Parcel": {
+      "title": "Parcel",
+      "description": "بيانات الطرد وربطه بالرحلة والمحافظة",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tripId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "destinationProvince": { "type": "string" },
+        "currentProvince": { "type": "string" },
+        "status": { "type": "string", "enum": ["received", "on-bus", "arrived-at-hub", "delivered"] },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "destinationProvince", "status"]
     }
   },
   "auth": {
@@ -48,6 +64,10 @@
     "/trips/{tripId}/tickets/{ticketId}": {
       "schema": "Ticket",
       "description": "تذاكر الركاب التابعة لرحلة معينة"
+    },
+    "/parcels/{parcelId}": {
+      "schema": "Parcel",
+      "description": "بيانات الطرود الموزعة عبر الرحلات"
     }
   }
 }
