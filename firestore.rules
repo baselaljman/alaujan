@@ -5,19 +5,21 @@ service cloud.firestore {
     /**
      * APP SECURITY STRATEGY: Al-Awajan Travel (Prototyping Phase)
      * 
-     * NOTE: For the current prototyping phase, rules have been set to 'true' 
-     * for all paths to allow the user to build the database and manage 
-     * trips/parcels/locations without authentication hurdles.
-     * In production, these should be restricted to authenticated owners/admins.
+     * تم فتح الصلاحيات بشكل كامل لضمان عمل كافة ميزات لوحة التحكم 
+     * والاستعلامات المجمعة (Collection Group Queries) بدون عوائق.
      */
 
-    // Permissive rule for all documents and collection groups
+    // السماح بالقراءة والكتابة لكافة المستندات والمجموعات
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // Explicitly allow collection group queries for bookings (used in Admin Manifest)
+    // تأكيد إضافي للسماح بالاستعلامات المجمعة (Collection Group)
     match /{path=**}/bookings/{bookingId} {
+      allow read, write: if true;
+    }
+    
+    match /{path=**}/parcels/{parcelId} {
       allow read, write: if true;
     }
   }
