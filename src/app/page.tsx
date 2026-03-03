@@ -17,7 +17,7 @@ import { CalendarIcon, MapPin, Bus, Search, Package, Loader2, Info } from "lucid
 import { cn } from "@/lib/utils";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 
 export default function HomePage() {
   const router = useRouter();
@@ -219,8 +219,8 @@ export default function HomePage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl border-primary/10 shadow-2xl" align="center" sideOffset={10}>
-                  <div className="p-3 bg-primary/5 text-[10px] text-center text-primary font-bold border-b">
-                    التواريخ المظللة بالزمردي تحتوي على رحلات متاحة
+                  <div className="p-3 bg-secondary text-[10px] text-center text-secondary-foreground font-bold border-b">
+                    التواريخ المظللة باللون الثانوي تحتوي على رحلات متاحة
                   </div>
                   <Calendar
                     mode="single"
@@ -234,6 +234,12 @@ export default function HomePage() {
                       const isPast = date < today;
                       const hasNoTrip = !availableTripDates.has(startOfDay(date).toDateString());
                       return isPast || hasNoTrip;
+                    }}
+                    modifiers={{
+                      available: (date) => availableTripDates.has(startOfDay(date).toDateString())
+                    }}
+                    modifiersClassNames={{
+                      available: "bg-secondary text-secondary-foreground font-bold hover:bg-secondary/80"
                     }}
                     classNames={{
                       day_selected: "bg-primary text-white hover:bg-primary/90 focus:bg-primary font-bold rounded-lg",
