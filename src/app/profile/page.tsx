@@ -7,11 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, Ticket, Heart, Bell, ChevronLeft, Bus, ShieldAlert, Loader2, Mail, User as UserIcon } from "lucide-react";
 import Link from "next/link";
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { useRouter } from "next/navigation";
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { toast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
   const firestore = useFirestore();
 
   // جلب بيانات ملف المستخدم الشخصي
@@ -29,6 +34,23 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
 
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: "تم تسجيل الخروج",
+        description: "تم تسجيل خروجك من الحساب بنجاح.",
+      });
+      router.push("/");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء محاولة تسجيل الخروج.",
+      });
+    }
+  };
 
   if (isUserLoading || isProfileLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
@@ -131,7 +153,11 @@ export default function ProfilePage() {
         </Button>
       </div>
 
-      <Button variant="outline" className="w-full h-14 rounded-2xl text-destructive border-destructive/20 hover:bg-destructive/5 transition-colors font-bold mt-6">
+      <Button 
+        variant="outline" 
+        onClick={handleLogout}
+        className="w-full h-14 rounded-2xl text-destructive border-destructive/20 hover:bg-destructive/5 transition-colors font-bold mt-6"
+      >
         <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من الحساب
       </Button>
     </div>
