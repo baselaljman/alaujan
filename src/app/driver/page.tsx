@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle, Clock } from "lucide-react";
+import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle, Clock, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface Passenger {
   id: string;
