@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
+import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
 
 function CheckoutContent() {
