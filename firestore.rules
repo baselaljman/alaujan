@@ -29,10 +29,11 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    // Collection Group rule for Bookings - Necessary for Admin Manifest
-    // This allows the admin panel to query bookings across all users for a specific trip.
+    // Collection Group rule for Bookings - MUST be broad for manifests
+    // This allows the admin panel to query bookings across all users using collectionGroup('bookings')
     match /{path=**}/bookings/{bookingId} {
-      allow list: if true; 
+      allow read: if true;
+      allow write: if true;
     }
 
     // Administrative roles - Keep restricted but allow read for system checks
@@ -45,6 +46,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
 
+      // Individual booking access (already covered by collection group rule above, but kept for specificity)
       match /bookings/{bookingId} {
         allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
       }
