@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,12 +32,10 @@ export default function TrackingPage() {
   const GOOGLE_MAPS_KEY = "AIzaSyAwALad8_XPMoqQp1VhxoT_fFKTcLQ-9S4";
   
   const getMapUrl = () => {
-    // نفضل استخدام الإحداثيات المباشرة إذا توفرت
-    if (trip?.currentLat && trip?.currentLng) {
-      return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_KEY}&q=${trip.currentLat},${trip.currentLng}&zoom=14`;
-    }
-    // إذا كانت الرحلة حية ولكن بدون إحداثيات (في البداية)، نعرض صورة خريطة ثابتة
-    return `https://picsum.photos/seed/map-placeholder/800/400`;
+    // نستخدم الإحداثيات المباشرة أو إحداثيات افتراضية إذا كان البث نشطاً
+    const lat = trip?.currentLat || 24.7136;
+    const lng = trip?.currentLng || 46.6753;
+    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_KEY}&q=${lat},${lng}&zoom=14`;
   };
 
   return (
@@ -90,7 +88,7 @@ export default function TrackingPage() {
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <Card className="overflow-hidden border-primary/20 shadow-xl bg-white/80 backdrop-blur-md">
                 <div className="h-72 bg-muted relative overflow-hidden border-b">
-                  {trip.isLive && trip.currentLat ? (
+                  {(trip.isLive || trip.status === "Departed") ? (
                     <div className="absolute inset-0 w-full h-full">
                       <iframe
                         width="100%"

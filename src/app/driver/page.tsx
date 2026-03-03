@@ -36,7 +36,6 @@ export default function DriverDashboard() {
     { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
   ]);
 
-  // معرف الرحلة التجريبي (يتم إنشاؤه آلياً إذا لم يكن موجوداً)
   const TRIP_ID = "AWJ-TRIP-TEST";
 
   const startLocationTracking = () => {
@@ -51,17 +50,24 @@ export default function DriverDashboard() {
 
     setIsTracking(true);
     
+    // إرسال أول تحديث فوراً لضمان ظهور الخريطة للمستخدمين
+    const tripRef = doc(firestore, "busTrips", TRIP_ID);
+    setDocumentNonBlocking(tripRef, {
+      isLive: true,
+      currentLat: 24.7136, // الرياض كإحداثيات افتراضية للبداية
+      currentLng: 46.6753,
+      lastLocationUpdate: new Date().toISOString(),
+      status: "Departed"
+    }, { merge: true });
+
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         const now = Date.now();
-        // إرسال التحديث فقط إذا مر 10 ثوانٍ على الأقل للحفاظ على البطارية والبيانات
         if (now - lastUpdateRef.current < 10000) return;
 
         const { latitude, longitude } = position.coords;
         lastUpdateRef.current = now;
         
-        const tripRef = doc(firestore, "busTrips", TRIP_ID);
-        // نستخدم setDocumentNonBlocking لضمان إنشاء المستند إذا لم يكن موجوداً
         setDocumentNonBlocking(tripRef, {
           currentLat: latitude,
           currentLng: longitude,
@@ -72,11 +78,11 @@ export default function DriverDashboard() {
       },
       (error) => {
         console.error("Geolocation error:", error);
-        setIsTracking(false);
+        // لا نوقف التتبع هنا لنسمح بمحاولات أخرى
         toast({
           variant: "destructive",
-          title: "فشل تتبع الموقع",
-          description: "يرجى التأكد من تفعيل الـ GPS وإعطاء الإذن للمتصفح.",
+          title: "فشل تحديث الإحداثيات",
+          description: "يرجى التأكد من السماح بالوصول للموقع لضمان دقة التتبع.",
         });
       },
       {
@@ -104,13 +110,6 @@ export default function DriverDashboard() {
     };
   }, []);
 
-  const toggleCheckIn = (id: string) => {
-    setPassengers(prev => prev.map(p => 
-      p.id === id ? { ...p, checkedIn: !p.checkedIn } : p
-    ));
-    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب." });
-  };
-
   const syncParcelsStatus = async (newTripStatus: TripStatus) => {
     try {
       const parcelsRef = collection(firestore, "parcels");
@@ -135,12 +134,10 @@ export default function DriverDashboard() {
 
   const handleStatusChange = (newStatus: TripStatus) => {
     setTripStatus(newStatus);
-    
     const tripRef = doc(firestore, "busTrips", TRIP_ID);
     
     if (newStatus === "Departed") {
       startLocationTracking();
-      // تهيئة البيانات الأساسية للرحلة التجريبية
       setDocumentNonBlocking(tripRef, {
         id: TRIP_ID,
         originName: "الرياض",
@@ -170,6 +167,13 @@ export default function DriverDashboard() {
       title: "تحديث حالة الرحلة",
       description: `تم تغيير الحالة إلى: ${newStatus} وبدأ بث الموقع المباشر.`,
     });
+  };
+
+  const toggleCheckIn = (id: string) => {
+    setPassengers(prev => prev.map(p => 
+      p.id === id ? { ...p, checkedIn: !p.checkedIn } : p
+    ));
+    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب." });
   };
 
   return (
@@ -288,5 +292,29 @@ export default function DriverDashboard() {
         </p>
       </div>
     </div>
+  );
+}
+
+function Bus({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M8 6v6" />
+      <path d="M15 6v6" />
+      <path d="M2 12h19.6" />
+      <path d="M18 18h3s1-1.33 1-3c0-4.67-3.33-8-8-8H7c-4.67 0-8 3.33-8 8 0 1.67 1 3 1 3h3" />
+      <circle cx="7" cy="18" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </svg>
   );
 }
