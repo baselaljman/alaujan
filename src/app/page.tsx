@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,34 +13,72 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { CalendarIcon, MapPin, Bus, Search, Package } from "lucide-react";
+import { CalendarIcon, MapPin, Bus, Search, Package, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-
-const saudiCities = ["الرياض", "الدمام"];
-const syrianCities = ["دمشق", "حمص", "حماة", "إدلب", "الساحل السوري", "الميادين", "دير الزور", "الرقة"];
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 export default function HomePage() {
   const router = useRouter();
+  const firestore = useFirestore();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [date, setDate] = useState<Date>();
 
-  const isSaudi = (city: string) => saudiCities.includes(city);
-  const isSyrian = (city: string) => syrianCities.includes(city);
+  // جلب المدن من Firestore
+  const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
+  const { data: locations, isLoading: isLocationsLoading } = useCollection(locationsRef);
 
-  // Filter destination based on departure
-  const availableDestinations = from 
-    ? (isSaudi(from) ? syrianCities : saudiCities)
-    : [...saudiCities, ...syrianCities];
+  // تقسيم المدن حسب الدولة
+  const groupedLocations = useMemo(() => {
+    if (!locations) return { saudi: [], syria: [], others: [] };
+    
+    return locations.reduce((acc: any, loc) => {
+      const country = loc.country || "";
+      if (country.includes("سعود") || country.toLowerCase().includes("saudi")) {
+        acc.saudi.push(loc);
+      } else if (country.includes("سور") || country.toLowerCase().includes("syria")) {
+        acc.syria.push(loc);
+      } else {
+        acc.others.push(loc);
+      }
+      return acc;
+    }, { saudi: [], syria: [], others: [] });
+  }, [locations]);
+
+  const isSaudi = (locationName: string) => {
+    return groupedLocations.saudi.some((l: any) => l.name === locationName);
+  };
+
+  const isSyrian = (locationName: string) => {
+    return groupedLocations.syria.some((l: any) => l.name === locationName);
+  };
+
+  // تصفية الوجهات بناءً على مدينة الانطلاق (السفر دائماً دولي)
+  const availableDestinations = useMemo(() => {
+    if (!from) return locations || [];
+    
+    if (isSaudi(from)) {
+      return [...groupedLocations.syria, ...groupedLocations.others];
+    } else if (isSyrian(from)) {
+      return [...groupedLocations.saudi, ...groupedLocations.others];
+    }
+    return locations || [];
+  }, [from, groupedLocations, locations]);
 
   useEffect(() => {
-    // Clear destination if it becomes invalid when changing departure
     if (from && to) {
-      if (isSaudi(from) && isSaudi(to)) setTo("");
-      if (isSyrian(from) && isSyrian(to)) setTo("");
+      const fromIsSaudi = isSaudi(from);
+      const toIsSaudi = isSaudi(to);
+      const fromIsSyria = isSyrian(from);
+      const toIsSyria = isSyrian(to);
+
+      if ((fromIsSaudi && toIsSaudi) || (fromIsSyria && toIsSyria)) {
+        setTo("");
+      }
     }
-  }, [from, to]);
+  }, [from, to, groupedLocations]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,36 +130,48 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 text-right">
                 <Label htmlFor="from" className="text-sm font-semibold pr-1">من مدينة الانطلاق</Label>
-                <Select onValueChange={setFrom} value={from}>
+                <Select onValueChange={setFrom} value={from} disabled={isLocationsLoading}>
                   <SelectTrigger id="from" className="bg-background border-primary/10 h-14 rounded-xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
-                    <SelectValue placeholder="اختر مدينة الانطلاق" />
+                    <SelectValue placeholder={isLocationsLoading ? "جاري التحميل..." : "اختر مدينة الانطلاق"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectGroup>
-                      <SelectLabel>المملكة العربية السعودية</SelectLabel>
-                      {saudiCities.map(city => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                    <SelectGroup>
-                      <SelectLabel>الجمهورية العربية السورية</SelectLabel>
-                      {syrianCities.map(city => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectGroup>
+                    {groupedLocations.saudi.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>المملكة العربية السعودية</SelectLabel>
+                        {groupedLocations.saudi.map((city: any) => (
+                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {groupedLocations.syria.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>الجمهورية العربية السورية</SelectLabel>
+                        {groupedLocations.syria.map((city: any) => (
+                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {groupedLocations.others.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>وجهات أخرى</SelectLabel>
+                        {groupedLocations.others.map((city: any) => (
+                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2 text-right">
                 <Label htmlFor="to" className="text-sm font-semibold pr-1">إلى الوجهة</Label>
-                <Select onValueChange={setTo} value={to} disabled={!from}>
+                <Select onValueChange={setTo} value={to} disabled={!from || isLocationsLoading}>
                   <SelectTrigger id="to" className="bg-background border-primary/10 h-14 rounded-xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
                     <SelectValue placeholder={from ? "اختر مدينة الوصول" : "اختر مدينة الانطلاق أولاً"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableDestinations.map(city => (
-                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    {availableDestinations.map((city: any) => (
+                      <SelectItem key={city.id} value={city.name}>{city.name} - {city.country}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -166,9 +216,9 @@ export default function HomePage() {
             <Button 
               type="submit" 
               className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/95 transition-all shadow-xl hover:scale-[1.01] active:scale-[0.98] rounded-xl" 
-              disabled={!from || !to || !date}
+              disabled={!from || !to || !date || isLocationsLoading}
             >
-              بحث عن الرحلات المتاحة
+              {isLocationsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "بحث عن الرحلات المتاحة"}
             </Button>
           </form>
         </CardContent>
