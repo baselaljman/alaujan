@@ -2,23 +2,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // القاعدة العامة: السماح بالقراءة والكتابة لجميع المستندات في مرحلة التطوير
+    // قاعدة عامة تسمح بالقراءة والكتابة للجميع لسهولة التطوير والاختبار
     match /{document=**} {
-      allow read, write: if true;
-    }
-
-    // قواعد خاصة للاستعلامات المجمعة (Collection Group Queries)
-    // هذه الصيغة /{path=**}/ ضرورية للسماح بالبحث في المجموعات الفرعية المتداخلة
-    
-    match /{path=**}/bookings/{bookingId} {
-      allow read, write: if true;
-    }
-    
-    match /{path=**}/parcels/{parcelId} {
-      allow read, write: if true;
-    }
-    
-    match /{path=**}/notifications/{notificationId} {
       allow read, write: if true;
     }
   }

@@ -36,11 +36,12 @@ function CheckoutContent() {
     
     setIsProcessing(true);
 
-    // 1. تسجيل الحجز في قاعدة البيانات
-    const bookingsRef = collection(firestore, "users", user.uid, "bookings");
+    // 1. تسجيل الحجز في مجموعة رئيسية واحدة (لتجنب مشاكل الفهارس)
+    const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       busTripId: tripId,
       userId: user.uid,
+      userEmail: email,
       numberOfSeats: seats.length,
       seatNumbers: seats,
       totalAmount: totalAmount,
@@ -54,10 +55,12 @@ function CheckoutContent() {
     addDocumentNonBlocking(bookingsRef, bookingData);
 
     // 2. تحديث عدد المقاعد المتاحة في الرحلة
-    const tripRef = doc(firestore, "busTrips", tripId!);
-    updateDocumentNonBlocking(tripRef, {
-      availableSeats: increment(-seats.length)
-    });
+    if (tripId) {
+      const tripRef = doc(firestore, "busTrips", tripId);
+      updateDocumentNonBlocking(tripRef, {
+        availableSeats: increment(-seats.length)
+      });
+    }
 
     // محاكاة معالجة الدفع
     setTimeout(() => {
