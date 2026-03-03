@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle,
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, collection, query, where, getDocs } from "firebase/firestore";
 
 interface Passenger {
   id: string;
@@ -46,6 +46,29 @@ export default function DriverDashboard() {
     });
   };
 
+  const syncParcelsStatus = async (newTripStatus: TripStatus) => {
+    try {
+      const parcelsRef = collection(firestore, "parcels");
+      const q = query(parcelsRef, where("busTripId", "==", TRIP_ID));
+      const snapshot = await getDocs(q);
+
+      snapshot.forEach((parcelDoc) => {
+        let newParcelStatus = "Pending Pickup";
+        
+        if (newTripStatus === "Departed") newParcelStatus = "In Transit";
+        if (newTripStatus === "Delayed") newParcelStatus = "Delayed in Transit";
+        if (newTripStatus === "Arrived") newParcelStatus = "Arrived at Station";
+
+        updateDocumentNonBlocking(doc(firestore, "parcels", parcelDoc.id), {
+          status: newParcelStatus,
+          lastUpdatedAt: new Date().toISOString()
+        });
+      });
+    } catch (error) {
+      console.error("Error syncing parcels:", error);
+    }
+  };
+
   const handleStatusChange = (newStatus: TripStatus) => {
     setTripStatus(newStatus);
     if (newStatus === "Departed" || newStatus === "Delayed") {
@@ -54,18 +77,22 @@ export default function DriverDashboard() {
       setIsTracking(false);
     }
 
-    // تحديثFirestore بشكل فوري (Non-blocking) ليرى المستخدم التغيير
+    // تحديث الرحلة في Firestore
     const tripRef = doc(firestore, "busTrips", TRIP_ID);
     updateDocumentNonBlocking(tripRef, {
       status: newStatus,
       lastUpdatedAt: new Date().toISOString(),
-      // في تطبيق حقيقي، سنقوم بتحديث الموقع الجغرافي هنا أيضاً
-      currentLocationDescription: newStatus === "Delayed" ? "إجراءات الحدود" : "على الطريق"
+      currentLocationDescription: newStatus === "Delayed" ? "إجراءات الحدود" : 
+                                   newStatus === "Departed" ? "على الطريق" : 
+                                   newStatus === "Arrived" ? "تم الوصول للمحطة" : "في المحطة"
     });
 
+    // مزامنة حالة الطرود آلياً مع حالة الرحلة
+    syncParcelsStatus(newStatus);
+
     toast({
-      title: "تحديث حالة الرحلة",
-      description: `تم تغيير حالة الرحلة إلى: ${newStatus}`,
+      title: "تحديث حالة الرحلة والطرود",
+      description: `تم تغيير حالة الرحلة والطرود المرتبطة بها إلى: ${newStatus}`,
     });
   };
 
@@ -104,12 +131,12 @@ export default function DriverDashboard() {
           <div className="grid grid-cols-1 gap-4">
             {tripStatus === "Scheduled" ? (
               <Button onClick={() => handleStatusChange("Departed")} className="w-full h-14 text-lg font-bold gap-2 rounded-xl bg-primary">
-                <Play className="h-5 w-5" /> بدء الرحلة وبث الموقع
+                <Play className="h-5 w-5" /> بدء الرحلة وبث الموقع والطرود
               </Button>
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-col gap-2">
-                  <Label className="text-xs font-bold text-right pr-1">تحديث حالة الرحلة للركاب</Label>
+                  <Label className="text-xs font-bold text-right pr-1">تحديث حالة الرحلة والطرود للركاب</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
                       variant={tripStatus === "Delayed" ? "destructive" : "outline"} 
@@ -184,7 +211,7 @@ export default function DriverDashboard() {
           <Info className="h-4 w-4" />
         </h4>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          عند حدوث أي تأخير في إجراءات الجمارك أو الحدود، يرجى الضغط على "تسجيل تأخير" ليتم إبلاغ الركاب وذويهم آلياً عبر نظام التتبع. لا تنسَ إنهاء الرحلة عند الوصول لتوفير البطارية وإيقاف البث.
+          عند الضغط على "بدء الرحلة"، سيتم تلقائياً إخطار جميع أصحاب الطرود بأن شحناتهم أصبحت "في الطريق". يرجى تحديث الحالة فوراً عند الوصول للمحطة النهائية لتسهيل عملية التسليم.
         </p>
       </div>
     </div>
