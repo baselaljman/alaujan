@@ -219,8 +219,8 @@ export default function HomePage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl border-primary/10 shadow-2xl" align="center" sideOffset={10}>
-                  <div className="p-3 bg-secondary text-[10px] text-center text-secondary-foreground font-bold border-b">
-                    التواريخ المظللة باللون الثانوي تحتوي على رحلات متاحة
+                  <div className="p-3 bg-accent/10 text-[10px] text-center text-accent font-bold border-b">
+                    التواريخ المظللة باللون الذهبي تحتوي على رحلات متاحة
                   </div>
                   <Calendar
                     mode="single"
@@ -239,7 +239,7 @@ export default function HomePage() {
                       available: (date) => availableTripDates.has(startOfDay(date).toDateString())
                     }}
                     modifiersClassNames={{
-                      available: "bg-secondary text-secondary-foreground font-bold hover:bg-secondary/80"
+                      available: "bg-accent text-accent-foreground font-bold hover:bg-accent/80"
                     }}
                     classNames={{
                       day_selected: "bg-primary text-white hover:bg-primary/90 focus:bg-primary font-bold rounded-lg",
