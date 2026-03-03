@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -51,6 +51,8 @@ export default function AdminTrips() {
 
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
+
+  const currentTrip = trips?.find(t => t.id === viewingManifestId);
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
@@ -125,9 +127,30 @@ export default function AdminTrips() {
     setEditingPassenger(null);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <div className="space-y-6 pb-20">
-      <header className="flex items-center justify-between">
+    <div className="space-y-6 pb-20 print:bg-white print:p-0">
+      {/* Print Header - Only visible during print */}
+      <div className="hidden print:block text-right space-y-4 mb-8">
+        <div className="flex justify-between items-center border-b-2 border-primary pb-4">
+          <div className="text-left">
+            <h1 className="text-2xl font-bold text-primary">العوجان للسياحة والسفر</h1>
+            <p className="text-sm">بيان الركاب الرسمي (Official Manifest)</p>
+          </div>
+          <Bus className="h-12 w-12 text-primary" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm bg-muted/20 p-4 rounded-lg">
+          <div><span className="font-bold">المسار:</span> {currentTrip?.originName} ⮕ {currentTrip?.destinationName}</div>
+          <div><span className="font-bold">الحافلة:</span> {currentTrip?.busLabel}</div>
+          <div><span className="font-bold">تاريخ الانطلاق:</span> {currentTrip && format(new Date(currentTrip.departureTime), "PPPP p", { locale: ar })}</div>
+          <div><span className="font-bold">تاريخ الطباعة:</span> {format(new Date(), "PPPP p", { locale: ar })}</div>
+        </div>
+      </div>
+
+      <header className="flex items-center justify-between print:hidden">
         <h1 className="text-2xl font-bold font-headline text-primary">إدارة الرحلات</h1>
         <Button onClick={() => setIsAdding(!isAdding)} className="rounded-xl gap-2">
           {isAdding ? "إلغاء" : <><Plus className="h-4 w-4" /> إضافة رحلة</>}
@@ -136,7 +159,7 @@ export default function AdminTrips() {
 
       {/* Edit Passenger Dialog */}
       <Dialog open={!!editingPassenger} onOpenChange={(open) => !open && setEditingPassenger(null)}>
-        <DialogContent className="text-right">
+        <DialogContent className="text-right print:hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 justify-end">
               <span>تعديل بيانات المسافر</span>
@@ -171,7 +194,7 @@ export default function AdminTrips() {
       </Dialog>
 
       <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
-        <AlertDialogContent className="text-right">
+        <AlertDialogContent className="text-right print:hidden">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 justify-end">
               <span>تأكيد حذف الرحلة</span>
@@ -189,7 +212,7 @@ export default function AdminTrips() {
       </AlertDialog>
 
       {isAdding && (
-        <Card className="border-primary/20 shadow-lg animate-in slide-in-from-top duration-300">
+        <Card className="border-primary/20 shadow-lg animate-in slide-in-from-top duration-300 print:hidden">
           <CardContent className="pt-6">
             <form onSubmit={handleAddTrip} className="space-y-6 text-right">
               <div className="grid grid-cols-2 gap-4">
@@ -272,7 +295,7 @@ export default function AdminTrips() {
         </Card>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 print:hidden">
         {isLoading ? (
           <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
         ) : trips?.map(trip => (
@@ -292,25 +315,30 @@ export default function AdminTrips() {
                       <Users className="h-4 w-4" /> بيان الركاب
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" />
-                        بيان الركاب المسجلين وتفاصيل التواصل والدفع
-                      </DialogTitle>
+                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none print:shadow-none print:border-none">
+                    <DialogHeader className="print:hidden">
+                      <div className="flex items-center justify-between">
+                        <DialogTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          بيان الركاب المسجلين وتفاصيل التواصل والدفع
+                        </DialogTitle>
+                        <Button variant="outline" size="sm" onClick={handlePrint} className="rounded-xl gap-2">
+                          <Printer className="h-4 w-4" /> طباعة البيان (A4)
+                        </Button>
+                      </div>
                     </DialogHeader>
-                    {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8" /> : (
-                      <div className="rounded-xl border overflow-x-auto mt-4">
-                        <Table dir="rtl" className="min-w-[1000px]">
+                    {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8 print:hidden" /> : (
+                      <div className="rounded-xl border overflow-x-auto mt-4 print:border-black print:rounded-none">
+                        <Table dir="rtl" className="min-w-[1000px] print:min-w-full">
                           <TableHeader>
-                            <TableRow className="bg-muted/50">
-                              <TableHead className="text-right font-bold">اسم المسافر</TableHead>
-                              <TableHead className="text-right font-bold">الجواز</TableHead>
-                              <TableHead className="text-right font-bold">المقعد</TableHead>
-                              <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
-                              <TableHead className="text-right font-bold">الأمتعة</TableHead>
-                              <TableHead className="text-right font-bold">الدفع</TableHead>
-                              <TableHead className="text-center font-bold">إجراءات</TableHead>
+                            <TableRow className="bg-muted/50 print:bg-gray-100">
+                              <TableHead className="text-right font-bold print:text-black print:border-b">اسم المسافر</TableHead>
+                              <TableHead className="text-right font-bold print:text-black print:border-b">الجواز</TableHead>
+                              <TableHead className="text-right font-bold print:text-black print:border-b">المقعد</TableHead>
+                              <TableHead className="text-right font-bold print:text-black print:border-b">بيانات التواصل</TableHead>
+                              <TableHead className="text-right font-bold print:text-black print:border-b">الأمتعة</TableHead>
+                              <TableHead className="text-right font-bold print:text-black print:border-b">الدفع</TableHead>
+                              <TableHead className="text-center font-bold print:hidden">إجراءات</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -318,36 +346,36 @@ export default function AdminTrips() {
                               <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
                             ) : manifestBookings?.map(booking => (
                               booking.passengers?.map((p: any, idx: number) => (
-                                <TableRow key={`${booking.id}-${idx}`} className={idx === 0 ? "border-t-2" : ""}>
-                                  <TableCell className="font-bold">{p.fullName}</TableCell>
-                                  <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
-                                  <TableCell><Badge variant="outline" className="bg-primary/5">{p.seatNumber}</Badge></TableCell>
+                                <TableRow key={`${booking.id}-${idx}`} className={idx === 0 ? "border-t-2 print:border-t" : ""}>
+                                  <TableCell className="font-bold print:text-sm">{p.fullName}</TableCell>
+                                  <TableCell className="font-mono text-xs print:text-xs">{p.passportNumber}</TableCell>
+                                  <TableCell><Badge variant="outline" className="bg-primary/5 print:text-black print:bg-white">{p.seatNumber}</Badge></TableCell>
                                   <TableCell>
-                                    <div className="flex flex-col gap-1 text-[10px]">
+                                    <div className="flex flex-col gap-1 text-[10px] print:text-[8px]">
                                       <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {booking.userEmail}</span>
                                       <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {booking.userPhone}</span>
                                     </div>
                                   </TableCell>
                                   <TableCell>
                                     {idx === 0 ? (
-                                      <div className="flex items-center gap-1 text-xs">
+                                      <div className="flex items-center gap-1 text-xs print:text-[8px]">
                                         <Package className="h-3 w-3" />
-                                        {booking.extraBags > 0 ? <Badge variant="destructive" className="h-5 text-[10px]">{booking.extraBags} إضافية</Badge> : "عادية"}
+                                        {booking.extraBags > 0 ? <Badge variant="destructive" className="h-5 text-[10px] print:text-[8px]">{booking.extraBags} إضافية</Badge> : "عادية"}
                                       </div>
                                     ) : "-"}
                                   </TableCell>
                                   <TableCell>
-                                    <div className="flex flex-col gap-1">
-                                      <div className="flex items-center gap-1 text-[10px]">
+                                    <div className="flex flex-col gap-1 print:text-[8px]">
+                                      <div className="flex items-center gap-1 text-[10px] print:text-[8px]">
                                         <CreditCard className="h-3 w-3" />
                                         {booking.paymentMethodLabel || booking.paymentMethod}
                                       </div>
-                                      <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5">
+                                      <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5 print:text-[8px] print:bg-white print:text-black">
                                         {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
                                       </Badge>
                                     </div>
                                   </TableCell>
-                                  <TableCell className="text-center">
+                                  <TableCell className="text-center print:hidden">
                                     <Button 
                                       variant="ghost" 
                                       size="icon" 
@@ -383,6 +411,12 @@ export default function AdminTrips() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Print Footer - Only visible during print */}
+      <div className="hidden print:flex justify-between items-center mt-12 border-t-2 pt-4">
+        <div className="text-sm font-bold">توقيع المسؤول: .............................</div>
+        <div className="text-xs text-muted-foreground">صادر عن نظام العوجان الرقمي</div>
       </div>
     </div>
   );
