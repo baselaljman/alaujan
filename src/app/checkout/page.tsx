@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, ShieldCheck } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
+import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
 
 function CheckoutContent() {
@@ -30,7 +30,13 @@ function CheckoutContent() {
   const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
   const passengersJson = searchParams.get("passengers");
-  const passengers = passengersJson ? JSON.parse(passengersJson) : [];
+  const rawPassengers = passengersJson ? JSON.parse(passengersJson) : [];
+  
+  // تأكيد حالة كل مسافر عند الحجز
+  const passengers = rawPassengers.map((p: any) => ({
+    ...p,
+    status: 'Confirmed'
+  }));
 
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
@@ -39,15 +45,7 @@ function CheckoutContent() {
   }, [user, isUserLoading, auth]);
 
   const handlePay = () => {
-    if (!user) {
-      toast({ 
-        title: "جاري التعرف على الهوية", 
-        description: "يرجى الانتظار ثانية واحدة لتأمين اتصالك...", 
-        variant: "default" 
-      });
-      return;
-    }
-    
+    if (!user) return;
     setIsProcessing(true);
 
     const userProfileRef = doc(firestore, "users", user.uid);
@@ -121,9 +119,7 @@ function CheckoutContent() {
   return (
     <div className="space-y-6 text-right">
       <header className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowRight className="h-6 w-6" />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowRight className="h-6 w-6" /></Button>
         <h1 className="text-xl font-bold">تأكيد الحجز والدفع</h1>
       </header>
 
@@ -134,7 +130,6 @@ function CheckoutContent() {
             <CardDescription className="flex flex-col gap-1">
               <span>عدد المسافرين: {passengers.length}</span>
               <span>المقاعد: {seats.join(", ")}</span>
-              <span>الحقائب الإضافية: {extraBags}</span>
               <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
             </CardDescription>
           </CardHeader>
@@ -166,25 +161,8 @@ function CheckoutContent() {
         </Card>
 
         <div className="pt-2">
-          {isUserLoading && (
-            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4 animate-pulse">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              جاري تأمين الجلسة...
-            </div>
-          )}
-          
-          <Button 
-            onClick={handlePay} 
-            disabled={isProcessing || isUserLoading} 
-            className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary"
-          >
-            {isProcessing ? (
-              <Loader2 className="h-5 w-5 animate-spin ml-2" />
-            ) : isUserLoading ? (
-              "جاري التحقق..."
-            ) : (
-              "تأكيد الحجز وإصدار التذاكر"
-            )}
+          <Button onClick={handlePay} disabled={isProcessing || isUserLoading} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
+            {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
           </Button>
         </div>
       </div>
