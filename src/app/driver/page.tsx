@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Passenger {
@@ -17,8 +18,10 @@ interface Passenger {
   checkedIn: boolean;
 }
 
+type TripStatus = "scheduled" | "active" | "delayed" | "completed";
+
 export default function DriverDashboard() {
-  const [isTripActive, setIsTripActive] = useState(false);
+  const [tripStatus, setTripStatus] = useState<TripStatus>("scheduled");
   const [isTracking, setIsTracking] = useState(false);
   const [passengers, setPassengers] = useState<Passenger[]>([
     { id: "1", name: "أحمد محمد علي", seat: 5, checkedIn: true },
@@ -37,21 +40,16 @@ export default function DriverDashboard() {
     });
   };
 
-  const handleStartTrip = () => {
-    setIsTripActive(true);
-    setIsTracking(true);
+  const handleStatusChange = (newStatus: TripStatus) => {
+    setTripStatus(newStatus);
+    if (newStatus === "active" || newStatus === "delayed") {
+      setIsTracking(true);
+    } else {
+      setIsTracking(false);
+    }
     toast({
-      title: "بدء الرحلة",
-      description: "تم تفعيل تتبع الموقع المباشر بنجاح.",
-    });
-  };
-
-  const handleEndTrip = () => {
-    setIsTripActive(false);
-    setIsTracking(false);
-    toast({
-      title: "إنهاء الرحلة",
-      description: "تم إيقاف التتبع وحفظ تقرير الرحلة.",
+      title: "تحديث حالة الرحلة",
+      description: `تم تغيير حالة الرحلة إلى: ${newStatus === "delayed" ? "يوجد تأخير" : newStatus === "active" ? "نشطة" : "مكتملة"}`,
     });
   };
 
@@ -62,12 +60,21 @@ export default function DriverDashboard() {
           <h1 className="text-2xl font-bold font-headline text-primary">لوحة القائد</h1>
           <p className="text-xs text-muted-foreground">مرحباً كابتن: محمد العتوم</p>
         </div>
-        <Badge variant={isTripActive ? "default" : "secondary"} className={isTripActive ? "bg-green-600" : ""}>
-          {isTripActive ? "رحلة نشطة" : "متوقف"}
+        <Badge 
+          variant={tripStatus === "active" ? "default" : tripStatus === "delayed" ? "destructive" : "secondary"}
+          className={cn(
+            tripStatus === "active" && "bg-green-600",
+            tripStatus === "delayed" && "bg-red-600 animate-pulse"
+          )}
+        >
+          {tripStatus === "scheduled" && "مجدولة"}
+          {tripStatus === "active" && "رحلة نشطة"}
+          {tripStatus === "delayed" && "تأخير مسجل"}
+          {tripStatus === "completed" && "مكتملة"}
         </Badge>
       </header>
 
-      {/* Trip Info Card */}
+      {/* التحكم بالرحلة */}
       <Card className="border-primary/10 shadow-lg overflow-hidden">
         <CardHeader className="bg-primary/5 border-b py-4">
           <div className="flex justify-between items-center">
@@ -78,43 +85,55 @@ export default function DriverDashboard() {
             <span className="text-[10px] font-bold text-muted-foreground uppercase">الرياض ⮕ دمشق</span>
           </div>
         </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          {!isTripActive ? (
-            <Button onClick={handleStartTrip} className="w-full h-14 text-lg font-bold gap-2 rounded-xl">
-              <Play className="h-5 w-5" /> بدء بث الموقع والرحلة
-            </Button>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl border border-green-100">
-                <div className="flex items-center gap-2 text-green-800">
-                  {isTracking && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <span className="text-sm font-bold">جاري بث الموقع الآن...</span>
+        <CardContent className="p-6 space-y-6">
+          <div className="grid grid-cols-1 gap-4">
+            {tripStatus === "scheduled" ? (
+              <Button onClick={() => handleStatusChange("active")} className="w-full h-14 text-lg font-bold gap-2 rounded-xl bg-primary">
+                <Play className="h-5 w-5" /> بدء الرحلة وبث الموقع
+              </Button>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-bold text-right pr-1">تحديث حالة الرحلة للركاب</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant={tripStatus === "delayed" ? "destructive" : "outline"} 
+                      onClick={() => handleStatusChange("delayed")}
+                      className="h-12 rounded-xl gap-2 text-xs"
+                    >
+                      <AlertTriangle className="h-4 w-4" /> تسجيل تأخير
+                    </Button>
+                    <Button 
+                      variant={tripStatus === "active" ? "default" : "outline"} 
+                      onClick={() => handleStatusChange("active")}
+                      className={cn("h-12 rounded-xl gap-2 text-xs", tripStatus === "active" && "bg-green-600")}
+                    >
+                      <Clock className="h-4 w-4" /> في الموعد
+                    </Button>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleEndTrip}>
-                  <Square className="h-4 w-4 ml-1" /> إنهاء
-                </Button>
+
+                <div className="p-4 bg-muted/30 rounded-2xl border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {isTracking && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+                    <span className="text-sm font-bold">بث الموقع المباشر مفعل</span>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleStatusChange("completed")}>
+                    <Square className="h-4 w-4 ml-2" /> إنهاء الرحلة
+                  </Button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <p className="text-[10px] text-muted-foreground uppercase">الوقت المنقضي</p>
-                  <p className="font-bold">02:45:00</p>
-                </div>
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <p className="text-[10px] text-muted-foreground uppercase">المسافة المتبقية</p>
-                  <p className="font-bold">450 كم</p>
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Passengers List */}
+      {/* قائمة الركاب */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="font-bold flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
-            قائمة الركاب ({passengers.filter(p => p.checkedIn).length}/{passengers.length})
+            تحضير الركاب ({passengers.filter(p => p.checkedIn).length}/{passengers.length})
           </h2>
         </div>
         
@@ -123,32 +142,35 @@ export default function DriverDashboard() {
             <Card key={passenger.id} className={`transition-all border-none shadow-sm ring-1 ${passenger.checkedIn ? 'ring-green-200 bg-green-50/20' : 'ring-border bg-white'}`}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold ${passenger.checkedIn ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black ${passenger.checkedIn ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
                     {passenger.seat}
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-sm">{passenger.name}</p>
-                    <p className="text-[10px] text-muted-foreground">رقم التذكرة: TK-00{passenger.id}</p>
+                    <p className="text-[10px] text-muted-foreground">تذكرة: VIP-00{passenger.id}</p>
                   </div>
                 </div>
-                <Switch 
-                  checked={passenger.checkedIn} 
-                  onCheckedChange={() => toggleCheckIn(passenger.id)}
-                  className="data-[state=checked]:bg-green-600"
-                />
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-muted-foreground">{passenger.checkedIn ? "صعد" : "لم يصعد"}</span>
+                  <Switch 
+                    checked={passenger.checkedIn} 
+                    onCheckedChange={() => toggleCheckIn(passenger.id)}
+                    className="data-[state=checked]:bg-green-600"
+                  />
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       </div>
 
-      <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 text-right space-y-2">
-        <h4 className="text-sm font-bold text-primary flex items-center gap-2 justify-end">
-          تعليمات الكابتن
-          <MapPin className="h-4 w-4" />
+      <div className="p-4 bg-accent/5 rounded-2xl border border-accent/20 text-right space-y-2">
+        <h4 className="text-sm font-bold text-accent flex items-center gap-2 justify-end">
+          تعليمات هامة للقائد
+          <Info className="h-4 w-4" />
         </h4>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          يرجى التأكد من تفعيل GPS قبل بدء الرحلة. قم بتبديل مفتاح الراكب عند صعوده للحافلة لتحديث حالته في النظام تلقائياً.
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          عند حدوث أي تأخير في إجراءات الجمارك أو الحدود، يرجى الضغط على "تسجيل تأخير" ليتم إبلاغ الركاب وذويهم آلياً عبر نظام التتبع. لا تنسَ إنهاء الرحلة عند الوصول لتوفير البطارية وإيقاف البث.
         </p>
       </div>
     </div>
