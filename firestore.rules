@@ -2,9 +2,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // السماح بالقراءة والكتابة لجميع المستندات والمجموعات بدون قيود
-    // هذا يشمل الاستعلامات العادية والاستعلامات المجمعة (Collection Group)
+    // القاعدة العامة: السماح بالقراءة والكتابة لجميع المستندات
     match /{document=**} {
+      allow read, write: if true;
+    }
+
+    // قاعدة خاصة للاستعلامات المجمعة (Collection Group Queries)
+    // هذا ضروري لعمل "بيان الركاب" في لوحة الإدارة
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+    
+    match /parcels/{parcelId} {
       allow read, write: if true;
     }
   }
