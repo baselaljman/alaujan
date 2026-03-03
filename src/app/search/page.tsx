@@ -1,44 +1,36 @@
+
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Clock, Users, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-interface Trip {
-  id: string;
-  from: string;
-  to: string;
-  departure: string;
-  arrival: string;
-  price: number;
-  seatsLeft: number;
-  busType: string;
-}
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const firestore = useFirestore();
+  
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const date = searchParams.get("date");
 
-  const [isLoading, setIsLoading] = useState(true);
+  // Query Firestore for real trips
+  const tripsQuery = useMemoFirebase(() => {
+    if (!firestore || !from || !to) return null;
+    return query(
+      collection(firestore, "busTrips"),
+      where("status", "==", "Scheduled")
+      // يمكنك إضافة المزيد من الفلاتر مثل الوجهة والتاريخ هنا إذا كانت موجودة في Firestore
+    );
+  }, [firestore, from, to]);
 
-  // Use the search params to generate more realistic mock data, all set to VIP
-  const mockTrips: Trip[] = [
-    { id: "1", from: from || "الرياض", to: to || "دمشق", departure: "08:00 صباحاً", arrival: "11:00 مساءً", price: 350, seatsLeft: 12, busType: "VIP" },
-    { id: "2", from: from || "الرياض", to: to || "دمشق", departure: "04:00 مساءً", arrival: "07:00 صباحاً", price: 380, seatsLeft: 5, busType: "VIP" },
-    { id: "3", from: from || "الرياض", to: to || "دمشق", departure: "10:30 مساءً", arrival: "01:30 مساءً", price: 350, seatsLeft: 20, busType: "VIP" },
-  ];
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: trips, isLoading } = useCollection(tripsQuery);
 
   if (isLoading) {
     return (
@@ -48,6 +40,12 @@ function SearchContent() {
       </div>
     );
   }
+
+  // إذا لم تكن هناك بيانات في Firestore، سنعرض البيانات الوهمية للتجربة حالياً
+  const displayedTrips = trips && trips.length > 0 ? trips : [
+    { id: "mock-1", departureTime: "08:00 صباحاً", pricePerSeat: 350, availableSeats: 12, status: "Scheduled" },
+    { id: "mock-2", departureTime: "04:00 مساءً", pricePerSeat: 380, availableSeats: 5, status: "Scheduled" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -64,20 +62,20 @@ function SearchContent() {
       </header>
 
       <div className="space-y-4">
-        <p className="text-sm font-medium text-muted-foreground px-1">تم العثور على {mockTrips.length} رحلات VIP مباشرة</p>
-        {mockTrips.map((trip) => (
+        <p className="text-sm font-medium text-muted-foreground px-1">تم العثور على {displayedTrips.length} رحلات VIP مباشرة</p>
+        {displayedTrips.map((trip: any) => (
           <Card key={trip.id} className="overflow-hidden hover:shadow-xl transition-all border-primary/5 bg-white/80 backdrop-blur-sm group">
             <CardContent className="p-0">
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 flex-1">
                     <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 font-bold">
-                      {trip.busType}
+                      VIP
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-primary">{trip.departure}</p>
-                        <p className="text-xs text-muted-foreground">{trip.from}</p>
+                        <p className="text-lg font-bold text-primary">{trip.departureTime || trip.departure}</p>
+                        <p className="text-xs text-muted-foreground">{from}</p>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-2">
                         <div className="w-full h-[2px] bg-gradient-to-r from-primary to-primary/10 relative">
@@ -87,15 +85,15 @@ function SearchContent() {
                         <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">حوالي 18 ساعة</p>
                       </div>
                       <div className="text-left">
-                        <p className="text-lg font-bold text-primary">{trip.arrival}</p>
-                        <p className="text-xs text-muted-foreground">{trip.to}</p>
+                        <p className="text-lg font-bold text-primary">وصل</p>
+                        <p className="text-xs text-muted-foreground">{to}</p>
                       </div>
                     </div>
                   </div>
                   <div className="text-left pr-4">
                     <div className="flex items-baseline gap-1 justify-end">
                       <span className="text-xs font-bold text-primary">$</span>
-                      <span className="text-2xl font-black text-primary font-headline">{trip.price}</span>
+                      <span className="text-2xl font-black text-primary font-headline">{trip.pricePerSeat || trip.price}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground">للفرد (ذهاب فقط)</p>
                   </div>
@@ -109,8 +107,8 @@ function SearchContent() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4 text-primary/60" />
-                      <span className={trip.seatsLeft < 10 ? "text-accent font-bold animate-pulse" : ""}>
-                        متبقي {trip.seatsLeft} مقاعد
+                      <span className={(trip.availableSeats || trip.seatsLeft) < 10 ? "text-accent font-bold animate-pulse" : ""}>
+                        متبقي {trip.availableSeats || trip.seatsLeft} مقاعد
                       </span>
                     </div>
                   </div>

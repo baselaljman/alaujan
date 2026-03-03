@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle, Clock, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useFirestore, updateDocumentNonBlocking } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 interface Passenger {
   id: string;
@@ -19,10 +20,11 @@ interface Passenger {
   checkedIn: boolean;
 }
 
-type TripStatus = "scheduled" | "active" | "delayed" | "completed";
+type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
 export default function DriverDashboard() {
-  const [tripStatus, setTripStatus] = useState<TripStatus>("scheduled");
+  const firestore = useFirestore();
+  const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
   const [passengers, setPassengers] = useState<Passenger[]>([
     { id: "1", name: "أحمد محمد علي", seat: 5, checkedIn: true },
@@ -30,6 +32,9 @@ export default function DriverDashboard() {
     { id: "3", name: "محمود حسن", seat: 18, checkedIn: false },
     { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
   ]);
+
+  // معرف الرحلة الثابت للتجربة (يجب استبداله بمعرف ديناميكي للسائق المسجل)
+  const TRIP_ID = "AWJ-TRIP-TEST";
 
   const toggleCheckIn = (id: string) => {
     setPassengers(prev => prev.map(p => 
@@ -43,14 +48,24 @@ export default function DriverDashboard() {
 
   const handleStatusChange = (newStatus: TripStatus) => {
     setTripStatus(newStatus);
-    if (newStatus === "active" || newStatus === "delayed") {
+    if (newStatus === "Departed" || newStatus === "Delayed") {
       setIsTracking(true);
     } else {
       setIsTracking(false);
     }
+
+    // تحديثFirestore بشكل فوري (Non-blocking) ليرى المستخدم التغيير
+    const tripRef = doc(firestore, "busTrips", TRIP_ID);
+    updateDocumentNonBlocking(tripRef, {
+      status: newStatus,
+      lastUpdatedAt: new Date().toISOString(),
+      // في تطبيق حقيقي، سنقوم بتحديث الموقع الجغرافي هنا أيضاً
+      currentLocationDescription: newStatus === "Delayed" ? "إجراءات الحدود" : "على الطريق"
+    });
+
     toast({
       title: "تحديث حالة الرحلة",
-      description: `تم تغيير حالة الرحلة إلى: ${newStatus === "delayed" ? "يوجد تأخير" : newStatus === "active" ? "نشطة" : "مكتملة"}`,
+      description: `تم تغيير حالة الرحلة إلى: ${newStatus}`,
     });
   };
 
@@ -62,20 +77,19 @@ export default function DriverDashboard() {
           <p className="text-xs text-muted-foreground">مرحباً كابتن: محمد العتوم</p>
         </div>
         <Badge 
-          variant={tripStatus === "active" ? "default" : tripStatus === "delayed" ? "destructive" : "secondary"}
+          variant={tripStatus === "Departed" ? "default" : tripStatus === "Delayed" ? "destructive" : "secondary"}
           className={cn(
-            tripStatus === "active" && "bg-green-600",
-            tripStatus === "delayed" && "bg-red-600 animate-pulse"
+            tripStatus === "Departed" && "bg-green-600",
+            tripStatus === "Delayed" && "bg-red-600 animate-pulse"
           )}
         >
-          {tripStatus === "scheduled" && "مجدولة"}
-          {tripStatus === "active" && "رحلة نشطة"}
-          {tripStatus === "delayed" && "تأخير مسجل"}
-          {tripStatus === "completed" && "مكتملة"}
+          {tripStatus === "Scheduled" && "مجدولة"}
+          {tripStatus === "Departed" && "رحلة نشطة"}
+          {tripStatus === "Delayed" && "تأخير مسجل"}
+          {tripStatus === "Arrived" && "مكتملة"}
         </Badge>
       </header>
 
-      {/* التحكم بالرحلة */}
       <Card className="border-primary/10 shadow-lg overflow-hidden">
         <CardHeader className="bg-primary/5 border-b py-4">
           <div className="flex justify-between items-center">
@@ -88,8 +102,8 @@ export default function DriverDashboard() {
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="grid grid-cols-1 gap-4">
-            {tripStatus === "scheduled" ? (
-              <Button onClick={() => handleStatusChange("active")} className="w-full h-14 text-lg font-bold gap-2 rounded-xl bg-primary">
+            {tripStatus === "Scheduled" ? (
+              <Button onClick={() => handleStatusChange("Departed")} className="w-full h-14 text-lg font-bold gap-2 rounded-xl bg-primary">
                 <Play className="h-5 w-5" /> بدء الرحلة وبث الموقع
               </Button>
             ) : (
@@ -98,16 +112,16 @@ export default function DriverDashboard() {
                   <Label className="text-xs font-bold text-right pr-1">تحديث حالة الرحلة للركاب</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button 
-                      variant={tripStatus === "delayed" ? "destructive" : "outline"} 
-                      onClick={() => handleStatusChange("delayed")}
+                      variant={tripStatus === "Delayed" ? "destructive" : "outline"} 
+                      onClick={() => handleStatusChange("Delayed")}
                       className="h-12 rounded-xl gap-2 text-xs"
                     >
                       <AlertTriangle className="h-4 w-4" /> تسجيل تأخير
                     </Button>
                     <Button 
-                      variant={tripStatus === "active" ? "default" : "outline"} 
-                      onClick={() => handleStatusChange("active")}
-                      className={cn("h-12 rounded-xl gap-2 text-xs", tripStatus === "active" && "bg-green-600")}
+                      variant={tripStatus === "Departed" ? "default" : "outline"} 
+                      onClick={() => handleStatusChange("Departed")}
+                      className={cn("h-12 rounded-xl gap-2 text-xs", tripStatus === "Departed" && "bg-green-600")}
                     >
                       <Clock className="h-4 w-4" /> في الموعد
                     </Button>
@@ -119,7 +133,7 @@ export default function DriverDashboard() {
                     {isTracking && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
                     <span className="text-sm font-bold">بث الموقع المباشر مفعل</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleStatusChange("completed")}>
+                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleStatusChange("Arrived")}>
                     <Square className="h-4 w-4 ml-2" /> إنهاء الرحلة
                   </Button>
                 </div>
@@ -129,7 +143,6 @@ export default function DriverDashboard() {
         </CardContent>
       </Card>
 
-      {/* قائمة الركاب */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="font-bold flex items-center gap-2">
