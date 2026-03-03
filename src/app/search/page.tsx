@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation";
@@ -31,9 +30,9 @@ function SearchContent() {
 
   // Use the search params to generate more realistic mock data, all set to VIP
   const mockTrips: Trip[] = [
-    { id: "1", from: from || "الرياض", to: to || "دمشق", departure: "08:00 صباحاً", arrival: "11:00 مساءً", price: 350, seatsLeft: 12, busType: "VIP كوتش" },
-    { id: "2", from: from || "الرياض", to: to || "دمشق", departure: "04:00 مساءً", arrival: "07:00 صباحاً", price: 380, seatsLeft: 5, busType: "VIP كوتش" },
-    { id: "3", from: from || "الرياض", to: to || "دمشق", departure: "10:30 مساءً", arrival: "01:30 مساءً", price: 350, seatsLeft: 20, busType: "VIP كوتش" },
+    { id: "1", from: from || "الرياض", to: to || "دمشق", departure: "08:00 صباحاً", arrival: "11:00 مساءً", price: 350, seatsLeft: 12, busType: "VIP" },
+    { id: "2", from: from || "الرياض", to: to || "دمشق", departure: "04:00 مساءً", arrival: "07:00 صباحاً", price: 380, seatsLeft: 5, busType: "VIP" },
+    { id: "3", from: from || "الرياض", to: to || "دمشق", departure: "10:30 مساءً", arrival: "01:30 مساءً", price: 350, seatsLeft: 20, busType: "VIP" },
   ];
 
   useEffect(() => {
