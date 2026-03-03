@@ -13,9 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
@@ -32,6 +32,8 @@ export default function AdminTrips() {
   const [pricePerSeat, setPricePerSeat] = useState(350);
   const [departureDate, setDepartureDate] = useState<Date>();
   const [arrivalDate, setArrivalDate] = useState<Date>();
+  const [depTime, setDepTime] = useState("08:00");
+  const [arrTime, setArrTime] = useState("20:00");
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -53,9 +55,16 @@ export default function AdminTrips() {
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!busId || !departureDate || !arrivalDate || !originId || !destinationId) {
-      toast({ title: "بيانات ناقصة", description: "يرجى تعبئة جميع الحقول", variant: "destructive" });
+      toast({ title: "بيانات ناقصة", description: "يرجى تعبئة جميع الحقول"، variant: "destructive" });
       return;
     }
+
+    // دمج التاريخ مع الوقت المختار
+    const [dHours, dMinutes] = depTime.split(":").map(Number);
+    const finalDepDate = setMinutes(setHours(departureDate, dHours), dMinutes);
+
+    const [aHours, aMinutes] = arrTime.split(":").map(Number);
+    const finalArrDate = setMinutes(setHours(arrivalDate, aHours), aMinutes);
 
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
@@ -72,13 +81,19 @@ export default function AdminTrips() {
       pricePerSeat: Number(pricePerSeat),
       availableSeats: selectedBus?.capacity || 40,
       totalSeats: selectedBus?.capacity || 40,
-      departureTime: departureDate.toISOString(),
-      arrivalTime: arrivalDate.toISOString(),
+      departureTime: finalDepDate.toISOString(),
+      arrivalTime: finalArrDate.toISOString(),
       createdAt: new Date().toISOString()
     });
 
-    toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة للجدول" });
+    toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة للجدول بنجاح" });
     setIsAdding(false);
+    // Reset form
+    setBusId("");
+    setOriginId("");
+    setDestinationId("");
+    setDepartureDate(undefined);
+    setArrivalDate(undefined);
   };
 
   const confirmDelete = () => {
@@ -137,6 +152,7 @@ export default function AdminTrips() {
                   </Select>
                 </div>
               </div>
+
               <div className="space-y-2 text-right">
                 <Label>الحافلة المخصصة</Label>
                 <Select onValueChange={setBusId}>
@@ -144,20 +160,57 @@ export default function AdminTrips() {
                   <SelectContent>{buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>موعد الانطلاق</Label>
-                  <Popover>
-                    <PopoverTrigger asChild><Button variant="outline" className="w-full text-right">{departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر تاريخاً"}</Button></PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} locale={ar} /></PopoverContent>
-                  </Popover>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4 border p-4 rounded-xl bg-muted/5">
+                  <h3 className="text-sm font-bold border-b pb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> تفاصيل الانطلاق
+                  </h3>
+                  <div className="space-y-2">
+                    <Label>تاريخ الانطلاق</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full text-right justify-start font-normal">
+                          {departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر تاريخاً"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} locale={ar} /></PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>وقت الانطلاق</Label>
+                    <Input type="time" value={depTime} onChange={e => setDepTime(e.target.value)} className="rounded-xl" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>سعر التذكرة (ريال)</Label>
-                  <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(Number(e.target.value))} className="rounded-xl" />
+
+                <div className="space-y-4 border p-4 rounded-xl bg-muted/5">
+                  <h3 className="text-sm font-bold border-b pb-2 flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> تفاصيل الوصول
+                  </h3>
+                  <div className="space-y-2">
+                    <Label>تاريخ الوصول المتوقع</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full text-right justify-start font-normal">
+                          {arrivalDate ? format(arrivalDate, "PPP", { locale: ar }) : "اختر تاريخاً"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={arrivalDate} onSelect={setArrivalDate} locale={ar} /></PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>وقت الوصول المتوقع</Label>
+                    <Input type="time" value={arrTime} onChange={e => setArrTime(e.target.value)} className="rounded-xl" />
+                  </div>
                 </div>
               </div>
-              <Button type="submit" className="w-full h-12 rounded-xl">حفظ ونشر الرحلة</Button>
+
+              <div className="space-y-2">
+                <Label>سعر التذكرة (ريال)</Label>
+                <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(Number(e.target.value))} className="rounded-xl" />
+              </div>
+
+              <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg">حفظ ونشر الرحلة الدولية</Button>
             </form>
           </CardContent>
         </Card>
@@ -173,7 +226,8 @@ export default function AdminTrips() {
                 <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center"><Bus className="h-5 w-5 text-primary" /></div>
                 <div className="text-right">
                   <p className="font-bold text-sm">{trip.originName} ⮕ {trip.destinationName}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(trip.departureTime).toLocaleString('ar-EG')}</p>
+                  <p className="text-[10px] text-muted-foreground">الانطلاق: {new Date(trip.departureTime).toLocaleString('ar-EG')}</p>
+                  <p className="text-[10px] text-muted-foreground">الوصول: {new Date(trip.arrivalTime).toLocaleString('ar-EG')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
