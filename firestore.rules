@@ -5,82 +5,20 @@ service cloud.firestore {
     /**
      * APP SECURITY STRATEGY: Al-Awajan Travel (Prototyping Phase)
      * 
-     * NOTE: For the current prototyping phase, rules for managing the catalog 
-     * (locations, buses, trips, parcels) have been relaxed to allow 'true' for 
-     * all operations. This ensures the user can seed the database without 
-     * authentication hurdles.
+     * NOTE: For the current prototyping phase, rules have been set to 'true' 
+     * for all paths to allow the user to build the database and manage 
+     * trips/parcels/locations without authentication hurdles.
+     * In production, these should be restricted to authenticated owners/admins.
      */
 
-    // --- Helper Functions ---
-
-    function isSignedIn() {
-      return request.auth != null;
+    // Permissive rule for all documents and collection groups
+    match /{document=**} {
+      allow read, write: if true;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // In a production app, we would check for a role in a collection
-      // For now, we are allowing admin operations to unblock the UI.
-      return true; 
-    }
-
-    // --- Collection Rules ---
-
-    // Collection Group rule for Bookings - MUST be broad for manifests
-    // This allows the admin panel to query bookings across all users using collectionGroup('bookings')
+    // Explicitly allow collection group queries for bookings (used in Admin Manifest)
     match /{path=**}/bookings/{bookingId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // Administrative roles - Keep restricted but allow read for system checks
-    match /roles_admin/{adminId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    // User profiles and nested data
-    match /users/{userId} {
-      allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
-
-      // Individual booking access (already covered by collection group rule above, but kept for specificity)
-      match /bookings/{bookingId} {
-        allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
-      }
-
-      match /notifications/{notificationId} {
-        allow get, list, update, delete: if isOwner(userId) || isAdmin();
-        allow create: if isAdmin();
-      }
-    }
-
-    // Catalog Data - Relaxed for Admin Panel Prototyping
-    match /locations/{locationId} {
       allow read, write: if true;
-    }
-
-    match /buses/{busId} {
-      allow read, write: if true;
-    }
-
-    match /busRoutes/{busRouteId} {
-      allow read, write: if true;
-    }
-
-    match /busTrips/{busTripId} {
-      allow read, write: if true;
-    }
-
-    match /parcels/{parcelId} {
-      allow read, write: if true;
-    }
-
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow write: if isSignedIn() || isAdmin();
     }
   }
 }
