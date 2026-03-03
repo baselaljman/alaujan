@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Bus, Users, Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirestore, updateDocumentNonBlocking } from "@/firebase";
+import { useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
 import { doc, collection, query, where, getDocs } from "firebase/firestore";
 
 interface Passenger {
@@ -36,7 +36,7 @@ export default function DriverDashboard() {
     { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
   ]);
 
-  // معرف الرحلة التجريبي (يمكن تغييره ديناميكياً)
+  // معرف الرحلة التجريبي (يتم إنشاؤه آلياً إذا لم يكن موجوداً)
   const TRIP_ID = "AWJ-TRIP-TEST";
 
   const startLocationTracking = () => {
@@ -61,12 +61,14 @@ export default function DriverDashboard() {
         lastUpdateRef.current = now;
         
         const tripRef = doc(firestore, "busTrips", TRIP_ID);
-        updateDocumentNonBlocking(tripRef, {
+        // نستخدم setDocumentNonBlocking لضمان إنشاء المستند إذا لم يكن موجوداً
+        setDocumentNonBlocking(tripRef, {
           currentLat: latitude,
           currentLng: longitude,
           lastLocationUpdate: new Date().toISOString(),
-          isLive: true
-        });
+          isLive: true,
+          status: "Departed"
+        }, { merge: true });
       },
       (error) => {
         console.error("Geolocation error:", error);
@@ -134,20 +136,33 @@ export default function DriverDashboard() {
   const handleStatusChange = (newStatus: TripStatus) => {
     setTripStatus(newStatus);
     
+    const tripRef = doc(firestore, "busTrips", TRIP_ID);
+    
     if (newStatus === "Departed") {
       startLocationTracking();
-    } else if (newStatus === "Arrived" || newStatus === "Scheduled") {
-      stopLocationTracking();
+      // تهيئة البيانات الأساسية للرحلة التجريبية
+      setDocumentNonBlocking(tripRef, {
+        id: TRIP_ID,
+        originName: "الرياض",
+        destinationName: "عمان",
+        status: newStatus,
+        busLabel: "AWJ-700 (Mercedes)",
+        lastUpdatedAt: new Date().toISOString(),
+        currentLocationDescription: "على الطريق الدولي",
+        arrivalTime: new Date(Date.now() + 18 * 3600000).toISOString()
+      }, { merge: true });
+    } else {
+      if (newStatus === "Arrived" || newStatus === "Scheduled") {
+        stopLocationTracking();
+      }
+      updateDocumentNonBlocking(tripRef, {
+        status: newStatus,
+        lastUpdatedAt: new Date().toISOString(),
+        currentLocationDescription: newStatus === "Delayed" ? "إجراءات الحدود" : 
+                                     newStatus === "Departed" ? "على الطريق" : 
+                                     newStatus === "Arrived" ? "تم الوصول للمحطة" : "في المحطة"
+      });
     }
-
-    const tripRef = doc(firestore, "busTrips", TRIP_ID);
-    updateDocumentNonBlocking(tripRef, {
-      status: newStatus,
-      lastUpdatedAt: new Date().toISOString(),
-      currentLocationDescription: newStatus === "Delayed" ? "إجراءات الحدود" : 
-                                   newStatus === "Departed" ? "على الطريق" : 
-                                   newStatus === "Arrived" ? "تم الوصول للمحطة" : "في المحطة"
-    });
 
     syncParcelsStatus(newStatus);
 

@@ -26,19 +26,18 @@ export default function TrackingPage() {
 
   const handleTrack = () => {
     if (!trackingId) return;
-    setActiveTrackingId(trackingId);
+    setActiveTrackingId(trackingId.trim());
   };
 
-  // رابط الخريطة الحقيقي باستخدام مفتاح Google Maps المزود
   const GOOGLE_MAPS_KEY = "AIzaSyAwALad8_XPMoqQp1VhxoT_fFKTcLQ-9S4";
   
   const getMapUrl = () => {
+    // نفضل استخدام الإحداثيات المباشرة إذا توفرت
     if (trip?.currentLat && trip?.currentLng) {
-      // استخدام إحداثيات السائق الحقيقية
       return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_KEY}&q=${trip.currentLat},${trip.currentLng}&zoom=14`;
     }
-    // في حالة عدم وجود إحداثيات، نعرض صورة خريطة ثابتة للمنطقة
-    return `https://picsum.photos/seed/map-static/800/400`;
+    // إذا كانت الرحلة حية ولكن بدون إحداثيات (في البداية)، نعرض صورة خريطة ثابتة
+    return `https://picsum.photos/seed/map-placeholder/800/400`;
   };
 
   return (
@@ -71,6 +70,7 @@ export default function TrackingPage() {
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value)}
                   className="h-12 rounded-xl"
+                  onKeyDown={(e) => e.key === 'Enter' && handleTrack()}
                 />
                 <Button onClick={handleTrack} disabled={isLoading} className="h-12 px-8 rounded-xl bg-primary shadow-lg">
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "تتبع الآن"}
@@ -79,11 +79,18 @@ export default function TrackingPage() {
             </CardContent>
           </Card>
 
+          {activeTrackingId && !isLoading && !trip && (
+            <div className="text-center p-12 bg-red-50 text-red-600 rounded-3xl border border-red-100 animate-in fade-in">
+              <p className="font-bold">عذراً، لم يتم العثور على رحلة بهذا الرقم</p>
+              <p className="text-xs mt-1">تأكد من كتابة الرقم بشكل صحيح (مثال: AWJ-TRIP-TEST)</p>
+            </div>
+          )}
+
           {trip && (
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <Card className="overflow-hidden border-primary/20 shadow-xl bg-white/80 backdrop-blur-md">
                 <div className="h-72 bg-muted relative overflow-hidden border-b">
-                  {trip.isLive ? (
+                  {trip.isLive && trip.currentLat ? (
                     <div className="absolute inset-0 w-full h-full">
                       <iframe
                         width="100%"
@@ -102,7 +109,7 @@ export default function TrackingPage() {
                       <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 gap-3">
                         <Bus className="h-12 w-12 text-white/50" />
                         <p className="text-white font-bold text-lg">بث الموقع المباشر غير نشط</p>
-                        <p className="text-white/60 text-xs">ستظهر الخريطة فور انطلاق الحافلة وتفعيل السائق للـ GPS</p>
+                        <p className="text-white/60 text-xs">ستظهر الخريطة فور انطلاق الحافلة وتفعيل السائق للـ GPS من لوحة القائد</p>
                       </div>
                     </div>
                   )}
@@ -158,7 +165,7 @@ export default function TrackingPage() {
                       <div className="flex-1">
                         <p className="text-[10px] text-muted-foreground font-bold">موعد الوصول التقديري</p>
                         <p className="text-sm font-black text-primary">
-                          {new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}
+                          {trip.arrivalTime ? new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "غير محدد"}
                         </p>
                       </div>
                     </div>
