@@ -101,7 +101,7 @@ export default function CheckoutPage() {
                   <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
                     <Banknote className="h-5 w-5 text-green-600" />
                   </div>
-                  <div className="font-medium text-base">دفع نقدي عند الاستلام</div>
+                  <div className="font-medium text-base">دفع نقدي في المكتب</div>
                 </div>
                 <RadioGroupItem value="cash" id="cash" className="sr-only" />
               </Label>
