@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, UserCheck } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
@@ -22,7 +22,7 @@ function CheckoutContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // استرجاع بيانات الحجز من الرابط
+  // استرجاع كافة بيانات الحجز من الرابط
   const tripId = searchParams.get("tripId");
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
@@ -33,13 +33,13 @@ function CheckoutContent() {
 
   const handlePay = () => {
     if (!user) {
-      toast({ title: "خطأ", description: "يجب تسجيل الدخول لإتمام الحجز", variant: "destructive" });
+      toast({ title: "خطأ", description: "يرجى الانتظار حتى يتم التعرف على هويتك...", variant: "destructive" });
       return;
     }
     
     setIsProcessing(true);
 
-    // تسجيل الحجز في مجموعة رئيسية واحدة
+    // تسجيل الحجز في المجموعة الرئيسية 'bookings'
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       busTripId: tripId,
@@ -48,7 +48,7 @@ function CheckoutContent() {
       numberOfSeats: seats.length,
       seatNumbers: seats,
       extraBags: extraBags,
-      passengers: passengers, // تخزين قائمة المسافرين ببياناتهم
+      passengers: passengers, // تسجيل قائمة المسافرين كاملة (الاسم + الجواز + رقم المقعد)
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -57,9 +57,10 @@ function CheckoutContent() {
       createdAt: serverTimestamp()
     };
 
+    // حفظ بيانات الحجز في Firestore
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // تحديث عدد المقاعد المتاحة في الرحلة
+    // تحديث عدد المقاعد المتاحة في ملف الرحلة آلياً
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -67,13 +68,13 @@ function CheckoutContent() {
       });
     }
 
-    // محاكاة معالجة الدفع
+    // محاكاة معالجة الدفع والنجاح
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
-        title: "تم تأكيد الحجز!",
-        description: "تم إرسال تذاكرك وبيانات الحجز إلى بريدك الإلكتروني بنجاح.",
+        title: "تم تأكيد الحجز الدولي بنجاح",
+        description: "تم تسجيل كافة بيانات المسافرين وحجز المقاعد بنجاح.",
       });
     }, 2000);
   };
@@ -87,10 +88,10 @@ function CheckoutContent() {
         <h1 className="text-3xl font-bold font-headline">تم الحجز بنجاح!</h1>
         <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3 max-w-xs mx-auto">
           <Mail className="h-5 w-5 text-primary" />
-          <p className="text-xs text-primary font-medium text-right">تم إرسال نسخة من التذاكر إلى {email}</p>
+          <p className="text-xs text-primary font-medium text-right">تم إرسال تذاكر المسافرين إلى {email}</p>
         </div>
         <div className="space-y-3 w-full max-w-xs pt-4">
-          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض تذاكري</Button>
+          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض التذاكر والبيانات</Button>
           <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
       </div>
@@ -103,17 +104,18 @@ function CheckoutContent() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowRight className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold">إتمام عملية الدفع</h1>
+        <h1 className="text-xl font-bold">تأكيد الحجز والدفع</h1>
       </header>
 
       <div className="space-y-4">
         <Card className="border-primary/10 shadow-sm">
           <CardHeader className="bg-primary/5 border-b py-4">
-            <CardTitle className="text-base font-semibold">ملخص الحجز الدولي</CardTitle>
+            <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
-              <span>المقاعد: {seats.join(", ")} | المسافرين: {passengers.length}</span>
+              <span>عدد المسافرين: {passengers.length}</span>
+              <span>المقاعد: {seats.join(", ")}</span>
               <span>الحقائب الإضافية: {extraBags}</span>
-              <span className="font-bold text-primary">المبلغ المطلوب: {totalAmount} ريال</span>
+              <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -128,14 +130,14 @@ function CheckoutContent() {
               <Label htmlFor="wallet" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "wallet" ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "hover:bg-muted"}`}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center"><Wallet className="h-5 w-5 text-blue-600" /></div>
-                  <div className="font-medium text-base text-right">Apple Pay / Google Pay</div>
+                  <div className="font-medium text-base text-right">Apple Pay</div>
                 </div>
                 <RadioGroupItem value="wallet" id="wallet" className="sr-only" />
               </Label>
               <Label htmlFor="cash" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "cash" ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "hover:bg-muted"}`}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center"><Banknote className="h-5 w-5 text-green-600" /></div>
-                  <div className="font-medium text-base text-right">دفع نقدي (في مكتب الشركة)</div>
+                  <div className="font-medium text-base text-right">دفع نقدي عند السفر</div>
                 </div>
                 <RadioGroupItem value="cash" id="cash" className="sr-only" />
               </Label>
@@ -144,7 +146,7 @@ function CheckoutContent() {
         </Card>
 
         <Button onClick={handlePay} disabled={isProcessing} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الدفع وإصدار التذاكر"}
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "إصدار التذاكر الآن"}
         </Button>
       </div>
     </div>

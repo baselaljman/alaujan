@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft, Users, User, CheckCircle2, FileText } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 export default function AdminTrips() {
@@ -25,33 +24,24 @@ export default function AdminTrips() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   
-  // States for the new trip form
+  // States for new trip
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
-  const [status, setStatus] = useState("Scheduled");
   const [pricePerSeat, setPricePerSeat] = useState(350);
-  const [availableSeats, setAvailableSeats] = useState(40);
-  
   const [departureDate, setDepartureDate] = useState<Date>();
-  const [departureTime, setDepartureTime] = useState("08:00");
-  
   const [arrivalDate, setArrivalDate] = useState<Date>();
-  const [arrivalTime, setArrivalTime] = useState("20:00");
 
-  // Fetch Locations
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
 
-  // Fetch Buses
   const busesRef = useMemoFirebase(() => collection(firestore, "buses"), [firestore]);
   const { data: buses } = useCollection(busesRef);
 
-  // Fetch Trips
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // Fetch Bookings for the manifest
+  // استعلام لجلب الحجوزات المرتبطة برحلة محددة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -66,41 +56,32 @@ export default function AdminTrips() {
       return;
     }
 
-    const depDateTime = new Date(departureDate);
-    const [depH, depM] = departureTime.split(':');
-    depDateTime.setHours(parseInt(depH), parseInt(depM));
-
-    const arrDateTime = new Date(arrivalDate);
-    const [arrH, arrM] = arrivalTime.split(':');
-    arrDateTime.setHours(parseInt(arrH), parseInt(arrM));
-
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
     const selectedBus = buses?.find(b => b.id === busId);
-    const busLabel = selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "";
 
     addDocumentNonBlocking(tripsRef, {
       busId,
-      busLabel,
+      busLabel: selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "",
       originId,
       originName,
       destinationId,
       destinationName,
-      status,
+      status: "Scheduled",
       pricePerSeat: Number(pricePerSeat),
-      availableSeats: Number(availableSeats),
-      totalSeats: Number(availableSeats),
-      departureTime: depDateTime.toISOString(),
-      arrivalTime: arrDateTime.toISOString(),
+      availableSeats: selectedBus?.capacity || 40,
+      totalSeats: selectedBus?.capacity || 40,
+      departureTime: departureDate.toISOString(),
+      arrivalTime: arrivalDate.toISOString(),
       createdAt: new Date().toISOString()
     });
 
-    toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة بنجاح" });
+    toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة للجدول" });
     setIsAdding(false);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("هل أنت متأكد؟")) {
+    if (confirm("هل أنت متأكد من حذف الرحلة؟")) {
       deleteDocumentNonBlocking(doc(firestore, "busTrips", id));
       toast({ title: "تم الحذف" });
     }
@@ -116,37 +97,46 @@ export default function AdminTrips() {
       </header>
 
       {isAdding && (
-        <Card className="border-primary/20 shadow-lg">
-          <CardHeader><CardTitle className="text-lg">رحلة جديدة</CardTitle></CardHeader>
-          <CardContent>
+        <Card className="border-primary/20 shadow-lg animate-in slide-in-from-top duration-300">
+          <CardContent className="pt-6">
             <form onSubmit={handleAddTrip} className="space-y-6 text-right">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>من</Label>
-                  <Select onValueChange={setOriginId}><SelectTrigger><SelectValue placeholder="مدينة الانطلاق" /></SelectTrigger><SelectContent>{locations?.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}</SelectContent></Select>
+                <div className="space-y-2 text-right">
+                  <Label>مدينة الانطلاق</Label>
+                  <Select onValueChange={setOriginId}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectContent>{locations?.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>إلى</Label>
-                  <Select onValueChange={setDestinationId}><SelectTrigger><SelectValue placeholder="الوجهة" /></SelectTrigger><SelectContent>{locations?.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}</SelectContent></Select>
+                <div className="space-y-2 text-right">
+                  <Label>الوجهة</Label>
+                  <Select onValueChange={setDestinationId}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectContent>{locations?.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>الحافلة</Label>
-                <Select onValueChange={setBusId}><SelectTrigger><SelectValue placeholder="اختر حافلة" /></SelectTrigger><SelectContent>{buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}</SelectContent></Select>
+              <div className="space-y-2 text-right">
+                <Label>الحافلة المخصصة</Label>
+                <Select onValueChange={setBusId}>
+                  <SelectTrigger className="rounded-xl"><SelectValue placeholder="اختر حافلة من الأسطول" /></SelectTrigger>
+                  <SelectContent>{buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}</SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>تاريخ الانطلاق</Label>
-                  <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full text-right">{departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر تاريخاً"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} locale={ar} /></PopoverContent></Popover>
-                  <Input type="time" value={departureTime} onChange={e => setDepartureTime(e.target.value)} className="mt-2" />
+                  <Label>موعد الانطلاق</Label>
+                  <Popover>
+                    <PopoverTrigger asChild><Button variant="outline" className="w-full text-right">{departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر تاريخاً"}</Button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={departureDate} onSelect={setDepartureDate} locale={ar} /></PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label>تاريخ الوصول</Label>
-                  <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full text-right">{arrivalDate ? format(arrivalDate, "PPP", { locale: ar }) : "اختر تاريخاً"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={arrivalDate} onSelect={setArrivalDate} locale={ar} /></PopoverContent></Popover>
-                  <Input type="time" value={arrivalTime} onChange={e => setArrivalTime(e.target.value)} className="mt-2" />
+                  <Label>سعر التذكرة (ريال)</Label>
+                  <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(Number(e.target.value))} className="rounded-xl" />
                 </div>
               </div>
-              <Button type="submit" className="w-full h-12">حفظ ونشر الرحلة</Button>
+              <Button type="submit" className="w-full h-12 rounded-xl">حفظ ونشر الرحلة</Button>
             </form>
           </CardContent>
         </Card>
@@ -167,32 +157,43 @@ export default function AdminTrips() {
               </div>
               <div className="flex gap-2">
                 <Dialog onOpenChange={(open) => { if (open) setViewingManifestId(trip.id); else setViewingManifestId(null); }}>
-                  <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs"><Users className="h-4 w-4" /> بيان الركاب</Button></DialogTrigger>
-                  <DialogContent className="max-w-4xl">
-                    <DialogHeader><DialogTitle>بيان الركاب (المانيفست)</DialogTitle></DialogHeader>
-                    {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto" /> : (
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs">
+                      <Users className="h-4 w-4" /> بيان الركاب
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        بيان الركاب المسجلين (المانيفست الدولي)
+                      </DialogTitle>
+                    </DialogHeader>
+                    {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8" /> : (
                       <div className="rounded-xl border overflow-hidden mt-4">
-                        <Table>
+                        <Table dir="rtl">
                           <TableHeader>
                             <TableRow className="bg-muted/50">
-                              <TableHead className="text-right">الاسم</TableHead>
-                              <TableHead className="text-right">رقم الجواز</TableHead>
-                              <TableHead className="text-right">المقعد</TableHead>
-                              <TableHead className="text-right">حالة الدفع</TableHead>
+                              <TableHead className="text-right font-bold">الاسم الكامل</TableHead>
+                              <TableHead className="text-right font-bold">رقم الجواز</TableHead>
+                              <TableHead className="text-right font-bold">المقعد</TableHead>
+                              <TableHead className="text-right font-bold">الحقائب</TableHead>
+                              <TableHead className="text-right font-bold">حالة الدفع</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {manifestBookings?.length === 0 ? (
-                              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">لا توجد حجوزات لهذه الرحلة بعد</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
                             ) : manifestBookings?.map(booking => (
-                              booking.passengers?.map((p: any, pIdx: number) => (
-                                <TableRow key={`${booking.id}-${pIdx}`}>
+                              booking.passengers?.map((p: any, idx: number) => (
+                                <TableRow key={`${booking.id}-${idx}`}>
                                   <TableCell className="font-bold">{p.fullName}</TableCell>
                                   <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
-                                  <TableCell><Badge variant="outline">{p.seatNumber}</Badge></TableCell>
+                                  <TableCell><Badge variant="outline" className="bg-primary/5">{p.seatNumber}</Badge></TableCell>
+                                  <TableCell className="text-xs">{idx === 0 ? (booking.extraBags > 0 ? `${booking.extraBags} إضافية` : "عادية") : "-"}</TableCell>
                                   <TableCell>
                                     <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'}>
-                                      {booking.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق'}
+                                      {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
                                     </Badge>
                                   </TableCell>
                                 </TableRow>
@@ -204,7 +205,9 @@ export default function AdminTrips() {
                     )}
                   </DialogContent>
                 </Dialog>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500 hover:bg-red-50 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
