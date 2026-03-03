@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Users, Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where, getDocs } from "firebase/firestore";
 
 interface Passenger {
@@ -23,20 +23,23 @@ interface Passenger {
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
 export default function DriverDashboard() {
+  const { user } = useUser();
   const firestore = useFirestore();
   const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
   const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
-  
-  const [passengers, setPassengers] = useState<Passenger[]>([
-    { id: "1", name: "أحمد محمد علي", seat: 5, checkedIn: true },
-    { id: "2", name: "سارة خالد", seat: 12, checkedIn: false },
-    { id: "3", name: "محمود حسن", seat: 18, checkedIn: false },
-    { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
-  ]);
 
-  const TRIP_ID = "AWJ-TRIP-TEST";
+  // جلب الحافلة المرتبطة بهذا السائق عن طريق بريده الإلكتروني
+  const busesQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return query(collection(firestore, "buses"), where("driverEmail", "==", user.email));
+  }, [firestore, user?.email]);
+
+  const { data: assignedBuses, isLoading: isBusesLoading } = useCollection(busesQuery);
+  const myBus = assignedBuses?.[0];
+
+  const TRIP_ID = myBus ? `TRIP-${myBus.licensePlate}` : "AWJ-TRIP-TEST";
 
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
@@ -50,11 +53,10 @@ export default function DriverDashboard() {
 
     setIsTracking(true);
     
-    // إرسال أول تحديث فوراً لضمان ظهور الخريطة للمستخدمين
     const tripRef = doc(firestore, "busTrips", TRIP_ID);
     setDocumentNonBlocking(tripRef, {
       isLive: true,
-      currentLat: 24.7136, // الرياض كإحداثيات افتراضية للبداية
+      currentLat: 24.7136, 
       currentLng: 46.6753,
       lastLocationUpdate: new Date().toISOString(),
       status: "Departed"
@@ -78,7 +80,6 @@ export default function DriverDashboard() {
       },
       (error) => {
         console.error("Geolocation error:", error);
-        // لا نوقف التتبع هنا لنسمح بمحاولات أخرى
         toast({
           variant: "destructive",
           title: "فشل تحديث الإحداثيات",
@@ -143,7 +144,7 @@ export default function DriverDashboard() {
         originName: "الرياض",
         destinationName: "عمان",
         status: newStatus,
-        busLabel: "AWJ-700 (Mercedes)",
+        busLabel: myBus ? `${myBus.licensePlate} (${myBus.model})` : "حافلة العوجان",
         lastUpdatedAt: new Date().toISOString(),
         currentLocationDescription: "على الطريق الدولي",
         arrivalTime: new Date(Date.now() + 18 * 3600000).toISOString()
@@ -169,19 +170,24 @@ export default function DriverDashboard() {
     });
   };
 
-  const toggleCheckIn = (id: string) => {
-    setPassengers(prev => prev.map(p => 
-      p.id === id ? { ...p, checkedIn: !p.checkedIn } : p
-    ));
-    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب." });
-  };
+  if (isBusesLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+
+  if (!myBus) return (
+    <div className="p-12 text-center space-y-4">
+      <div className="h-16 w-16 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+        <AlertTriangle className="h-8 w-8 text-red-500" />
+      </div>
+      <h1 className="text-xl font-bold">لا توجد حافلة مرتبطة</h1>
+      <p className="text-muted-foreground text-sm">يرجى التواصل مع الإدارة لربط حسابك بحافلة معينة قبل بدء العمل.</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 text-right">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold font-headline text-primary">لوحة القائد</h1>
-          <p className="text-xs text-muted-foreground">كابتن: محمد العتوم (حافلة AWJ-700)</p>
+          <p className="text-xs text-muted-foreground">كابتن: {user?.displayName || user?.email} (حافلة {myBus.licensePlate})</p>
         </div>
         <Badge 
           variant={tripStatus === "Departed" ? "default" : tripStatus === "Delayed" ? "destructive" : "secondary"}
@@ -201,8 +207,8 @@ export default function DriverDashboard() {
         <CardHeader className="bg-primary/5 border-b py-4">
           <div className="flex justify-between items-center">
             <CardTitle className="text-base flex items-center gap-2 text-primary">
-              <Bus className="h-5 w-5" />
-              التحكم في البث الحي
+              <BusIcon className="h-5 w-5" />
+              التحكم في البث الحي ({myBus.licensePlate})
             </CardTitle>
             {isTracking && (
               <span className="flex items-center gap-1 text-[10px] text-green-600 font-bold">
@@ -249,39 +255,6 @@ export default function DriverDashboard() {
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        <h2 className="font-bold flex items-center gap-2 px-1">
-          <Users className="h-5 w-5 text-primary" />
-          تحضير الركاب ({passengers.filter(p => p.checkedIn).length}/{passengers.length})
-        </h2>
-        
-        <div className="space-y-2">
-          {passengers.map((passenger) => (
-            <Card key={passenger.id} className={`transition-all border-none shadow-sm ring-1 ${passenger.checkedIn ? 'ring-emerald-100 bg-emerald-50/20' : 'ring-border bg-white'}`}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black ${passenger.checkedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
-                    {passenger.seat}
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-sm">{passenger.name}</p>
-                    <p className="text-[10px] text-muted-foreground">رقم التذكرة: AWJ-{passenger.id}00</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-muted-foreground">{passenger.checkedIn ? "صعد" : "انتظار"}</span>
-                  <Switch 
-                    checked={passenger.checkedIn} 
-                    onCheckedChange={() => toggleCheckIn(passenger.id)}
-                    className="data-[state=checked]:bg-emerald-600"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
       <div className="p-4 bg-accent/5 rounded-2xl border border-accent/20 text-right space-y-2">
         <h4 className="text-sm font-bold text-accent flex items-center gap-2 justify-end">
           تنبيه فني للقائد
@@ -295,7 +268,7 @@ export default function DriverDashboard() {
   );
 }
 
-function Bus({ className }: { className?: string }) {
+function BusIcon({ className }: { className?: string }) {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 

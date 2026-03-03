@@ -12,7 +12,8 @@ import {
   Settings, 
   ChevronLeft,
   LayoutDashboard,
-  Loader2
+  Loader2,
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,6 @@ export default function AdminDashboard() {
   const router = useRouter();
   const firestore = useFirestore();
 
-  // جلب البيانات الأساسية للحسابات
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
@@ -34,7 +34,6 @@ export default function AdminDashboard() {
   const bookingsRef = useMemoFirebase(() => collection(firestore, "bookings"), [firestore]);
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
-  // حساب الإحصائيات
   const stats = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     
@@ -81,6 +80,14 @@ export default function AdminDashboard() {
       href: "/admin/buses",
       color: "text-amber-600",
       bgColor: "bg-amber-50"
+    },
+    {
+      title: "إدارة السائقين",
+      description: "إضافة السائقين وربطهم بالحافلات",
+      icon: Users,
+      href: "/admin/drivers",
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50"
     },
     {
       title: "إدارة الطرود",
