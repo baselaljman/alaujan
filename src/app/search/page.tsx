@@ -29,11 +29,11 @@ function SearchContent() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Use the search params to generate more realistic mock data
+  // Use the search params to generate more realistic mock data, all set to VIP
   const mockTrips: Trip[] = [
     { id: "1", from: from || "الرياض", to: to || "دمشق", departure: "08:00 صباحاً", arrival: "11:00 مساءً", price: 350, seatsLeft: 12, busType: "VIP كوتش" },
-    { id: "2", from: from || "الرياض", to: to || "دمشق", departure: "04:00 مساءً", arrival: "07:00 صباحاً", price: 280, seatsLeft: 5, busType: "إكسبريس" },
-    { id: "3", from: from || "الرياض", to: to || "دمشق", departure: "10:30 مساءً", arrival: "01:30 مساءً", price: 310, seatsLeft: 20, busType: "إيكونومي بلس" },
+    { id: "2", from: from || "الرياض", to: to || "دمشق", departure: "04:00 مساءً", arrival: "07:00 صباحاً", price: 380, seatsLeft: 5, busType: "VIP كوتش" },
+    { id: "3", from: from || "الرياض", to: to || "دمشق", departure: "10:30 مساءً", arrival: "01:30 مساءً", price: 350, seatsLeft: 20, busType: "VIP كوتش" },
   ];
 
   useEffect(() => {
@@ -65,14 +65,14 @@ function SearchContent() {
       </header>
 
       <div className="space-y-4">
-        <p className="text-sm font-medium text-muted-foreground px-1">تم العثور على {mockTrips.length} رحلات مباشرة</p>
+        <p className="text-sm font-medium text-muted-foreground px-1">تم العثور على {mockTrips.length} رحلات VIP مباشرة</p>
         {mockTrips.map((trip) => (
           <Card key={trip.id} className="overflow-hidden hover:shadow-xl transition-all border-primary/5 bg-white/80 backdrop-blur-sm group">
             <CardContent className="p-0">
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 flex-1">
-                    <Badge variant="secondary" className="bg-primary/5 text-primary hover:bg-primary/10 border-none px-3">
+                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 font-bold">
                       {trip.busType}
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
