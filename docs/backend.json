@@ -1,0 +1,53 @@
+
+{
+  "entities": {
+    "Trip": {
+      "title": "Trip",
+      "description": "بيانات الرحلة المجدولة والموقع المباشر",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "busNumber": { "type": "string" },
+        "driverId": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "active", "completed"] },
+        "currentLocation": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "lastUpdated": { "type": "string", "format": "date-time" }
+          }
+        },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "departureTime": { "type": "string" }
+      },
+      "required": ["busNumber", "status"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "تذكرة حجز الراكب",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tripId": { "type": "string" },
+        "passengerName": { "type": "string" },
+        "seatNumber": { "type": "number" },
+        "checkedIn": { "type": "boolean" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "مستندات الرحلات ومواقعها المباشرة"
+    },
+    "/trips/{tripId}/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "تذاكر الركاب التابعة لرحلة معينة"
+    }
+  }
+}
