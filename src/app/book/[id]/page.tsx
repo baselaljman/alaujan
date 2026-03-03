@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, use, useMemo } from "react";
@@ -5,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, User, Stepper as SteeringWheel } from "lucide-react";
+import { ArrowRight, User, Package, Plus, Minus, Info, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -14,12 +15,14 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const resolvedParams = use(params);
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [step, setStep] = useState(1);
+  const [extraBags, setExtraBags] = useState(0);
 
-  // توليد مقاعد ثابتة لتجنب مشاكل الهيدريشن (Hydration)
+  const TICKET_PRICE = 350;
+  const EXTRA_BAG_PRICE = 100;
+
   const seats = useMemo(() => {
     return Array.from({ length: 40 }, (_, i) => ({
       id: i + 1,
-      // جعل بعض المقاعد محجوزة بشكل ثابت للعرض
       isAvailable: !([3, 7, 12, 18, 25, 30].includes(i + 1)),
     }));
   }, []);
@@ -40,8 +43,8 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  const handleNext = () => {
-    if (selectedSeats.length === 0) {
+  const handleNextStep = () => {
+    if (step === 1 && selectedSeats.length === 0) {
       toast({
         title: "لم يتم اختيار مقاعد",
         description: "يرجى اختيار مقعد واحد على الأقل للمتابعة.",
@@ -49,23 +52,41 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
       });
       return;
     }
-    setStep(2);
+    setStep(step + 1);
+  };
+
+  const handlePrevStep = () => {
+    setStep(step - 1);
   };
 
   const handlePayment = () => {
     router.push("/checkout");
   };
 
+  const totalTicketPrice = selectedSeats.length * TICKET_PRICE;
+  const totalExtraBagsPrice = extraBags * EXTRA_BAG_PRICE;
+  const finalTotal = totalTicketPrice + totalExtraBagsPrice + 10; // 10 is service fee
+
   return (
     <div className="space-y-6 pb-32 md:pb-10">
       <header className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => step === 1 ? router.back() : setStep(1)} className="rounded-full">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => step === 1 ? router.back() : handlePrevStep()} 
+          className="rounded-full"
+        >
           <ArrowRight className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold">{step === 1 ? "اختيار المقاعد" : "بيانات المسافرين"}</h1>
+        <h1 className="text-xl font-bold">
+          {step === 1 && "اختيار المقاعد"}
+          {step === 2 && "بيانات المسافرين"}
+          {step === 3 && "إضافة الأمتعة"}
+        </h1>
       </header>
 
-      {step === 1 ? (
+      {/* Step 1: Seat Selection */}
+      {step === 1 && (
         <div className="space-y-8 animate-in fade-in duration-500">
           <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-wider">
             <div className="flex items-center gap-1.5">
@@ -96,7 +117,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
                     <SeatButton seat={seats[rowIndex * 4]} isSelected={selectedSeats.includes(seats[rowIndex * 4].id)} onClick={() => toggleSeat(seats[rowIndex * 4].id)} />
                     <SeatButton seat={seats[rowIndex * 4 + 1]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 1].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 1].id)} />
                     <div className="flex items-center justify-center text-[8px] text-primary/20 font-bold rotate-90 pointer-events-none">
-                      AISLE
+                      الممر
                     </div>
                     <SeatButton seat={seats[rowIndex * 4 + 2]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 2].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 2].id)} />
                     <SeatButton seat={seats[rowIndex * 4 + 3]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 3].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 3].id)} />
@@ -107,12 +128,15 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
           </Card>
 
           <div className="fixed bottom-20 left-4 right-4 md:static">
-            <Button onClick={handleNext} className="w-full h-16 text-lg font-bold shadow-2xl rounded-2xl bg-primary hover:bg-primary/95 transition-all">
+            <Button onClick={handleNextStep} className="w-full h-16 text-lg font-bold shadow-2xl rounded-2xl bg-primary hover:bg-primary/95 transition-all">
               تأكيد {selectedSeats.length} مقاعد والمتابعة
             </Button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Step 2: Passenger Data */}
+      {step === 2 && (
         <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
           <Card className="border-primary/10 shadow-sm overflow-hidden">
             <CardHeader className="bg-primary/5 border-b">
@@ -125,7 +149,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y">
-                {selectedSeats.map((seat, index) => (
+                {selectedSeats.map((seat) => (
                   <div key={seat} className="p-6 space-y-4 bg-white text-right">
                     <div className="flex items-center gap-2 text-primary font-bold">
                       <User className="h-4 w-4" />
@@ -146,20 +170,82 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
               </div>
             </CardContent>
           </Card>
+          <Button onClick={handleNextStep} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary hover:bg-primary/95 transition-all">
+            متابعة لإضافة الأمتعة
+          </Button>
+        </div>
+      )}
 
-          <Card className="border-primary/10 shadow-lg">
+      {/* Step 3: Luggage */}
+      {step === 3 && (
+        <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
+          <Card className="border-primary/20 shadow-md bg-white">
+            <CardHeader className="bg-primary/5 border-b">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  سياسة الأمتعة المجانية
+                </CardTitle>
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 text-right">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-green-50/50 border border-green-100">
+                <Info className="h-5 w-5 text-green-600 mt-1 shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-bold text-green-800">يسمح لكل راكب بحقيبتين مجاناً</p>
+                  <p className="text-sm text-green-700">الوزن الأقصى لكل حقيبة هو 30 كيلوجرام.</p>
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-right">
+                    <h3 className="font-bold text-lg">حقائب إضافية</h3>
+                    <p className="text-sm text-muted-foreground">أضف حقائب أكثر عند الحاجة</p>
+                    <p className="text-xs font-bold text-accent mt-1">100 ريال لكل حقيبة إضافية</p>
+                  </div>
+                  <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-2xl border border-primary/5">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-10 w-10 rounded-xl border-primary/20"
+                      onClick={() => setExtraBags(Math.max(0, extraBags - 1))}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xl font-black min-w-[30px] text-center">{extraBags}</span>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="h-10 w-10 rounded-xl bg-primary text-white hover:bg-primary/90"
+                      onClick={() => setExtraBags(extraBags + 1)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/10 shadow-lg bg-primary/5">
             <CardContent className="p-6 space-y-4 text-right">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">قيمة التذاكر ({selectedSeats.length} مقاعد)</span>
-                <span className="font-bold text-primary">${350 * selectedSeats.length}</span>
+                <span className="text-muted-foreground">قيمة التذاكر ({selectedSeats.length} مسافرين)</span>
+                <span className="font-bold text-primary">${totalTicketPrice}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">حقائب إضافية ({extraBags})</span>
+                <span className="font-bold text-primary">${totalExtraBagsPrice}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">رسوم الخدمة والضرائب</span>
                 <span className="font-bold text-primary">$10</span>
               </div>
-              <div className="pt-4 border-t-2 border-dashed flex justify-between items-center text-2xl font-black text-primary font-headline">
+              <div className="pt-4 border-t-2 border-dashed border-primary/20 flex justify-between items-center text-2xl font-black text-primary">
                 <span>الإجمالي النهائي</span>
-                <span>${(350 * selectedSeats.length) + 10}</span>
+                <span>${finalTotal}</span>
               </div>
             </CardContent>
           </Card>
