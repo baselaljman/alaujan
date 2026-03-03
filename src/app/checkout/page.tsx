@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
 
 function CheckoutContent() {
@@ -22,7 +22,6 @@ function CheckoutContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // استرجاع كافة بيانات الحجز من الرابط
   const tripId = searchParams.get("tripId");
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
@@ -39,7 +38,18 @@ function CheckoutContent() {
     
     setIsProcessing(true);
 
-    // تسجيل الحجز في المجموعة الرئيسية 'bookings'
+    // 1. إنشاء/تحديث ملف المستخدم (تسجيل تلقائي)
+    const userProfileRef = doc(firestore, "users", user.uid);
+    setDocumentNonBlocking(userProfileRef, {
+      id: user.uid,
+      email: email,
+      firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
+      lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp() // سيتم تجاهله إذا كان المستند موجوداً مسبقاً مع merge
+    }, { merge: true });
+
+    // 2. تسجيل الحجز في المجموعة الرئيسية 'bookings'
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       busTripId: tripId,
@@ -48,7 +58,7 @@ function CheckoutContent() {
       numberOfSeats: seats.length,
       seatNumbers: seats,
       extraBags: extraBags,
-      passengers: passengers, // تسجيل قائمة المسافرين كاملة (الاسم + الجواز + رقم المقعد)
+      passengers: passengers,
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -57,10 +67,9 @@ function CheckoutContent() {
       createdAt: serverTimestamp()
     };
 
-    // حفظ بيانات الحجز في Firestore
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // تحديث عدد المقاعد المتاحة في ملف الرحلة آلياً
+    // 3. تحديث عدد المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -68,13 +77,12 @@ function CheckoutContent() {
       });
     }
 
-    // محاكاة معالجة الدفع والنجاح
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: "تم تسجيل كافة بيانات المسافرين وحجز المقاعد بنجاح.",
+        description: "تم تسجيل كافة بيانات المسافرين وتحديث حسابك بنجاح.",
       });
     }, 2000);
   };
@@ -88,10 +96,10 @@ function CheckoutContent() {
         <h1 className="text-3xl font-bold font-headline">تم الحجز بنجاح!</h1>
         <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3 max-w-xs mx-auto">
           <Mail className="h-5 w-5 text-primary" />
-          <p className="text-xs text-primary font-medium text-right">تم إرسال تذاكر المسافرين إلى {email}</p>
+          <p className="text-xs text-primary font-medium text-right">تم إرسال تذاكر المسافرين إلى {email} وربطها بحسابك.</p>
         </div>
         <div className="space-y-3 w-full max-w-xs pt-4">
-          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض التذاكر والبيانات</Button>
+          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض التذاكر في حسابي</Button>
           <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
       </div>
@@ -146,7 +154,7 @@ function CheckoutContent() {
         </Card>
 
         <Button onClick={handlePay} disabled={isProcessing} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "إصدار التذاكر الآن"}
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
         </Button>
       </div>
     </div>
