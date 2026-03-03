@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
-import { collection, doc, query, where } from "firebase/firestore";
+import { collection, doc, query, where, increment } from "firebase/firestore";
 import { 
   Plus, 
   Trash2, 
@@ -211,13 +211,22 @@ export default function AdminTrips() {
       status: newStatus
     };
 
+    // 1. تحديث حالة الراكب في وثيقة الحجز
     updateDocumentNonBlocking(doc(firestore, "bookings", bookingId), {
       passengers: updatedPassengers
     });
 
+    // 2. تحديث عدد المقاعد المتاحة في وثيقة الرحلة
+    if (viewingManifestId) {
+      const tripRef = doc(firestore, "busTrips", viewingManifestId);
+      updateDocumentNonBlocking(tripRef, {
+        availableSeats: increment(newStatus === 'Cancelled' ? 1 : -1)
+      });
+    }
+
     toast({ 
       title: newStatus === 'Cancelled' ? "تم الإلغاء" : "تم التفعيل", 
-      description: newStatus === 'Cancelled' ? "تم إلغاء المسافر بنجاح" : "تمت إعادة تفعيل المسافر بنجاح" 
+      description: newStatus === 'Cancelled' ? "تم إلغاء المسافر وإخلاء المقعد بنجاح" : "تمت إعادة تفعيل المسافر وحجز المقعد بنجاح" 
     });
   };
 
@@ -428,7 +437,7 @@ export default function AdminTrips() {
                   <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center"><Bus className="h-5 w-5 text-primary" /></div>
                   <div className="text-right">
                     <p className="font-bold text-sm">{trip.originName} ⮕ {trip.destinationName}</p>
-                    <p className="text-[10px] text-muted-foreground">الانطلاق: {new Date(trip.departureTime).toLocaleString('ar-EG')}</p>
+                    <p className="text-[10px] text-muted-foreground">الانطلاق: {new Date(trip.departureTime).toLocaleString('ar-EG')} | متاح: {trip.availableSeats}/{trip.totalSeats}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -461,9 +470,9 @@ export default function AdminTrips() {
                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setPrintingTicket({ passenger, trip, booking })} disabled={isCancelled}><Ticket className="h-4 w-4" /></Button>
                                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setEditingPassenger({ bookingId: booking.id, passengerIndex: index, fullName: passenger.fullName, passportNumber: passenger.passportNumber })} disabled={isCancelled}><Edit className="h-4 w-4" /></Button>
                                           {isCancelled ? (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => togglePassengerStatus(booking.id, index)} title="إعادة تفعيل"><RotateCcw className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => togglePassengerStatus(booking.id, index)} title="إعادة تفعيل المقعد"><RotateCcw className="h-4 w-4" /></Button>
                                           ) : (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => togglePassengerStatus(booking.id, index)} title="إلغاء المسافر"><XCircle className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => togglePassengerStatus(booking.id, index)} title="إلغاء المسافر وإخلاء المقعد"><XCircle className="h-4 w-4" /></Button>
                                           )}
                                         </div>
                                       </TableCell>
