@@ -1,10 +1,22 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Settings, LogOut, Ticket, Heart, Bell, ChevronLeft, Bus } from "lucide-react";
+import { 
+  Settings, 
+  LogOut, 
+  Ticket, 
+  Heart, 
+  Bell, 
+  ChevronLeft, 
+  Bus, 
+  LayoutDashboard,
+  ShieldAlert
+} from "lucide-react";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const bookings = [
@@ -32,6 +44,24 @@ export default function ProfilePage() {
           <Badge variant="secondary" className="mt-1 bg-primary/10 text-primary">عضو ذهبي</Badge>
         </div>
       </div>
+
+      {/* قسم الإدارة للمسؤولين */}
+      <Card className="border-primary/20 bg-primary/5 shadow-sm">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+              <ShieldAlert className="h-5 w-5 text-white" />
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-sm">لوحة تحكم المسؤول</p>
+              <p className="text-[10px] text-muted-foreground">إدارة الرحلات، المدن، والحافلات</p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="rounded-xl">
+            <Link href="/admin">دخول</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="space-y-3">
         <h3 className="font-bold text-base px-1">حجوزاتي</h3>
