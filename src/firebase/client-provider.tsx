@@ -10,13 +10,14 @@ interface FirebaseClientProviderProps {
 }
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
+  // تهيئة خدمات Firebase مرة واحدة فقط
   const firebaseServices = useMemo(() => {
     return initializeFirebase();
   }, []);
 
   useEffect(() => {
-    // تفعيل تسجيل الدخول الخفي تلقائياً لضمان وجود سياق للمصادقة (Auth Context)
-    // وهذا يحل الكثير من مشاكل الصلاحيات في Firestore
+    // تفعيل تسجيل الدخول المجهول لضمان وجود سياق أمان (Auth Context)
+    // هذا يساعد Firestore في معالجة القواعد حتى لو كانت مفتوحة للجميع
     if (firebaseServices.auth) {
       initiateAnonymousSignIn(firebaseServices.auth);
     }
