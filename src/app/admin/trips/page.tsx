@@ -301,7 +301,7 @@ export default function AdminTrips() {
 
         {/* Edit Passenger Dialog */}
         <Dialog open={!!editingPassenger} onOpenChange={(open) => !open && setEditingPassenger(null)}>
-          <DialogContent className="text-right">
+          <DialogContent className="text-right print:hidden">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 justify-end">
                 <span>تعديل بيانات المسافر</span>
@@ -337,7 +337,7 @@ export default function AdminTrips() {
 
         {/* Preview Single Ticket Dialog */}
         <Dialog open={!!printingTicket} onOpenChange={(open) => !open && setPrintingTicket(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto text-right">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto text-right print:hidden">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 justify-end">
                 <span>معاينة تذكرة المسافر</span>
@@ -396,7 +396,7 @@ export default function AdminTrips() {
                   <div className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-background rounded-full border-l-2 border-dashed border-primary/20" />
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200 print:hidden">
                   <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">
                     هذه معاينة سريعة. للحصول على التذكرة الاحترافية الكاملة المخصصة للطباعة (بما في ذلك كعب التذكرة والباركود)، يرجى الضغط على زر "طباعة التذكرة الآن" أدناه.
@@ -415,7 +415,7 @@ export default function AdminTrips() {
         </Dialog>
 
         <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
-          <AlertDialogContent className="text-right">
+          <AlertDialogContent className="text-right print:hidden">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2 justify-end">
                 <span>تأكيد حذف الرحلة</span>
@@ -536,7 +536,7 @@ export default function AdminTrips() {
                         <Users className="h-4 w-4" /> بيان الركاب
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto print:hidden">
                       <DialogHeader>
                         <div className="flex items-center justify-between">
                           <DialogTitle className="flex items-center gap-2">
