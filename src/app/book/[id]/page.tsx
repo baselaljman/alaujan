@@ -1,12 +1,13 @@
 
 "use client"
 
-import { useState, use, useMemo } from "react";
+import { useState, use, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, User, Package, Plus, Minus, Info, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowRight, User, Package, Plus, Minus, Info, CheckCircle2, Phone, Mail, ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,14 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [step, setStep] = useState(1);
   const [extraBags, setExtraBags] = useState(0);
+  
+  // Contact info states
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerifying, setIsOtpVerifying] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
 
   const TICKET_PRICE = 350;
   const EXTRA_BAG_PRICE = 100;
@@ -59,13 +68,43 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
     setStep(step - 1);
   };
 
+  const sendOtp = () => {
+    if (!phone || phone.length < 8) {
+      toast({ title: "خطأ", description: "يرجى إدخال رقم هاتف صحيح.", variant: "destructive" });
+      return;
+    }
+    setIsOtpVerifying(true);
+    setTimeout(() => {
+      setIsOtpSent(true);
+      setIsOtpVerifying(false);
+      toast({ title: "تم إرسال الرمز", description: "تم إرسال رمز التحقق إلى هاتفك." });
+    }, 1500);
+  };
+
+  const verifyOtp = () => {
+    if (otp === "1234" || otp === "0000") { // Simulated logic
+      setIsOtpVerifying(true);
+      setTimeout(() => {
+        setIsOtpVerified(true);
+        setIsOtpVerifying(false);
+        toast({ title: "نجاح", description: "تم التحقق من رقم الهاتف بنجاح." });
+      }, 1000);
+    } else {
+      toast({ title: "خطأ", description: "رمز التحقق غير صحيح. جرب 1234", variant: "destructive" });
+    }
+  };
+
   const handlePayment = () => {
+    if (!isOtpVerified) {
+      toast({ title: "تنبيه", description: "يرجى التحقق من رقم الهاتف أولاً.", variant: "destructive" });
+      return;
+    }
     router.push("/checkout");
   };
 
   const totalTicketPrice = selectedSeats.length * TICKET_PRICE;
   const totalExtraBagsPrice = extraBags * EXTRA_BAG_PRICE;
-  const finalTotal = totalTicketPrice + totalExtraBagsPrice + 10; // 10 is service fee
+  const finalTotal = totalTicketPrice + totalExtraBagsPrice + 10;
 
   return (
     <div className="space-y-6 pb-32 md:pb-10">
@@ -82,6 +121,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
           {step === 1 && "اختيار المقاعد"}
           {step === 2 && "بيانات المسافرين"}
           {step === 3 && "إضافة الأمتعة"}
+          {step === 4 && "معلومات الاتصال"}
         </h1>
       </header>
 
@@ -250,8 +290,107 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
             </CardContent>
           </Card>
 
-          <Button onClick={handlePayment} className="w-full h-16 text-xl font-black shadow-xl rounded-2xl bg-primary hover:bg-primary/95 transition-all">
-            الانتقال للدفع الآمن
+          <Button onClick={handleNextStep} className="w-full h-16 text-xl font-black shadow-xl rounded-2xl bg-primary hover:bg-primary/95 transition-all">
+            متابعة لبيانات الاتصال
+          </Button>
+        </div>
+      )}
+
+      {/* Step 4: Contact Info & OTP */}
+      {step === 4 && (
+        <div className="space-y-6 animate-in slide-in-from-left-4 duration-500">
+          <Card className="border-primary/10 shadow-lg">
+            <CardHeader className="bg-primary/5 border-b">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                معلومات الاتصال والتحقق
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6 text-right">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">رقم الهاتف الجوال</Label>
+                  <div className="relative">
+                    <Phone className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                      className="pr-10 h-12 rounded-xl" 
+                      placeholder="05XXXXXXXX" 
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={isOtpVerified}
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">البريد الإلكتروني (لتلقي التذاكر)</Label>
+                  <div className="relative">
+                    <Mail className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                      className="pr-10 h-12 rounded-xl" 
+                      placeholder="example@mail.com" 
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isOtpVerified}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {!isOtpVerified && (
+                <div className="pt-4 space-y-4 border-t border-dashed">
+                  {!isOtpSent ? (
+                    <Button 
+                      onClick={sendOtp} 
+                      className="w-full h-12 rounded-xl" 
+                      variant="outline"
+                      disabled={isOtpVerifying || !phone}
+                    >
+                      {isOtpVerifying ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+                      إرسال رمز التحقق
+                    </Button>
+                  ) : (
+                    <div className="space-y-4 animate-in zoom-in duration-300">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-center block text-muted-foreground">أدخل الرمز المرسل إلى {phone}</Label>
+                        <Input 
+                          className="text-center text-2xl tracking-[0.5em] font-black h-14 rounded-xl" 
+                          placeholder="----" 
+                          maxLength={4}
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value)}
+                        />
+                      </div>
+                      <Button 
+                        onClick={verifyOtp} 
+                        className="w-full h-12 rounded-xl bg-accent text-white hover:bg-accent/90"
+                        disabled={isOtpVerifying || otp.length < 4}
+                      >
+                        {isOtpVerifying ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}
+                        تحقق من الرمز
+                      </Button>
+                      <Button variant="link" className="w-full text-xs" onClick={() => setIsOtpSent(false)}>إعادة إرسال؟</Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isOtpVerified && (
+                <div className="p-4 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center gap-3 animate-in zoom-in">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <span className="font-bold text-green-800">تم التحقق من رقم الهاتف بنجاح</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button 
+            onClick={handlePayment} 
+            disabled={!isOtpVerified || !email}
+            className="w-full h-16 text-xl font-black shadow-xl rounded-2xl bg-primary hover:bg-primary/95 transition-all"
+          >
+            الانتقال للدفع وتلقي التذاكر
           </Button>
         </div>
       )}
