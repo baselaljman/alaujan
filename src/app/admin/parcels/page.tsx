@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard, Loader2, Banknote } from "lucide-react";
+import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard, Loader2, Banknote, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
@@ -35,6 +35,15 @@ export default function AdminParcelEntry() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
+  // تصفية الرحلات بناءً على الوجهة المختارة
+  const filteredTrips = useMemo(() => {
+    if (!trips || !formData.destinationLocationId) return [];
+    return trips.filter(t => 
+      t.status !== "Arrived" && 
+      t.destinationId === formData.destinationLocationId
+    );
+  }, [trips, formData.destinationLocationId]);
+
   const trackingNumber = useMemo(() => {
     return `AWJ-PRC-${Math.floor(100000 + Math.random() * 900000)}`;
   }, []);
@@ -46,6 +55,15 @@ export default function AdminParcelEntry() {
         variant: "destructive",
         title: "بيانات ناقصة",
         description: "يرجى اختيار الوجهة وإدخال بيانات المستلم.",
+      });
+      return;
+    }
+
+    if (!formData.busTripId) {
+      toast({
+        variant: "destructive",
+        title: "لم يتم ربط رحلة",
+        description: "يرجى اختيار الحافلة المتجهة لهذه المحافظة.",
       });
       return;
     }
@@ -69,7 +87,7 @@ export default function AdminParcelEntry() {
       status: "Pending Pickup",
       lastUpdatedAt: new Date().toISOString(),
       createdAt: serverTimestamp(),
-      recipientAddress: destinationName // افتراضياً المحطة في تلك المدينة
+      recipientAddress: destinationName // المحطة في تلك المدينة
     });
 
     setTimeout(() => {
@@ -118,7 +136,9 @@ export default function AdminParcelEntry() {
               <div className="space-y-2">
                 <Label className="text-xs font-bold">المحافظة المستهدفة (الوجهة)</Label>
                 <Select 
-                  onValueChange={(val) => setFormData({...formData, destinationLocationId: val})}
+                  onValueChange={(val) => {
+                    setFormData({...formData, destinationLocationId: val, busTripId: ""}); // تصفير الرحلة عند تغيير الوجهة
+                  }}
                   value={formData.destinationLocationId}
                 >
                   <SelectTrigger className="rounded-xl h-12">
@@ -201,26 +221,38 @@ export default function AdminParcelEntry() {
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center gap-2 text-accent font-bold text-sm mb-2">
                   <Truck className="h-4 w-4" />
-                  ربط بالحافلة والرحلة
+                  ربط بالحافلة والرحلة المتجهة للوجهة المختارة
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs">اختر الرحلة المتجهة لهذه المحافظة</Label>
+                    <Label className="text-xs">الحافلات المتجهة حالياً لهذه الوجهة</Label>
                     <Select 
                       onValueChange={(val) => setFormData({...formData, busTripId: val})}
                       value={formData.busTripId}
+                      disabled={!formData.destinationLocationId || filteredTrips.length === 0}
                     >
                       <SelectTrigger className="rounded-xl h-12 bg-white">
-                        <SelectValue placeholder={isTripsLoading ? "جاري التحميل..." : "اختر الرحلة النشطة"} />
+                        <SelectValue placeholder={
+                          !formData.destinationLocationId ? "اختر الوجهة أولاً" : 
+                          isTripsLoading ? "جاري التحميل..." : 
+                          filteredTrips.length === 0 ? "لا توجد رحلات نشطة لهذه الوجهة" : 
+                          "اختر الرحلة"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {trips?.filter(t => t.status !== "Arrived").map(t => (
+                        {filteredTrips.map(t => (
                           <SelectItem key={t.id} value={t.id}>
                             {t.originName} ⮕ {t.destinationName} ({t.busLabel})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {formData.destinationLocationId && filteredTrips.length === 0 && !isTripsLoading && (
+                      <div className="flex items-center gap-2 text-red-500 text-[10px] mt-1 pr-1 font-bold">
+                        <AlertCircle className="h-3 w-3" />
+                        عذراً، لا توجد رحلات مجدولة حالياً لهذه المدينة في النظام.
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -228,7 +260,7 @@ export default function AdminParcelEntry() {
 
             <Button 
               className="w-full h-14 text-lg font-bold rounded-2xl gap-2 shadow-xl" 
-              disabled={isSaving || isLocsLoading}
+              disabled={isSaving || isLocsLoading || filteredTrips.length === 0}
               type="submit"
             >
               {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Save className="h-5 w-5" /> تسجيل وحفظ البيانات</>}
@@ -239,3 +271,4 @@ export default function AdminParcelEntry() {
     </div>
   );
 }
+
