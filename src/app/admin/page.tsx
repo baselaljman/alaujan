@@ -1,24 +1,61 @@
 
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Bus, 
   MapPin, 
   Package, 
   Calendar, 
-  Users, 
   Settings, 
   ChevronLeft,
   LayoutDashboard,
-  Route
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import { format } from "date-fns";
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const firestore = useFirestore();
+
+  // جلب البيانات الأساسية للحسابات
+  const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
+  const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
+
+  const parcelsRef = useMemoFirebase(() => collection(firestore, "parcels"), [firestore]);
+  const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
+
+  const bookingsRef = useMemoFirebase(() => collection(firestore, "bookings"), [firestore]);
+  const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
+
+  // حساب الإحصائيات
+  const stats = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    
+    const todayTripsCount = trips?.filter(t => 
+      t.departureTime && t.departureTime.startsWith(todayStr)
+    ).length || 0;
+
+    const activeParcelsCount = parcels?.filter(p => 
+      p.status !== "Delivered"
+    ).length || 0;
+
+    const todayBookingsCount = bookings?.filter(b => 
+      b.bookingDate && b.bookingDate.startsWith(todayStr)
+    ).length || 0;
+
+    return {
+      todayTrips: todayTripsCount,
+      activeParcels: activeParcelsCount,
+      newBookings: todayBookingsCount
+    };
+  }, [trips, parcels, bookings]);
 
   const adminModules = [
     {
@@ -54,6 +91,8 @@ export default function AdminDashboard() {
       bgColor: "bg-purple-50"
     }
   ];
+
+  const isLoading = isTripsLoading || isParcelsLoading || isBookingsLoading;
 
   return (
     <div className="space-y-6 pb-20">
@@ -95,22 +134,34 @@ export default function AdminDashboard() {
         <CardHeader>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            إحصائيات النظام السريعة
+            إحصائيات النظام الحقيقية
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-white p-3 rounded-xl border">
               <p className="text-[10px] text-muted-foreground">رحلات اليوم</p>
-              <p className="text-lg font-black text-primary">12</p>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+              ) : (
+                <p className="text-lg font-black text-primary">{stats.todayTrips}</p>
+              )}
             </div>
             <div className="bg-white p-3 rounded-xl border">
               <p className="text-[10px] text-muted-foreground">طرود نشطة</p>
-              <p className="text-lg font-black text-primary">45</p>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+              ) : (
+                <p className="text-lg font-black text-primary">{stats.activeParcels}</p>
+              )}
             </div>
             <div className="bg-white p-3 rounded-xl border">
-              <p className="text-[10px] text-muted-foreground">حجوزات جديدة</p>
-              <p className="text-lg font-black text-primary">8</p>
+              <p className="text-[10px] text-muted-foreground">حجوزات اليوم</p>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+              ) : (
+                <p className="text-lg font-black text-primary">{stats.newBookings}</p>
+              )}
             </div>
           </div>
         </CardContent>
