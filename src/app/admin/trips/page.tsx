@@ -18,6 +18,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminTrips() {
   const firestore = useFirestore();
@@ -42,11 +43,15 @@ export default function AdminTrips() {
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
 
+  // Fetch Buses for the select
+  const busesRef = useMemoFirebase(() => collection(firestore, "buses"), [firestore]);
+  const { data: buses } = useCollection(busesRef);
+
   // Fetch Trips
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // Fetch Bookings for the manifest (using collectionGroup to find bookings across all users)
+  // Fetch Bookings for the manifest
   const allBookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -59,7 +64,7 @@ export default function AdminTrips() {
     if (!busId || !departureDate || !arrivalDate || !originId || !destinationId) {
       toast({ 
         title: "بيانات ناقصة", 
-        description: "يرجى اختيار المدن والتاريخ ورقم الحافلة",
+        description: "يرجى اختيار المدن والتاريخ والحافلة",
         variant: "destructive"
       });
       return;
@@ -76,6 +81,8 @@ export default function AdminTrips() {
 
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
+    const selectedBus = buses?.find(b => b.id === busId);
+    const busLabel = selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "غير معروف";
 
     const depDateTime = new Date(departureDate);
     const [depH, depM] = departureTime.split(':');
@@ -87,6 +94,7 @@ export default function AdminTrips() {
 
     addDocumentNonBlocking(tripsRef, {
       busId,
+      busLabel,
       originId,
       originName,
       destinationId,
@@ -132,13 +140,13 @@ export default function AdminTrips() {
       </header>
 
       {isAdding && (
-        <Card className="border-primary/20 shadow-lg animate-in fade-in slide-in-from-top-4">
+        <Card className="border-primary/20 shadow-lg animate-in fade-in duration-300">
           <CardHeader>
             <CardTitle className="text-lg">تفاصيل الرحلة الجديدة</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddTrip} className="space-y-6 text-right">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>من (مدينة الانطلاق)</Label>
                   <Select onValueChange={setOriginId} value={originId}>
@@ -167,15 +175,19 @@ export default function AdminTrips() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>رقم الحافلة</Label>
-                  <Input 
-                    placeholder="مثلاً: AWJ-700" 
-                    value={busId}
-                    onChange={e => setBusId(e.target.value)}
-                    className="rounded-xl h-12"
-                  />
+                  <Label>اختر الحافلة</Label>
+                  <Select onValueChange={setBusId} value={busId}>
+                    <SelectTrigger className="rounded-xl h-12">
+                      <SelectValue placeholder="اختر حافلة من الأسطول" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {buses?.map(bus => (
+                        <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>الحالة</Label>
@@ -315,7 +327,7 @@ export default function AdminTrips() {
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <CalendarIcon className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">حافلة: {trip.busId}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold">حافلة: {trip.busLabel || trip.busId}</p>
                   </div>
                 </div>
               </div>
@@ -330,7 +342,7 @@ export default function AdminTrips() {
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
                         <Users className="h-5 w-5 text-primary" />
-                        قائمة المسافرين - حافلة {trip.busId}
+                        قائمة المسافرين - {trip.originName} إلى {trip.destinationName}
                       </DialogTitle>
                     </DialogHeader>
                     <div className="py-4">
