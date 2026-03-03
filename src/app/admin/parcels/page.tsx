@@ -1,36 +1,87 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard } from "lucide-react";
+import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
+import { collection, serverTimestamp } from "firebase/firestore";
 
 export default function AdminParcelEntry() {
+  const firestore = useFirestore();
   const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    senderName: "",
+    recipientName: "",
+    recipientPhone: "",
+    destinationLocationId: "",
+    busTripId: "",
+    weight: "1"
+  });
 
-  // بيانات افتراضية للمحافظات والحافلات المتاحة للربط
-  const provinces = ["الرياض", "الدمام", "عمان", "دمشق", "حمص", "حماة", "الرقة", "دير الزور"];
-  const activeTrips = [
-    { id: "AWJ-700", route: "الرياض ⮕ دمشق" },
-    { id: "AWJ-800", route: "الدمام ⮕ عمان" },
-    { id: "AWJ-900", route: "الرياض ⮕ حمص" }
-  ];
+  // جلب المدن (المحافظات) من قاعدة البيانات
+  const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
+  const { data: locations, isLoading: isLocsLoading } = useCollection(locationsRef);
+
+  // جلب الرحلات النشطة لربط الطرد بها
+  const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
+  const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
+
+  const trackingNumber = useMemo(() => {
+    return `AWJ-PRC-${Math.floor(100000 + Math.random() * 900000)}`;
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.destinationLocationId || !formData.recipientName || !formData.recipientPhone) {
+      toast({
+        variant: "destructive",
+        title: "بيانات ناقصة",
+        description: "يرجى اختيار الوجهة وإدخال بيانات المستلم.",
+      });
+      return;
+    }
+
     setIsSaving(true);
+
+    const parcelsRef = collection(firestore, "parcels");
+    const destinationName = locations?.find(l => l.id === formData.destinationLocationId)?.name || "";
+
+    addDocumentNonBlocking(parcelsRef, {
+      trackingNumber,
+      senderName: formData.senderName,
+      recipientName: formData.recipientName,
+      recipientPhoneNumber: formData.recipientPhone,
+      destinationLocationId: formData.destinationLocationId,
+      destinationName: destinationName,
+      busTripId: formData.busTripId,
+      weightKg: Number(formData.weight),
+      status: "Pending Pickup",
+      lastUpdatedAt: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+      recipientAddress: destinationName // افتراضياً المحطة في تلك المدينة
+    });
+
     setTimeout(() => {
       setIsSaving(false);
       toast({
-        title: "تم تسجيل الطرد",
-        description: "تم ربط الطرد بالحافلة والمحافظة بنجاح.",
+        title: "تم تسجيل الطرد بنجاح",
+        description: `رقم التتبع: ${trackingNumber} - الوجهة: ${destinationName}`,
       });
-    }, 1500);
+      setFormData({
+        senderName: "",
+        recipientName: "",
+        recipientPhone: "",
+        destinationLocationId: "",
+        busTripId: "",
+        weight: "1"
+      });
+    }, 1000);
   };
 
   return (
@@ -38,7 +89,7 @@ export default function AdminParcelEntry() {
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold font-headline text-primary">لوحة المسؤول | الطرود</h1>
+          <h1 className="text-2xl font-bold font-headline text-primary">إدارة الطرود</h1>
         </div>
       </header>
 
@@ -55,16 +106,21 @@ export default function AdminParcelEntry() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold">رقم الشحنة (تلقائي)</Label>
-                <Input defaultValue="AWJ-PRC-772" className="bg-muted" readOnly />
+                <Input value={trackingNumber} className="bg-muted font-mono" readOnly />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold">المحافظة المستهدفة (الوجهة)</Label>
-                <Select>
+                <Select 
+                  onValueChange={(val) => setFormData({...formData, destinationLocationId: val})}
+                  value={formData.destinationLocationId}
+                >
                   <SelectTrigger className="rounded-xl h-12">
-                    <SelectValue placeholder="اختر المحافظة" />
+                    <SelectValue placeholder={isLocsLoading ? "جاري التحميل..." : "اختر المحافظة"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {provinces.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    {locations?.map(loc => (
+                      <SelectItem key={loc.id} value={loc.id}>{loc.name} ({loc.country})</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -73,11 +129,42 @@ export default function AdminParcelEntry() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold">اسم المرسل</Label>
-                <Input placeholder="أدخل اسم المرسل" className="rounded-xl h-12" />
+                <Input 
+                  placeholder="أدخل اسم المرسل" 
+                  className="rounded-xl h-12"
+                  value={formData.senderName}
+                  onChange={e => setFormData({...formData, senderName: e.target.value})}
+                />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold">اسم المستلم</Label>
-                <Input placeholder="أدخل اسم المستلم" className="rounded-xl h-12" />
+                <Input 
+                  placeholder="أدخل اسم المستلم" 
+                  className="rounded-xl h-12" 
+                  value={formData.recipientName}
+                  onChange={e => setFormData({...formData, recipientName: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold">هاتف المستلم</Label>
+                <Input 
+                  placeholder="05XXXXXXXX" 
+                  className="rounded-xl h-12" 
+                  value={formData.recipientPhone}
+                  onChange={e => setFormData({...formData, recipientPhone: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold">الوزن التقديري (كغ)</Label>
+                <Input 
+                  type="number" 
+                  className="rounded-xl h-12" 
+                  value={formData.weight}
+                  onChange={e => setFormData({...formData, weight: e.target.value})}
+                />
               </div>
             </div>
 
@@ -89,13 +176,20 @@ export default function AdminParcelEntry() {
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs">اختر الحافلة المتجهة للمحافظة</Label>
-                    <Select>
+                    <Label className="text-xs">اختر الرحلة المتجهة لهذه المحافظة</Label>
+                    <Select 
+                      onValueChange={(val) => setFormData({...formData, busTripId: val})}
+                      value={formData.busTripId}
+                    >
                       <SelectTrigger className="rounded-xl h-12 bg-white">
-                        <SelectValue placeholder="اختر الرحلة النشطة" />
+                        <SelectValue placeholder={isTripsLoading ? "جاري التحميل..." : "اختر الرحلة النشطة"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeTrips.map(t => <SelectItem key={t.id} value={t.id}>{t.id} - {t.route}</SelectItem>)}
+                        {trips?.filter(t => t.status !== "Arrived").map(t => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.originName} ⮕ {t.destinationName} ({t.busLabel})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -103,34 +197,16 @@ export default function AdminParcelEntry() {
               </CardContent>
             </Card>
 
-            <Button className="w-full h-14 text-lg font-bold rounded-2xl gap-2 shadow-xl" disabled={isSaving}>
-              {isSaving ? "جاري الحفظ..." : <><Save className="h-5 w-5" /> تسجيل وحفظ البيانات</>}
+            <Button 
+              className="w-full h-14 text-lg font-bold rounded-2xl gap-2 shadow-xl" 
+              disabled={isSaving || isLocsLoading}
+              type="submit"
+            >
+              {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Save className="h-5 w-5" /> تسجيل وحفظ البيانات</>}
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 gap-4">
-        <h3 className="font-bold text-sm px-1">آخر الطرود المسجلة</h3>
-        {[1, 2].map((i) => (
-          <Card key={i} className="border-none shadow-sm ring-1 ring-border">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Package className="h-5 w-5 text-primary" />
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-sm">AWJ-PRC-77{i}</p>
-                  <p className="text-[10px] text-muted-foreground">وجهة: دمشق | حافلة: AWJ-700</p>
-                </div>
-              </div>
-              <div className="text-left">
-                <span className="text-[10px] font-bold text-primary bg-primary/5 px-2 py-1 rounded-full border border-primary/10">قيد التحميل</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
