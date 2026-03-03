@@ -145,9 +145,6 @@ export default function AdminTrips() {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ----------------------------------------------------------- */}
-      {/* GLOBAL PRINT OVERRIDE STYLES */}
-      {/* ----------------------------------------------------------- */}
       <style jsx global>{`
         @media print {
           body {
@@ -155,11 +152,9 @@ export default function AdminTrips() {
             padding: 0 !important;
             margin: 0 !important;
           }
-          /* Hide everything by default */
-          body > * {
+          body > *:not(#print-root) {
             display: none !important;
           }
-          /* Show only the targeted print area */
           #print-root {
             display: block !important;
             width: 100% !important;
@@ -167,17 +162,32 @@ export default function AdminTrips() {
           [data-radix-portal] {
             display: none !important;
           }
+          /* Adjust page size and margins for Manifest */
+          .manifest-print {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            box-sizing: border-box;
+          }
+          /* Adjust size for Airline Ticket */
+          .ticket-print-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+          }
+          .ticket-print-container {
+            width: 900px !important;
+            height: 350px !important;
+            border: 3px solid black !important;
+          }
         }
       `}</style>
 
-      {/* ----------------------------------------------------------- */}
-      {/* PRINT ROOT: EVERYTHING HERE IS WRAPPED FOR THE BROWSER PRINT ENGINE */}
-      {/* ----------------------------------------------------------- */}
       <div id="print-root" className="hidden print:block">
-        
-        {/* 1. PRINT LAYOUT: PASSENGER MANIFEST (A4) */}
+        {/* PASSENGER MANIFEST (A4) */}
         {viewingManifestId && !printingTicket && (
-          <div className="text-right space-y-4 p-8 bg-white min-h-screen">
+          <div className="manifest-print text-right space-y-4 bg-white">
             <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-8">
               <div className="text-left">
                 <h1 className="text-3xl font-black text-primary mb-1">العوجان للسياحة والسفر</h1>
@@ -246,11 +256,10 @@ export default function AdminTrips() {
           </div>
         )}
 
-        {/* 2. PRINT LAYOUT: SINGLE BOARDING PASS (AIRLINE STYLE) */}
+        {/* SINGLE BOARDING PASS (AIRLINE STYLE) */}
         {printingTicket && (
-          <div className="p-12 bg-white min-h-screen flex items-center justify-center">
-            <div className="w-full max-w-[900px] border-[3px] border-black rounded-[40px] overflow-hidden flex divide-x divide-black divide-dashed bg-white shadow-none relative">
-              {/* Main Ticket Area */}
+          <div className="ticket-print-wrapper bg-white">
+            <div className="ticket-print-container w-[900px] h-[350px] border-[3px] border-black rounded-[40px] overflow-hidden flex divide-x divide-black divide-dashed bg-white shadow-none relative">
               <div className="flex-1 p-8 text-right space-y-6">
                 <div className="flex justify-between items-start border-b-2 border-black pb-4">
                   <div className="space-y-1">
@@ -271,56 +280,45 @@ export default function AdminTrips() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6 py-6 bg-muted/30 rounded-3xl px-8 border border-black/5">
+                <div className="flex items-center gap-6 py-4 bg-muted/30 rounded-3xl px-8 border border-black/5">
                   <div className="flex-1 text-center">
                     <p className="text-[10px] font-bold uppercase text-muted-foreground">From / من</p>
-                    <p className="text-2xl font-black">{printingTicket.trip.originName}</p>
+                    <p className="text-xl font-black">{printingTicket.trip.originName}</p>
                   </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <PlaneTakeoff className="h-6 w-6 text-primary rotate-180" />
-                    <div className="w-32 h-[2px] bg-black relative">
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-black" />
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-black bg-white" />
-                    </div>
-                  </div>
+                  <PlaneTakeoff className="h-6 w-6 text-primary rotate-180 shrink-0" />
                   <div className="flex-1 text-center">
                     <p className="text-[10px] font-bold uppercase text-muted-foreground">To / إلى</p>
-                    <p className="text-2xl font-black">{printingTicket.trip.destinationName}</p>
+                    <p className="text-xl font-black">{printingTicket.trip.destinationName}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 text-center">
-                  <div className="border-2 border-black p-3 rounded-2xl">
+                  <div className="border-2 border-black p-2 rounded-2xl">
                     <p className="text-[8px] font-bold uppercase">Date / التاريخ</p>
                     <p className="text-sm font-black">{format(new Date(printingTicket.trip.departureTime), "yyyy/MM/dd")}</p>
                   </div>
-                  <div className="border-2 border-black p-3 rounded-2xl bg-primary text-white">
+                  <div className="border-2 border-black p-2 rounded-2xl bg-primary text-white">
                     <p className="text-[8px] font-bold uppercase opacity-80">Seat / المقعد</p>
                     <p className="text-2xl font-black">{printingTicket.passenger.seatNumber}</p>
                   </div>
-                  <div className="border-2 border-black p-3 rounded-2xl">
+                  <div className="border-2 border-black p-2 rounded-2xl">
                     <p className="text-[8px] font-bold uppercase">Time / الوقت</p>
                     <p className="text-sm font-black">{format(new Date(printingTicket.trip.departureTime), "HH:mm")}</p>
                   </div>
-                  <div className="border-2 border-black p-3 rounded-2xl">
-                    <p className="text-[8px] font-bold uppercase">Gate / البوابة</p>
-                    <p className="text-sm font-black">International</p>
+                  <div className="border-2 border-black p-2 rounded-2xl">
+                    <p className="text-[8px] font-bold uppercase">Booking ID</p>
+                    <p className="text-xs font-black truncate">{printingTicket.booking.id.substring(0, 8)}</p>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-end pt-4">
-                  <div className="space-y-2">
-                    <p className="text-[8px] font-bold font-mono">BOOKING ID: {printingTicket.booking.id.toUpperCase()}</p>
-                    <div className="h-8 w-56 bg-[repeating-linear-gradient(90deg,black,black_2px,transparent_2px,transparent_4px)]" />
-                  </div>
+                <div className="flex justify-between items-end pt-2">
+                  <div className="h-8 w-48 bg-[repeating-linear-gradient(90deg,black,black_2px,transparent_2px,transparent_4px)]" />
                   <div className="text-left space-y-1">
                     <p className="text-[10px] font-bold">BUS: {printingTicket.trip.busLabel}</p>
-                    <p className="text-[8px] italic opacity-60">Please be at the terminal 1 hour before departure.</p>
                   </div>
                 </div>
               </div>
 
-              {/* Ticket Stub (The detachable part) */}
               <div className="w-[260px] p-8 bg-muted/5 space-y-4 text-right">
                 <div className="text-center pb-4 border-b border-black/20">
                   <Bus className="h-8 w-8 text-primary mx-auto mb-1" />
@@ -332,7 +330,7 @@ export default function AdminTrips() {
                     <p className="text-[8px] uppercase font-bold text-muted-foreground">Passenger</p>
                     <p className="text-xs font-black leading-tight truncate">{printingTicket.passenger.fullName}</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex justify-between gap-2">
                     <div>
                       <p className="text-[8px] uppercase font-bold text-muted-foreground">Seat</p>
                       <p className="text-xl font-black">{printingTicket.passenger.seatNumber}</p>
@@ -348,19 +346,15 @@ export default function AdminTrips() {
                   </div>
                 </div>
 
-                <div className="pt-6 flex justify-center">
-                  <QrCode className="h-20 w-20 text-black opacity-90" />
+                <div className="pt-4 flex justify-center">
+                  <QrCode className="h-16 w-16 text-black" />
                 </div>
-                <p className="text-[8px] text-center font-mono opacity-50 truncate mt-2">{printingTicket.booking.id.toUpperCase()}</p>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* ----------------------------------------------------------- */}
-      {/* NORMAL ADMIN UI (ONLY VISIBLE IN BROWSER) */}
-      {/* ----------------------------------------------------------- */}
       <div className="print:hidden space-y-6">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold font-headline text-primary">إدارة الرحلات</h1>
@@ -448,25 +442,12 @@ export default function AdminTrips() {
                       <p className="font-black text-lg">{printingTicket.trip.destinationName}</p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-4 text-right">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">التاريخ والوقت</p>
-                      <p className="text-xs font-bold">
-                        {format(new Date(printingTicket.trip.departureTime), "PPPP p", { locale: ar })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">رقم الحجز</p>
-                      <p className="text-[10px] font-mono font-bold truncate">{printingTicket.booking.id.toUpperCase()}</p>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
                   <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    هذه معاينة سريعة. يرجى الضغط على زر "طباعة التذكرة الآن" للحصول على النسخة الورقية الرسمية.
+                    يرجى الضغط على زر "طباعة التذكرة الآن" للحصول على النسخة الورقية الرسمية بمقاس تذاكر السفر.
                   </p>
                 </div>
               </div>
