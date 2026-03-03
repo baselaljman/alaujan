@@ -28,7 +28,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const tripRef = useMemoFirebase(() => doc(firestore, "busTrips", tripId), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
 
-  // جلب جميع الحجوزات لهذه الرحلة
+  // جلب جميع الحجوزات لهذه الرحلة من المجموعة الرئيسية 'bookings'
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !tripId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", tripId));
@@ -125,7 +125,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">
           <Card className="max-w-[320px] mx-auto p-8 bg-muted/20 rounded-3xl border-primary/5">
-            <div className="grid grid-cols-5 gap-y-4 gap-x-2">
+            <div className="grid grid-cols-4 gap-y-4 gap-x-2">
               {seats.map((seat) => (
                 <button
                   key={seat.id}
