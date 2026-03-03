@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Bus, Users, Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
+import { Users, Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
