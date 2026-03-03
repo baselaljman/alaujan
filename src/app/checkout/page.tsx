@@ -27,6 +27,7 @@ function CheckoutContent() {
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
   const email = searchParams.get("email") || "";
+  const extraBags = Number(searchParams.get("extraBags") || 0);
 
   const handlePay = () => {
     if (!user) {
@@ -36,7 +37,7 @@ function CheckoutContent() {
     
     setIsProcessing(true);
 
-    // 1. تسجيل الحجز في مجموعة رئيسية واحدة (لتجنب مشاكل الفهارس)
+    // تسجيل الحجز في مجموعة رئيسية واحدة
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       busTripId: tripId,
@@ -44,6 +45,7 @@ function CheckoutContent() {
       userEmail: email,
       numberOfSeats: seats.length,
       seatNumbers: seats,
+      extraBags: extraBags,
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -54,7 +56,7 @@ function CheckoutContent() {
 
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 2. تحديث عدد المقاعد المتاحة في الرحلة
+    // تحديث عدد المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -105,7 +107,11 @@ function CheckoutContent() {
         <Card className="border-primary/10 shadow-sm">
           <CardHeader className="bg-primary/5 border-b py-4">
             <CardTitle className="text-base font-semibold">ملخص الدفع</CardTitle>
-            <CardDescription>المقاعد: {seats.join(", ")} | الإجمالي: {totalAmount} ريال</CardDescription>
+            <CardDescription>
+              المقاعد: {seats.join(", ")} | 
+              الحقائب: {extraBags} | 
+              الإجمالي: {totalAmount} ريال
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <RadioGroup defaultValue="card" onValueChange={setPaymentMethod} className="space-y-4">
