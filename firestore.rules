@@ -1,25 +1,28 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * APP SECURITY STRATEGY: Al-Awajan Travel (Prototyping Phase)
-     * 
-     * تم فتح الصلاحيات بشكل كامل لضمان عمل كافة ميزات لوحة التحكم 
-     * والاستعلامات المجمعة (Collection Group Queries) بدون عوائق.
+     * APP SECURITY STRATEGY: Al-Awajan Travel
+     * تم فتح الصلاحيات بالكامل وتحديد المجموعات لضمان عمل الاستعلامات المجمعة
      */
 
-    // السماح بالقراءة والكتابة لكافة المستندات والمجموعات
+    // السماح بالقراءة والكتابة لجميع المسارات
     match /{document=**} {
       allow read, write: if true;
     }
 
-    // تأكيد إضافي للسماح بالاستعلامات المجمعة (Collection Group)
+    // تصريح خاص للمجموعات المجمعة (Collection Group) لضمان عدم حدوث خطأ Permission Denied
     match /{path=**}/bookings/{bookingId} {
       allow read, write: if true;
     }
     
     match /{path=**}/parcels/{parcelId} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/busTrips/{tripId} {
       allow read, write: if true;
     }
   }
