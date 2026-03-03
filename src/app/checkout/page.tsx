@@ -1,22 +1,23 @@
 
 "use client"
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
 
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -30,9 +31,20 @@ function CheckoutContent() {
   const passengersJson = searchParams.get("passengers");
   const passengers = passengersJson ? JSON.parse(passengersJson) : [];
 
+  // التأكد من وجود مستخدم، إذا لم يوجد نحاول تسجيل الدخول مجهولاً فوراً
+  useEffect(() => {
+    if (!isUserLoading && !user && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
   const handlePay = () => {
     if (!user) {
-      toast({ title: "خطأ", description: "يرجى الانتظار حتى يتم التعرف على هويتك...", variant: "destructive" });
+      toast({ 
+        title: "جاري التعرف على الهوية", 
+        description: "يرجى الانتظار ثانية واحدة لتأمين اتصالك...", 
+        variant: "default" 
+      });
       return;
     }
     
@@ -46,7 +58,7 @@ function CheckoutContent() {
       firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
       lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp() // سيتم تجاهله إذا كان المستند موجوداً مسبقاً مع merge
+      createdAt: serverTimestamp() 
     }, { merge: true });
 
     // 2. تسجيل الحجز في المجموعة الرئيسية 'bookings'
@@ -153,9 +165,28 @@ function CheckoutContent() {
           </CardContent>
         </Card>
 
-        <Button onClick={handlePay} disabled={isProcessing} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
-        </Button>
+        <div className="pt-2">
+          {isUserLoading && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mb-4 animate-pulse">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              جاري تأمين الجلسة...
+            </div>
+          )}
+          
+          <Button 
+            onClick={handlePay} 
+            disabled={isProcessing || isUserLoading} 
+            className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary"
+          >
+            {isProcessing ? (
+              <Loader2 className="h-5 w-5 animate-spin ml-2" />
+            ) : isUserLoading ? (
+              "جاري التحقق..."
+            ) : (
+              "تأكيد الحجز وإصدار التذاكر"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
