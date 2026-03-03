@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -10,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -23,6 +23,7 @@ export default function AdminTrips() {
   const firestore = useFirestore();
   const [isAdding, setIsAdding] = useState(false);
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
+  const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   
   // States for new trip
   const [busId, setBusId] = useState("");
@@ -41,7 +42,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // استعلام لجلب الحجوزات المرتبطة برحلة محددة من المجموعة الرئيسية 'bookings'
+  // استعلام لجلب الحجوزات المرتبطة برحلة محددة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -80,11 +81,11 @@ export default function AdminTrips() {
     setIsAdding(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("هل أنت متأكد من حذف هذه الرحلة؟ لا يمكن التراجع عن هذا الإجراء.")) {
-      const tripRef = doc(firestore, "busTrips", id);
-      deleteDocumentNonBlocking(tripRef);
+  const confirmDelete = () => {
+    if (tripToDelete) {
+      deleteDocumentNonBlocking(doc(firestore, "busTrips", tripToDelete));
       toast({ title: "تم الحذف", description: "تمت إزالة الرحلة من النظام بنجاح" });
+      setTripToDelete(null);
     }
   };
 
@@ -96,6 +97,25 @@ export default function AdminTrips() {
           {isAdding ? "إلغاء" : <><Plus className="h-4 w-4" /> إضافة رحلة</>}
         </Button>
       </header>
+
+      {/* نافذة تأكيد الحذف */}
+      <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
+        <AlertDialogContent className="text-right">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 justify-end">
+              <span>تأكيد حذف الرحلة</span>
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف هذه الرحلة؟ لا يمكن التراجع عن هذا الإجراء وسيتم مسح كافة البيانات المرتبطة بها من النظام.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700 rounded-xl">تأكيد الحذف</AlertDialogAction>
+            <AlertDialogCancel className="rounded-xl">إلغاء</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {isAdding && (
         <Card className="border-primary/20 shadow-lg animate-in slide-in-from-top duration-300">
@@ -206,7 +226,12 @@ export default function AdminTrips() {
                     )}
                   </DialogContent>
                 </Dialog>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500 hover:bg-red-50 transition-colors">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setTripToDelete(trip.id)} 
+                  className="text-red-500 hover:bg-red-50 transition-colors"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
