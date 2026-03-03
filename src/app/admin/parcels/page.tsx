@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard, Loader2 } from "lucide-react";
+import { Package, Truck, MapPin, Save, PlusCircle, LayoutDashboard, Loader2, Banknote } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
 import { collection, serverTimestamp } from "firebase/firestore";
@@ -21,7 +22,9 @@ export default function AdminParcelEntry() {
     recipientPhone: "",
     destinationLocationId: "",
     busTripId: "",
-    weight: "1"
+    parcelCount: "1",
+    notes: "",
+    collectedAmount: ""
   });
 
   // جلب المدن (المحافظات) من قاعدة البيانات
@@ -60,7 +63,9 @@ export default function AdminParcelEntry() {
       destinationLocationId: formData.destinationLocationId,
       destinationName: destinationName,
       busTripId: formData.busTripId,
-      weightKg: Number(formData.weight),
+      parcelCount: Number(formData.parcelCount),
+      notes: formData.notes,
+      collectedAmount: Number(formData.collectedAmount || 0),
       status: "Pending Pickup",
       lastUpdatedAt: new Date().toISOString(),
       createdAt: serverTimestamp(),
@@ -71,7 +76,7 @@ export default function AdminParcelEntry() {
       setIsSaving(false);
       toast({
         title: "تم تسجيل الطرد بنجاح",
-        description: `رقم التتبع: ${trackingNumber} - الوجهة: ${destinationName}`,
+        description: `رقم التتبع: ${trackingNumber} - القيمة: ${formData.collectedAmount} ريال`,
       });
       setFormData({
         senderName: "",
@@ -79,7 +84,9 @@ export default function AdminParcelEntry() {
         recipientPhone: "",
         destinationLocationId: "",
         busTripId: "",
-        weight: "1"
+        parcelCount: "1",
+        notes: "",
+        collectedAmount: ""
       });
     }, 1000);
   };
@@ -147,7 +154,7 @@ export default function AdminParcelEntry() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold">هاتف المستلم</Label>
                 <Input 
@@ -158,14 +165,36 @@ export default function AdminParcelEntry() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold">الوزن التقديري (كغ)</Label>
+                <Label className="text-xs font-bold">عدد الطرود</Label>
                 <Input 
                   type="number" 
                   className="rounded-xl h-12" 
-                  value={formData.weight}
-                  onChange={e => setFormData({...formData, weight: e.target.value})}
+                  value={formData.parcelCount}
+                  onChange={e => setFormData({...formData, parcelCount: e.target.value})}
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-primary flex items-center gap-1">
+                  <Banknote className="h-3 w-3" /> القيمة المحصلة (ريال)
+                </Label>
+                <Input 
+                  type="number" 
+                  placeholder="0.00"
+                  className="rounded-xl h-12 border-primary/20" 
+                  value={formData.collectedAmount}
+                  onChange={e => setFormData({...formData, collectedAmount: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">نوع الطرد / ملاحظات</Label>
+              <Textarea 
+                placeholder="مثال: كرتون ملابس، قطع غيار، إلخ..." 
+                className="rounded-xl min-h-[80px]"
+                value={formData.notes}
+                onChange={e => setFormData({...formData, notes: e.target.value})}
+              />
             </div>
 
             <Card className="bg-accent/5 border-accent/20">
