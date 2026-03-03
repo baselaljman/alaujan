@@ -41,7 +41,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // استعلام لجلب الحجوزات المرتبطة برحلة محددة
+  // استعلام لجلب الحجوزات المرتبطة برحلة محددة من المجموعة الرئيسية 'bookings'
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -81,9 +81,10 @@ export default function AdminTrips() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("هل أنت متأكد من حذف الرحلة؟")) {
-      deleteDocumentNonBlocking(doc(firestore, "busTrips", id));
-      toast({ title: "تم الحذف" });
+    if (confirm("هل أنت متأكد من حذف هذه الرحلة؟ لا يمكن التراجع عن هذا الإجراء.")) {
+      const tripRef = doc(firestore, "busTrips", id);
+      deleteDocumentNonBlocking(tripRef);
+      toast({ title: "تم الحذف", description: "تمت إزالة الرحلة من النظام بنجاح" });
     }
   };
 
