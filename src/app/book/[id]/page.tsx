@@ -204,7 +204,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
               <div className="flex items-center justify-between p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <div className="text-right">
                   <p className="font-bold text-sm">حقائب إضافية (100 ريال/حقيبة)</p>
-                  <p className="text-[10px] text-muted-foreground">يسمح بحقيبة واحدة مجانية لكل راكب</p>
+                  <p className="text-[10px] text-muted-foreground">يسمح بحقيبتين مجاناً لكل راكب</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <Button 
