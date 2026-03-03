@@ -144,152 +144,222 @@ export default function AdminTrips() {
   };
 
   return (
-    <div className="space-y-6 pb-20 print:bg-white print:p-0">
+    <div className="space-y-6 pb-20">
       {/* ----------------------------------------------------------- */}
-      {/* 1. PRINT LAYOUT: PASSENGER MANIFEST (A4) */}
+      {/* GLOBAL PRINT OVERRIDE STYLES */}
       {/* ----------------------------------------------------------- */}
-      {viewingManifestId && !printingTicket && (
-        <div className="hidden print:block text-right space-y-4 mb-8">
-          <div className="flex justify-between items-center border-b-2 border-primary pb-4">
-            <div className="text-left">
-              <h1 className="text-2xl font-bold text-primary">العوجان للسياحة والسفر</h1>
-              <p className="text-sm">بيان الركاب الرسمي (Official Manifest)</p>
+      <style jsx global>{`
+        @media print {
+          body {
+            background-color: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          /* Hide everything by default */
+          body > * {
+            display: none !important;
+          }
+          /* Show only the targeted print area */
+          #print-root {
+            display: block !important;
+            width: 100% !important;
+          }
+          [data-radix-portal] {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      {/* ----------------------------------------------------------- */}
+      {/* PRINT ROOT: EVERYTHING HERE IS WRAPPED FOR THE BROWSER PRINT ENGINE */}
+      {/* ----------------------------------------------------------- */}
+      <div id="print-root" className="hidden print:block">
+        
+        {/* 1. PRINT LAYOUT: PASSENGER MANIFEST (A4) */}
+        {viewingManifestId && !printingTicket && (
+          <div className="text-right space-y-4 p-8 bg-white min-h-screen">
+            <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-8">
+              <div className="text-left">
+                <h1 className="text-3xl font-black text-primary mb-1">العوجان للسياحة والسفر</h1>
+                <p className="text-sm font-bold opacity-60 tracking-widest">AL-AWAJAN TRAVEL - OFFICIAL PASSENGER MANIFEST</p>
+              </div>
+              <Bus className="h-16 w-16 text-primary" />
             </div>
-            <Bus className="h-12 w-12 text-primary" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm bg-muted/20 p-4 rounded-lg">
-            <div><span className="font-bold">المسار:</span> {currentTrip?.originName} ⮕ {currentTrip?.destinationName}</div>
-            <div><span className="font-bold">الحافلة:</span> {currentTrip?.busLabel}</div>
-            <div><span className="font-bold">تاريخ الانطلاق:</span> {currentTrip && format(new Date(currentTrip.departureTime), "PPPP p", { locale: ar })}</div>
-            <div><span className="font-bold">تاريخ الطباعة:</span> {printDate}</div>
-          </div>
-        </div>
-      )}
 
-      {/* ----------------------------------------------------------- */}
-      {/* 2. PRINT LAYOUT: SINGLE BOARDING PASS (AIRLINE STYLE) */}
-      {/* ----------------------------------------------------------- */}
-      {printingTicket && (
-        <div className="hidden print:block p-8 bg-white min-h-screen">
-          <div className="max-w-[900px] mx-auto border-2 border-black rounded-3xl overflow-hidden flex divide-x divide-black divide-dashed bg-white shadow-sm relative">
-            {/* Main Ticket Area */}
-            <div className="flex-1 p-6 text-right space-y-4">
-              <div className="flex justify-between items-start border-b border-black pb-3">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-black text-primary uppercase leading-none">Al-Awajan Travel</h2>
-                  <p className="text-[10px] font-bold opacity-70">BOARDING PASS - بطاقة صعود</p>
-                </div>
-                <Bus className="h-8 w-8 text-primary" />
+            <div className="grid grid-cols-2 gap-6 text-sm bg-muted/20 p-6 rounded-2xl border mb-8">
+              <div className="space-y-1">
+                <p><span className="font-bold">المسار:</span> {currentTrip?.originName} ⮕ {currentTrip?.destinationName}</p>
+                <p><span className="font-bold">الحافلة:</span> {currentTrip?.busLabel}</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-0.5">
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground">Passenger Name / اسم الراكب</p>
-                  <p className="text-lg font-bold">{printingTicket.passenger.fullName}</p>
-                </div>
-                <div className="space-y-0.5 text-left">
-                  <p className="text-[9px] uppercase font-bold text-muted-foreground">Passport No / رقم الجواز</p>
-                  <p className="text-lg font-bold font-mono">{printingTicket.passenger.passportNumber}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 py-4 bg-muted/20 rounded-2xl px-6">
-                <div className="flex-1 text-center">
-                  <p className="text-[9px] font-bold uppercase text-muted-foreground">From / من</p>
-                  <p className="text-xl font-black">{printingTicket.trip.originName}</p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <PlaneTakeoff className="h-4 w-4 text-primary rotate-180" />
-                  <div className="w-24 h-[1px] bg-black relative">
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-black" />
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full border border-black bg-white" />
-                  </div>
-                </div>
-                <div className="flex-1 text-center">
-                  <p className="text-[9px] font-bold uppercase text-muted-foreground">To / إلى</p>
-                  <p className="text-xl font-black">{printingTicket.trip.destinationName}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3 text-center">
-                <div className="border p-1.5 rounded-xl">
-                  <p className="text-[7px] font-bold uppercase">Date / التاريخ</p>
-                  <p className="text-xs font-bold">{format(new Date(printingTicket.trip.departureTime), "yyyy/MM/dd")}</p>
-                </div>
-                <div className="border p-1.5 rounded-xl bg-primary text-white">
-                  <p className="text-[7px] font-bold uppercase opacity-80">Seat / المقعد</p>
-                  <p className="text-lg font-black">{printingTicket.passenger.seatNumber}</p>
-                </div>
-                <div className="border p-1.5 rounded-xl">
-                  <p className="text-[7px] font-bold uppercase">Time / الوقت</p>
-                  <p className="text-xs font-bold">{format(new Date(printingTicket.trip.departureTime), "HH:mm")}</p>
-                </div>
-                <div className="border p-1.5 rounded-xl">
-                  <p className="text-[7px] font-bold uppercase">Gate / البوابة</p>
-                  <p className="text-xs font-bold">International</p>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-end pt-2">
-                <div className="space-y-1">
-                  <p className="text-[7px] font-bold">Booking ID: {printingTicket.booking.id.toUpperCase()}</p>
-                  <div className="h-6 w-40 bg-[repeating-linear-gradient(90deg,black,black_1px,transparent_1px,transparent_3px)]" />
-                </div>
-                <div className="text-left">
-                  <p className="text-[9px] font-bold">Bus Info: {printingTicket.trip.busLabel}</p>
-                  <p className="text-[7px] italic opacity-60">Please be at the terminal 1 hour before departure.</p>
-                </div>
+              <div className="space-y-1">
+                <p><span className="font-bold">تاريخ الانطلاق:</span> {currentTrip && format(new Date(currentTrip.departureTime), "PPPP p", { locale: ar })}</p>
+                <p><span className="font-bold">تاريخ الطباعة:</span> {printDate}</p>
               </div>
             </div>
 
-            {/* Ticket Stub (The detachable part) */}
-            <div className="w-[240px] p-6 bg-muted/5 space-y-3 text-right">
-              <div className="text-center pb-3 border-b border-black/10">
-                <Bus className="h-6 w-6 text-primary mx-auto mb-0.5" />
-                <p className="text-[7px] font-bold uppercase">Al-Awajan STUB</p>
-              </div>
+            <div className="rounded-2xl border-2 overflow-hidden">
+              <Table dir="rtl">
+                <TableHeader>
+                  <TableRow className="bg-primary/5 border-b-2">
+                    <TableHead className="text-right font-black text-primary py-4">الاسم الكامل</TableHead>
+                    <TableHead className="text-right font-black text-primary">الجواز</TableHead>
+                    <TableHead className="text-right font-black text-primary">المقعد</TableHead>
+                    <TableHead className="text-right font-black text-primary">بيانات التواصل</TableHead>
+                    <TableHead className="text-right font-black text-primary">الأمتعة</TableHead>
+                    <TableHead className="text-right font-black text-primary">الحالة</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {manifestBookings?.map(booking => (
+                    booking.passengers?.map((p: any, idx: number) => (
+                      <TableRow key={`${booking.id}-${idx}`} className="border-b">
+                        <TableCell className="font-bold py-4">{p.fullName}</TableCell>
+                        <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
+                        <TableCell className="font-black text-lg">{p.seatNumber}</TableCell>
+                        <TableCell className="text-[10px] leading-tight">
+                          <p>{booking.userEmail}</p>
+                          <p className="font-bold">{booking.userPhone}</p>
+                        </TableCell>
+                        <TableCell className="text-[10px]">
+                          {idx === 0 ? (booking.extraBags > 0 ? `${booking.extraBags} إضافية` : "عادية") : "-"}
+                        </TableCell>
+                        <TableCell className="text-[10px] font-bold">
+                          {booking.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
 
-              <div className="space-y-2">
-                <div>
-                  <p className="text-[7px] uppercase font-bold text-muted-foreground">Passenger</p>
-                  <p className="text-xs font-bold leading-tight truncate">{printingTicket.passenger.fullName}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-[7px] uppercase font-bold text-muted-foreground">Seat</p>
-                    <p className="text-lg font-black">{printingTicket.passenger.seatNumber}</p>
-                  </div>
-                  <div>
-                    <p className="text-[7px] uppercase font-bold text-muted-foreground">Date</p>
-                    <p className="text-xs font-bold">{format(new Date(printingTicket.trip.departureTime), "MM/dd")}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-[7px] uppercase font-bold text-muted-foreground">From</p>
-                    <p className="text-[10px] font-bold truncate">{printingTicket.trip.originName}</p>
-                  </div>
-                  <div>
-                    <p className="text-[7px] uppercase font-bold text-muted-foreground">To</p>
-                    <p className="text-[10px] font-bold truncate">{printingTicket.trip.destinationName}</p>
-                  </div>
-                </div>
+            <div className="flex justify-between items-center mt-20 border-t-2 pt-8">
+              <div className="space-y-4">
+                <p className="font-bold text-sm">ختم الشركة وتوقيع المسؤول:</p>
+                <div className="h-24 w-48 border-2 border-dashed border-muted rounded-xl" />
               </div>
-
-              <div className="pt-4 flex justify-center">
-                <QrCode className="h-16 w-16 text-black opacity-80" />
+              <div className="text-[10px] text-muted-foreground italic text-left space-y-1">
+                <p>صادر عن نظام العوجان الرقمي للإدارة</p>
+                <p>Al-Awajan Digital Management System - v1.0</p>
               </div>
-              <p className="text-[7px] text-center font-mono opacity-50 truncate">{printingTicket.booking.id.toUpperCase()}</p>
             </div>
           </div>
-          <div className="text-center mt-12 text-[8px] font-bold opacity-40 uppercase tracking-widest">
-            Non-Transferable | Valid for Scheduled Trip Only | Printed on {printDate}
+        )}
+
+        {/* 2. PRINT LAYOUT: SINGLE BOARDING PASS (AIRLINE STYLE) */}
+        {printingTicket && (
+          <div className="p-12 bg-white min-h-screen flex items-center justify-center">
+            <div className="w-full max-w-[900px] border-[3px] border-black rounded-[40px] overflow-hidden flex divide-x divide-black divide-dashed bg-white shadow-none relative">
+              {/* Main Ticket Area */}
+              <div className="flex-1 p-8 text-right space-y-6">
+                <div className="flex justify-between items-start border-b-2 border-black pb-4">
+                  <div className="space-y-1">
+                    <h2 className="text-3xl font-black text-primary uppercase leading-none">Al-Awajan Travel</h2>
+                    <p className="text-[12px] font-bold opacity-70">BOARDING PASS - بطاقة صعود دولية</p>
+                  </div>
+                  <Bus className="h-10 w-10 text-primary" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Passenger Name / اسم الراكب</p>
+                    <p className="text-xl font-black">{printingTicket.passenger.fullName}</p>
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Passport No / رقم الجواز</p>
+                    <p className="text-xl font-black font-mono">{printingTicket.passenger.passportNumber}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6 py-6 bg-muted/30 rounded-3xl px-8 border border-black/5">
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">From / من</p>
+                    <p className="text-2xl font-black">{printingTicket.trip.originName}</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <PlaneTakeoff className="h-6 w-6 text-primary rotate-180" />
+                    <div className="w-32 h-[2px] bg-black relative">
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-black" />
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-black bg-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-center">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">To / إلى</p>
+                    <p className="text-2xl font-black">{printingTicket.trip.destinationName}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="border-2 border-black p-3 rounded-2xl">
+                    <p className="text-[8px] font-bold uppercase">Date / التاريخ</p>
+                    <p className="text-sm font-black">{format(new Date(printingTicket.trip.departureTime), "yyyy/MM/dd")}</p>
+                  </div>
+                  <div className="border-2 border-black p-3 rounded-2xl bg-primary text-white">
+                    <p className="text-[8px] font-bold uppercase opacity-80">Seat / المقعد</p>
+                    <p className="text-2xl font-black">{printingTicket.passenger.seatNumber}</p>
+                  </div>
+                  <div className="border-2 border-black p-3 rounded-2xl">
+                    <p className="text-[8px] font-bold uppercase">Time / الوقت</p>
+                    <p className="text-sm font-black">{format(new Date(printingTicket.trip.departureTime), "HH:mm")}</p>
+                  </div>
+                  <div className="border-2 border-black p-3 rounded-2xl">
+                    <p className="text-[8px] font-bold uppercase">Gate / البوابة</p>
+                    <p className="text-sm font-black">International</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-end pt-4">
+                  <div className="space-y-2">
+                    <p className="text-[8px] font-bold font-mono">BOOKING ID: {printingTicket.booking.id.toUpperCase()}</p>
+                    <div className="h-8 w-56 bg-[repeating-linear-gradient(90deg,black,black_2px,transparent_2px,transparent_4px)]" />
+                  </div>
+                  <div className="text-left space-y-1">
+                    <p className="text-[10px] font-bold">BUS: {printingTicket.trip.busLabel}</p>
+                    <p className="text-[8px] italic opacity-60">Please be at the terminal 1 hour before departure.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ticket Stub (The detachable part) */}
+              <div className="w-[260px] p-8 bg-muted/5 space-y-4 text-right">
+                <div className="text-center pb-4 border-b border-black/20">
+                  <Bus className="h-8 w-8 text-primary mx-auto mb-1" />
+                  <p className="text-[8px] font-black uppercase tracking-tighter">AL-AWAJAN STUB</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-[8px] uppercase font-bold text-muted-foreground">Passenger</p>
+                    <p className="text-xs font-black leading-tight truncate">{printingTicket.passenger.fullName}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[8px] uppercase font-bold text-muted-foreground">Seat</p>
+                      <p className="text-xl font-black">{printingTicket.passenger.seatNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] uppercase font-bold text-muted-foreground">Date</p>
+                      <p className="text-xs font-black">{format(new Date(printingTicket.trip.departureTime), "MM/dd")}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[8px] uppercase font-bold text-muted-foreground">Route</p>
+                    <p className="text-[10px] font-black truncate">{printingTicket.trip.originName} ⮕ {printingTicket.trip.destinationName}</p>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex justify-center">
+                  <QrCode className="h-20 w-20 text-black opacity-90" />
+                </div>
+                <p className="text-[8px] text-center font-mono opacity-50 truncate mt-2">{printingTicket.booking.id.toUpperCase()}</p>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ----------------------------------------------------------- */}
-      {/* 3. NORMAL ADMIN UI */}
+      {/* NORMAL ADMIN UI (ONLY VISIBLE IN BROWSER) */}
       {/* ----------------------------------------------------------- */}
       <div className="print:hidden space-y-6">
         <header className="flex items-center justify-between">
@@ -301,7 +371,7 @@ export default function AdminTrips() {
 
         {/* Edit Passenger Dialog */}
         <Dialog open={!!editingPassenger} onOpenChange={(open) => !open && setEditingPassenger(null)}>
-          <DialogContent className="text-right print:hidden">
+          <DialogContent className="text-right">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 justify-end">
                 <span>تعديل بيانات المسافر</span>
@@ -337,7 +407,7 @@ export default function AdminTrips() {
 
         {/* Preview Single Ticket Dialog */}
         <Dialog open={!!printingTicket} onOpenChange={(open) => !open && setPrintingTicket(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto text-right print:hidden">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto text-right">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 justify-end">
                 <span>معاينة تذكرة المسافر</span>
@@ -347,7 +417,7 @@ export default function AdminTrips() {
             
             {printingTicket && (
               <div className="space-y-6">
-                <div className="border-2 border-dashed border-primary/20 rounded-3xl p-6 bg-muted/10 relative overflow-hidden group">
+                <div className="border-2 border-dashed border-primary/20 rounded-3xl p-6 bg-muted/10 relative overflow-hidden">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                     <div className="text-left">
                       <h3 className="text-lg font-black text-primary">AL-AWAJAN TRAVEL</h3>
@@ -391,15 +461,12 @@ export default function AdminTrips() {
                       <p className="text-[10px] font-mono font-bold truncate">{printingTicket.booking.id.toUpperCase()}</p>
                     </div>
                   </div>
-                  
-                  <div className="absolute -left-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-background rounded-full border-r-2 border-dashed border-primary/20" />
-                  <div className="absolute -right-4 top-1/2 -translate-y-1/2 h-8 w-8 bg-background rounded-full border-l-2 border-dashed border-primary/20" />
                 </div>
 
-                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200 print:hidden">
+                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
                   <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    هذه معاينة سريعة. للحصول على التذكرة الاحترافية الكاملة المخصصة للطباعة (بما في ذلك كعب التذكرة والباركود)، يرجى الضغط على زر "طباعة التذكرة الآن" أدناه.
+                    هذه معاينة سريعة. يرجى الضغط على زر "طباعة التذكرة الآن" للحصول على النسخة الورقية الرسمية.
                   </p>
                 </div>
               </div>
@@ -415,7 +482,7 @@ export default function AdminTrips() {
         </Dialog>
 
         <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
-          <AlertDialogContent className="text-right print:hidden">
+          <AlertDialogContent className="text-right">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2 justify-end">
                 <span>تأكيد حذف الرحلة</span>
@@ -536,7 +603,7 @@ export default function AdminTrips() {
                         <Users className="h-4 w-4" /> بيان الركاب
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto print:hidden">
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <div className="flex items-center justify-between">
                           <DialogTitle className="flex items-center gap-2">
@@ -650,14 +717,6 @@ export default function AdminTrips() {
           ))}
         </div>
       </div>
-
-      {/* Print Footer - Only visible during print for Manifest */}
-      {viewingManifestId && !printingTicket && (
-        <div className="hidden print:flex justify-between items-center mt-12 border-t-2 pt-4 px-8">
-          <div className="text-sm font-bold">توقيع المسؤول: .............................</div>
-          <div className="text-xs text-muted-foreground italic">صادر عن نظام العوجان الرقمي</div>
-        </div>
-      )}
     </div>
   );
 }
