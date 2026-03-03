@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save, Printer, Ticket, QrCode, PlaneTakeoff, Info } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save, Printer, Ticket, QrCode, PlaneTakeoff, Info, Search } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -26,6 +26,8 @@ export default function AdminTrips() {
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   const [printDate, setPrintDate] = useState<string>("");
+  const [mainSearchQuery, setMainSearchQuery] = useState("");
+  const [manifestSearchQuery, setManifestSearchQuery] = useState("");
   
   // State for printing a single ticket
   const [printingTicket, setPrintingTicket] = useState<{
@@ -64,6 +66,19 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
+  // Filter trips based on main search
+  const filteredTrips = useMemo(() => {
+    if (!trips) return [];
+    if (!mainSearchQuery) return trips;
+    const query = mainSearchQuery.toLowerCase();
+    return trips.filter(trip => 
+      trip.originName?.toLowerCase().includes(query) || 
+      trip.destinationName?.toLowerCase().includes(query) ||
+      trip.busLabel?.toLowerCase().includes(query) ||
+      trip.id.toLowerCase().includes(query)
+    );
+  }, [trips, mainSearchQuery]);
+
   const currentTrip = trips?.find(t => t.id === viewingManifestId);
 
   const bookingsQuery = useMemoFirebase(() => {
@@ -72,6 +87,32 @@ export default function AdminTrips() {
   }, [firestore, viewingManifestId]);
 
   const { data: manifestBookings, isLoading: isManifestLoading } = useCollection(bookingsQuery);
+
+  // Filtered manifest passengers based on search
+  const filteredManifestItems = useMemo(() => {
+    if (!manifestBookings) return [];
+    const search = manifestSearchQuery.toLowerCase();
+    
+    const allItems: { booking: any, passenger: any, index: number }[] = [];
+    
+    manifestBookings.forEach(booking => {
+      booking.passengers?.forEach((p: any, idx: number) => {
+        const matches = 
+          p.fullName.toLowerCase().includes(search) || 
+          p.passportNumber.toLowerCase().includes(search) ||
+          booking.id.toLowerCase().includes(search) ||
+          booking.userEmail?.toLowerCase().includes(search) ||
+          booking.userPhone?.toLowerCase().includes(search) ||
+          p.seatNumber?.toString().includes(search);
+          
+        if (matches) {
+          allItems.push({ booking, passenger: p, index: idx });
+        }
+      });
+    });
+    
+    return allItems;
+  }, [manifestBookings, manifestSearchQuery]);
 
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +188,6 @@ export default function AdminTrips() {
     <div className="space-y-6 pb-20">
       <style jsx global>{`
         @media print {
-          /* General Print Settings */
           @page {
             margin: 0;
           }
@@ -156,15 +196,12 @@ export default function AdminTrips() {
             overflow: visible !important;
             background: white !important;
           }
-          /* Hide everything by default */
           body * {
             visibility: hidden;
           }
-          /* Show our specific print root and its entire content hierarchy */
           #print-root, #print-root * {
             visibility: visible;
           }
-          /* Force display and position for the print root */
           #print-root {
             display: block !important;
             position: absolute !important;
@@ -173,11 +210,9 @@ export default function AdminTrips() {
             width: 100% !important;
             z-index: 99999 !important;
           }
-          /* Hide UI elements even if they are children of print-root */
           .print-hide {
             display: none !important;
           }
-          /* Specific Paper Sizes */
           .manifest-print {
             width: 210mm;
             min-height: 297mm;
@@ -374,6 +409,17 @@ export default function AdminTrips() {
           </Button>
         </header>
 
+        {/* Search Bar for Trips */}
+        <div className="relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="البحث عن رحلة (الوجهة، الحافلة، أو الكود)..." 
+            className="rounded-xl pr-10 h-12"
+            value={mainSearchQuery}
+            onChange={(e) => setMainSearchQuery(e.target.value)}
+          />
+        </div>
+
         {/* Edit Passenger Dialog */}
         <Dialog open={!!editingPassenger} onOpenChange={(open) => !open && setEditingPassenger(null)}>
           <DialogContent className="text-right">
@@ -569,7 +615,9 @@ export default function AdminTrips() {
         <div className="space-y-3">
           {isLoading ? (
             <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
-          ) : trips?.map(trip => (
+          ) : filteredTrips.length === 0 ? (
+            <div className="text-center p-12 text-muted-foreground">لا توجد رحلات تطابق بحثك</div>
+          ) : filteredTrips.map(trip => (
             <Card key={trip.id} className="border-none shadow-sm ring-1 ring-border">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -577,10 +625,18 @@ export default function AdminTrips() {
                   <div className="text-right">
                     <p className="font-bold text-sm">{trip.originName} ⮕ {trip.destinationName}</p>
                     <p className="text-[10px] text-muted-foreground">الانطلاق: {new Date(trip.departureTime).toLocaleString('ar-EG')}</p>
+                    <p className="text-[8px] text-muted-foreground">كود: {trip.id.substring(0, 8)}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Dialog onOpenChange={(open) => { if (open) setViewingManifestId(trip.id); else setViewingManifestId(null); }}>
+                  <Dialog onOpenChange={(open) => { 
+                    if (open) {
+                      setViewingManifestId(trip.id);
+                      setManifestSearchQuery("");
+                    } else {
+                      setViewingManifestId(null);
+                    }
+                  }}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs">
                         <Users className="h-4 w-4" /> بيان الركاب
@@ -598,29 +654,41 @@ export default function AdminTrips() {
                           </Button>
                         </div>
                       </DialogHeader>
-                      {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8" /> : (
-                        <div className="rounded-xl border overflow-x-auto mt-4">
-                          <Table dir="rtl" className="min-w-[1000px]">
-                            <TableHeader>
-                              <TableRow className="bg-muted/50">
-                                <TableHead className="text-right font-bold">اسم المسافر</TableHead>
-                                <TableHead className="text-right font-bold">الجواز</TableHead>
-                                <TableHead className="text-right font-bold">المقعد</TableHead>
-                                <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
-                                <TableHead className="text-right font-bold">الأمتعة</TableHead>
-                                <TableHead className="text-right font-bold">الدفع</TableHead>
-                                <TableHead className="text-center font-bold">إجراءات</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {manifestBookings?.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
-                              ) : manifestBookings?.map(booking => (
-                                booking.passengers?.map((p: any, idx: number) => (
-                                  <TableRow key={`${booking.id}-${idx}`} className={idx === 0 ? "border-t-2" : ""}>
-                                    <TableCell className="font-bold">{p.fullName}</TableCell>
-                                    <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
-                                    <TableCell><Badge variant="outline" className="bg-primary/5">{p.seatNumber}</Badge></TableCell>
+                      
+                      <div className="mt-4 space-y-4">
+                        {/* Manifest Search */}
+                        <div className="relative">
+                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="البحث بالاسم، الجواز، أو رقم الحجز..." 
+                            className="rounded-xl pr-10"
+                            value={manifestSearchQuery}
+                            onChange={(e) => setManifestSearchQuery(e.target.value)}
+                          />
+                        </div>
+
+                        {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8" /> : (
+                          <div className="rounded-xl border overflow-x-auto">
+                            <Table dir="rtl" className="min-w-[1000px]">
+                              <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                  <TableHead className="text-right font-bold">اسم المسافر</TableHead>
+                                  <TableHead className="text-right font-bold">الجواز</TableHead>
+                                  <TableHead className="text-right font-bold">المقعد</TableHead>
+                                  <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
+                                  <TableHead className="text-right font-bold">الأمتعة</TableHead>
+                                  <TableHead className="text-right font-bold">الدفع</TableHead>
+                                  <TableHead className="text-center font-bold">إجراءات</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredManifestItems.length === 0 ? (
+                                  <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد نتائج مطابقة لبحثك</TableCell></TableRow>
+                                ) : filteredManifestItems.map(({ booking, passenger, index }) => (
+                                  <TableRow key={`${booking.id}-${index}`}>
+                                    <TableCell className="font-bold">{passenger.fullName}</TableCell>
+                                    <TableCell className="font-mono text-xs">{passenger.passportNumber}</TableCell>
+                                    <TableCell><Badge variant="outline" className="bg-primary/5">{passenger.seatNumber}</Badge></TableCell>
                                     <TableCell>
                                       <div className="flex flex-col gap-1 text-[10px]">
                                         <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {booking.userEmail}</span>
@@ -628,7 +696,7 @@ export default function AdminTrips() {
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      {idx === 0 ? (
+                                      {index === 0 ? (
                                         <div className="flex items-center gap-1 text-xs">
                                           <Package className="h-3 w-3" />
                                           {booking.extraBags > 0 ? <Badge variant="destructive" className="h-5 text-[10px]">{booking.extraBags} إضافية</Badge> : "عادية"}
@@ -653,7 +721,7 @@ export default function AdminTrips() {
                                           size="icon" 
                                           className="h-8 w-8 text-primary hover:bg-primary/10"
                                           onClick={() => setPrintingTicket({
-                                            passenger: p,
+                                            passenger: passenger,
                                             trip: trip,
                                             booking: booking
                                           })}
@@ -667,9 +735,9 @@ export default function AdminTrips() {
                                           className="h-8 w-8 text-primary hover:bg-primary/10"
                                           onClick={() => setEditingPassenger({
                                             bookingId: booking.id,
-                                            passengerIndex: idx,
-                                            fullName: p.fullName,
-                                            passportNumber: p.passportNumber
+                                            passengerIndex: index,
+                                            fullName: passenger.fullName,
+                                            passportNumber: passenger.passportNumber
                                           })}
                                           title="تعديل البيانات"
                                         >
@@ -678,12 +746,12 @@ export default function AdminTrips() {
                                       </div>
                                     </TableCell>
                                   </TableRow>
-                                ))
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
                     </DialogContent>
                   </Dialog>
                   <Button 
