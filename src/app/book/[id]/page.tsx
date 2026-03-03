@@ -24,11 +24,9 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const tripId = resolvedParams.id;
   const firestore = useFirestore();
 
-  // جلب بيانات الرحلة
   const tripRef = useMemoFirebase(() => doc(firestore, "busTrips", tripId), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
 
-  // جلب جميع الحجوزات لهذه الرحلة من المجموعة الرئيسية 'bookings'
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !tripId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", tripId));
@@ -75,7 +73,6 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
 
   const handleNextStepSelection = () => {
     if (selectedSeats.length === 0) return;
-    // تهيئة مصفوفة المسافرين بناءً على المقاعد المختارة
     const initialPassengers = selectedSeats.map(seatNum => ({
       seatNumber: seatNum,
       fullName: "",
@@ -103,6 +100,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
       seats: selectedSeats.join(","), 
       total: finalTotal.toString(), 
       email,
+      phone,
       extraBags: extraBags.toString(),
       passengers: JSON.stringify(passengers)
     });

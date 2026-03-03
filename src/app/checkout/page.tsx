@@ -27,11 +27,11 @@ function CheckoutContent() {
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
   const email = searchParams.get("email") || "";
+  const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
   const passengersJson = searchParams.get("passengers");
   const passengers = passengersJson ? JSON.parse(passengersJson) : [];
 
-  // التأكد من وجود مستخدم، إذا لم يوجد نحاول تسجيل الدخول مجهولاً فوراً
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
@@ -50,23 +50,23 @@ function CheckoutContent() {
     
     setIsProcessing(true);
 
-    // 1. إنشاء/تحديث ملف المستخدم (تسجيل تلقائي)
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
       email: email,
+      phoneNumber: phone,
       firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
       lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. تسجيل الحجز في المجموعة الرئيسية 'bookings'
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       busTripId: tripId,
       userId: user.uid,
       userEmail: email,
+      userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
       extraBags: extraBags,
@@ -74,14 +74,14 @@ function CheckoutContent() {
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
-      paymentMethod: paymentMethod === "card" ? "Credit Card" : paymentMethod === "wallet" ? "Apple Pay" : "Cash on Delivery",
+      paymentMethodLabel: paymentMethod === "card" ? "بطاقة ائتمان" : paymentMethod === "wallet" ? "Apple Pay" : "دفع عند السفر",
+      paymentMethod: paymentMethod,
       status: "Confirmed",
       createdAt: serverTimestamp()
     };
 
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. تحديث عدد المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {

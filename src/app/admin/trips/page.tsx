@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -13,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock } from "lucide-react";
+import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -25,7 +26,6 @@ export default function AdminTrips() {
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
   
-  // States for new trip
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -86,11 +86,6 @@ export default function AdminTrips() {
 
     toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة للجدول بنجاح" });
     setIsAdding(false);
-    setBusId("");
-    setOriginId("");
-    setDestinationId("");
-    setDepartureDate(undefined);
-    setArrivalDate(undefined);
   };
 
   const confirmDelete = () => {
@@ -223,7 +218,6 @@ export default function AdminTrips() {
                 <div className="text-right">
                   <p className="font-bold text-sm">{trip.originName} ⮕ {trip.destinationName}</p>
                   <p className="text-[10px] text-muted-foreground">الانطلاق: {new Date(trip.departureTime).toLocaleString('ar-EG')}</p>
-                  <p className="text-[10px] text-muted-foreground">الوصول: {new Date(trip.arrivalTime).toLocaleString('ar-EG')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -233,39 +227,59 @@ export default function AdminTrips() {
                       <Users className="h-4 w-4" /> بيان الركاب
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2">
                         <FileText className="h-5 w-5 text-primary" />
-                        بيان الركاب المسجلين (المانيفست الدولي)
+                        بيان الركاب المسجلين وتفاصيل التواصل والدفع
                       </DialogTitle>
                     </DialogHeader>
                     {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto my-8" /> : (
-                      <div className="rounded-xl border overflow-hidden mt-4">
-                        <Table dir="rtl">
+                      <div className="rounded-xl border overflow-x-auto mt-4">
+                        <Table dir="rtl" className="min-w-[1000px]">
                           <TableHeader>
                             <TableRow className="bg-muted/50">
-                              <TableHead className="text-right font-bold">الاسم الكامل</TableHead>
-                              <TableHead className="text-right font-bold">رقم الجواز</TableHead>
+                              <TableHead className="text-right font-bold">اسم المسافر</TableHead>
+                              <TableHead className="text-right font-bold">الجواز</TableHead>
                               <TableHead className="text-right font-bold">المقعد</TableHead>
-                              <TableHead className="text-right font-bold">الحقائب</TableHead>
-                              <TableHead className="text-right font-bold">حالة الدفع</TableHead>
+                              <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
+                              <TableHead className="text-right font-bold">الأمتعة</TableHead>
+                              <TableHead className="text-right font-bold">الدفع</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {manifestBookings?.length === 0 ? (
-                              <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
+                              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">لا توجد حجوزات مسجلة لهذه الرحلة</TableCell></TableRow>
                             ) : manifestBookings?.map(booking => (
                               booking.passengers?.map((p: any, idx: number) => (
-                                <TableRow key={`${booking.id}-${idx}`}>
+                                <TableRow key={`${booking.id}-${idx}`} className={idx === 0 ? "border-t-2" : ""}>
                                   <TableCell className="font-bold">{p.fullName}</TableCell>
                                   <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
                                   <TableCell><Badge variant="outline" className="bg-primary/5">{p.seatNumber}</Badge></TableCell>
-                                  <TableCell className="text-xs">{idx === 0 ? (booking.extraBags > 0 ? `${booking.extraBags} إضافية` : "عادية") : "-"}</TableCell>
                                   <TableCell>
-                                    <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'}>
-                                      {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
-                                    </Badge>
+                                    <div className="flex flex-col gap-1 text-[10px]">
+                                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {booking.userEmail}</span>
+                                      <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {booking.userPhone}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {idx === 0 ? (
+                                      <div className="flex items-center gap-1 text-xs">
+                                        <Package className="h-3 w-3" />
+                                        {booking.extraBags > 0 ? <Badge variant="destructive" className="h-5 text-[10px]">{booking.extraBags} إضافية</Badge> : "عادية"}
+                                      </div>
+                                    ) : "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-1 text-[10px]">
+                                        <CreditCard className="h-3 w-3" />
+                                        {booking.paymentMethodLabel || booking.paymentMethod}
+                                      </div>
+                                      <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5">
+                                        {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
+                                      </Badge>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))
