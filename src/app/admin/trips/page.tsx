@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft, Users, User, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft, Users, User, CheckCircle2, FileText } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -51,7 +51,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // Fetch Bookings for the manifest (Fixed: Using top-level collection)
+  // Fetch Bookings for the manifest
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -167,20 +167,36 @@ export default function AdminTrips() {
               </div>
               <div className="flex gap-2">
                 <Dialog onOpenChange={(open) => { if (open) setViewingManifestId(trip.id); else setViewingManifestId(null); }}>
-                  <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs"><Users className="h-4 w-4" /> الركاب</Button></DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader><DialogTitle>قائمة الركاب</DialogTitle></DialogHeader>
+                  <DialogTrigger asChild><Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs"><Users className="h-4 w-4" /> بيان الركاب</Button></DialogTrigger>
+                  <DialogContent className="max-w-4xl">
+                    <DialogHeader><DialogTitle>بيان الركاب (المانيفست)</DialogTitle></DialogHeader>
                     {isManifestLoading ? <Loader2 className="animate-spin h-6 w-6 mx-auto" /> : (
                       <div className="rounded-xl border overflow-hidden mt-4">
                         <Table>
-                          <TableHeader><TableRow><TableHead className="text-right">المقاعد</TableHead><TableHead className="text-right">حالة الدفع</TableHead><TableHead className="text-right">المجموع</TableHead></TableRow></TableHeader>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="text-right">الاسم</TableHead>
+                              <TableHead className="text-right">رقم الجواز</TableHead>
+                              <TableHead className="text-right">المقعد</TableHead>
+                              <TableHead className="text-right">حالة الدفع</TableHead>
+                            </TableRow>
+                          </TableHeader>
                           <TableBody>
-                            {manifestBookings?.map(b => (
-                              <TableRow key={b.id}>
-                                <TableCell className="font-bold">{b.seatNumbers?.join(", ")}</TableCell>
-                                <TableCell><Badge variant={b.paymentStatus === 'Completed' ? 'default' : 'outline'}>{b.paymentStatus}</Badge></TableCell>
-                                <TableCell>{b.totalAmount} ريال</TableCell>
-                              </TableRow>
+                            {manifestBookings?.length === 0 ? (
+                              <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">لا توجد حجوزات لهذه الرحلة بعد</TableCell></TableRow>
+                            ) : manifestBookings?.map(booking => (
+                              booking.passengers?.map((p: any, pIdx: number) => (
+                                <TableRow key={`${booking.id}-${pIdx}`}>
+                                  <TableCell className="font-bold">{p.fullName}</TableCell>
+                                  <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
+                                  <TableCell><Badge variant="outline">{p.seatNumber}</Badge></TableCell>
+                                  <TableCell>
+                                    <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'}>
+                                      {booking.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق'}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))
                             ))}
                           </TableBody>
                         </Table>

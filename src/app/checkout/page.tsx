@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, UserCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
@@ -28,6 +28,8 @@ function CheckoutContent() {
   const totalAmount = Number(searchParams.get("total") || 0);
   const email = searchParams.get("email") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
+  const passengersJson = searchParams.get("passengers");
+  const passengers = passengersJson ? JSON.parse(passengersJson) : [];
 
   const handlePay = () => {
     if (!user) {
@@ -46,6 +48,7 @@ function CheckoutContent() {
       numberOfSeats: seats.length,
       seatNumbers: seats,
       extraBags: extraBags,
+      passengers: passengers, // تخزين قائمة المسافرين ببياناتهم
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -86,9 +89,9 @@ function CheckoutContent() {
           <Mail className="h-5 w-5 text-primary" />
           <p className="text-xs text-primary font-medium text-right">تم إرسال نسخة من التذاكر إلى {email}</p>
         </div>
-        <div className="space-y-3 w-full max-w-xs">
-          <Button className="w-full h-12" onClick={() => router.push("/track")}>تتبع رحلتي</Button>
-          <Button variant="outline" className="w-full h-12" onClick={() => router.push("/")}>العودة للرئيسية</Button>
+        <div className="space-y-3 w-full max-w-xs pt-4">
+          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض تذاكري</Button>
+          <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
       </div>
     );
@@ -100,17 +103,17 @@ function CheckoutContent() {
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowRight className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold">طرق الدفع</h1>
+        <h1 className="text-xl font-bold">إتمام عملية الدفع</h1>
       </header>
 
       <div className="space-y-4">
         <Card className="border-primary/10 shadow-sm">
           <CardHeader className="bg-primary/5 border-b py-4">
-            <CardTitle className="text-base font-semibold">ملخص الدفع</CardTitle>
-            <CardDescription>
-              المقاعد: {seats.join(", ")} | 
-              الحقائب: {extraBags} | 
-              الإجمالي: {totalAmount} ريال
+            <CardTitle className="text-base font-semibold">ملخص الحجز الدولي</CardTitle>
+            <CardDescription className="flex flex-col gap-1">
+              <span>المقاعد: {seats.join(", ")} | المسافرين: {passengers.length}</span>
+              <span>الحقائب الإضافية: {extraBags}</span>
+              <span className="font-bold text-primary">المبلغ المطلوب: {totalAmount} ريال</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -132,7 +135,7 @@ function CheckoutContent() {
               <Label htmlFor="cash" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "cash" ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "hover:bg-muted"}`}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center"><Banknote className="h-5 w-5 text-green-600" /></div>
-                  <div className="font-medium text-base text-right">دفع نقدي في المكتب</div>
+                  <div className="font-medium text-base text-right">دفع نقدي (في مكتب الشركة)</div>
                 </div>
                 <RadioGroupItem value="cash" id="cash" className="sr-only" />
               </Label>
@@ -141,7 +144,7 @@ function CheckoutContent() {
         </Card>
 
         <Button onClick={handlePay} disabled={isProcessing} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز والدفع"}
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الدفع وإصدار التذاكر"}
         </Button>
       </div>
     </div>
