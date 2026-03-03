@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
-import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft } from "lucide-react";
+import { collection, doc, query, where, collectionGroup } from "firebase/firestore";
+import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, MapPin, ArrowLeft, Users, User, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -20,6 +22,7 @@ import { cn } from "@/lib/utils";
 export default function AdminTrips() {
   const firestore = useFirestore();
   const [isAdding, setIsAdding] = useState(false);
+  const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   
   // States for the new trip form
   const [busId, setBusId] = useState("");
@@ -43,6 +46,14 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
+  // Fetch Bookings for the manifest (using collectionGroup to find bookings across all users)
+  const allBookingsQuery = useMemoFirebase(() => {
+    if (!firestore || !viewingManifestId) return null;
+    return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
+  }, [firestore, viewingManifestId]);
+
+  const { data: manifestBookings, isLoading: isManifestLoading } = useCollection(allBookingsQuery);
+
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!busId || !departureDate || !arrivalDate || !originId || !destinationId) {
@@ -63,11 +74,9 @@ export default function AdminTrips() {
       return;
     }
 
-    // Find location names for denormalization (easier to display later)
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
 
-    // Construct ISO strings
     const depDateTime = new Date(departureDate);
     const [depH, depM] = departureTime.split(':');
     depDateTime.setHours(parseInt(depH), parseInt(depM));
@@ -129,7 +138,6 @@ export default function AdminTrips() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddTrip} className="space-y-6 text-right">
-              {/* Route Selection */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>من (مدينة الانطلاق)</Label>
@@ -182,7 +190,6 @@ export default function AdminTrips() {
                 </div>
               </div>
 
-              {/* Departure Date & Time */}
               <div className="space-y-3">
                 <Label className="font-bold text-primary">موعد الانطلاق</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -221,7 +228,6 @@ export default function AdminTrips() {
                 </div>
               </div>
 
-              {/* Arrival Date & Time */}
               <div className="space-y-3">
                 <Label className="font-bold text-primary">موعد الوصول المتوقع</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,11 +319,71 @@ export default function AdminTrips() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-left">
-                  <p className="font-bold text-sm text-primary">{trip.pricePerSeat} ريال</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">{trip.status === "Scheduled" ? "مجدولة" : trip.status === "Departed" ? "في الطريق" : "متأخرة"}</p>
-                </div>
+              <div className="flex items-center gap-2">
+                <Dialog onOpenChange={(open) => { if (open) setViewingManifestId(trip.id); else setViewingManifestId(null); }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2 text-xs">
+                      <Users className="h-4 w-4" /> بيان الركاب
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        قائمة المسافرين - حافلة {trip.busId}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                      {isManifestLoading ? (
+                        <div className="flex justify-center p-8"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
+                      ) : manifestBookings && manifestBookings.length > 0 ? (
+                        <div className="rounded-xl border overflow-hidden">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow>
+                                <TableHead className="text-right">المقاعد</TableHead>
+                                <TableHead className="text-right">حالة الدفع</TableHead>
+                                <TableHead className="text-right">التاريخ</TableHead>
+                                <TableHead className="text-right">المجموع</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {manifestBookings.map((booking) => (
+                                <TableRow key={booking.id}>
+                                  <TableCell className="font-bold text-primary">
+                                    {booking.seatNumbers?.join(", ") || "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      {booking.paymentStatus === 'Completed' ? (
+                                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none">
+                                          <CheckCircle2 className="h-3 w-3 ml-1" /> مكتمل
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-muted-foreground">
+                                          <Clock className="h-3 w-3 ml-1" /> {booking.paymentStatus}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}
+                                  </TableCell>
+                                  <TableCell className="font-bold">{booking.totalAmount} ريال</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-10 text-muted-foreground">
+                          <User className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                          <p>لا توجد حجوزات مسجلة لهذه الرحلة</p>
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -325,12 +391,6 @@ export default function AdminTrips() {
             </CardContent>
           </Card>
         ))}
-        {trips?.length === 0 && !isLoading && (
-          <div className="text-center py-20 text-muted-foreground">
-            <Bus className="h-12 w-12 mx-auto mb-4 opacity-20" />
-            <p>لا توجد رحلات مسجلة حالياً</p>
-          </div>
-        )}
       </div>
     </div>
   );
