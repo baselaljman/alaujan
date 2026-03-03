@@ -11,13 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
-import { CalendarIcon, MapPin, Bus, Search, Package, Loader2 } from "lucide-react";
+import { CalendarIcon, MapPin, Bus, Search, Package, Loader2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 
 export default function HomePage() {
   const router = useRouter();
@@ -29,6 +29,28 @@ export default function HomePage() {
   // جلب المدن من Firestore
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations, isLoading: isLocationsLoading } = useCollection(locationsRef);
+
+  // جلب الرحلات المتاحة لعرض تواريخها
+  const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
+  const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
+
+  // استخراج التواريخ التي تتوفر فيها رحلات للمسار المختار
+  const availableTripDates = useMemo(() => {
+    if (!trips) return new Set<string>();
+    
+    return new Set(
+      trips
+        .filter(trip => {
+          // إذا تم اختيار المدن، نعرض فقط تواريخ الرحلات لهذا المسار
+          if (from && to) {
+            return trip.originName === from && trip.destinationName === to;
+          }
+          // إذا لم يتم اختيار المسار، نعرض كل تواريخ الرحلات القادمة
+          return true;
+        })
+        .map(trip => startOfDay(new Date(trip.departureTime)).toDateString())
+    );
+  }, [trips, from, to]);
 
   // تقسيم المدن حسب الدولة
   const groupedLocations = useMemo(() => {
@@ -55,7 +77,7 @@ export default function HomePage() {
     return groupedLocations.syria.some((l: any) => l.name === locationName);
   };
 
-  // تصفية الوجهات بناءً على مدينة الانطلاق (السفر دائماً دولي)
+  // تصفية الوجهات بناءً على مدينة الانطلاق
   const availableDestinations = useMemo(() => {
     if (!from) return locations || [];
     
@@ -78,7 +100,9 @@ export default function HomePage() {
         setTo("");
       }
     }
-  }, [from, to, groupedLocations]);
+    // تصفير التاريخ عند تغيير المسار لضمان اختيار تاريخ متاح للمسار الجديد
+    setDate(undefined);
+  }, [from, to]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,20 +212,29 @@ export default function HomePage() {
                       "w-full justify-start text-right font-normal bg-background border-primary/10 h-14 rounded-xl shadow-sm transition-all hover:border-primary/30 hover:bg-white",
                       !date && "text-muted-foreground"
                     )}
+                    disabled={!from || !to}
                   >
                     <CalendarIcon className="ml-3 h-5 w-5 text-primary opacity-70" />
-                    {date ? format(date, "PPP", { locale: ar }) : <span>اختر تاريخ السفر المفضل</span>}
+                    {date ? format(date, "PPP", { locale: ar }) : <span>{(!from || !to) ? "اختر المسار أولاً لعرض التواريخ" : "اختر تاريخاً تتوفر فيه رحلات"}</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl border-primary/10 shadow-2xl" align="center" sideOffset={10}>
+                  <div className="p-3 bg-primary/5 text-[10px] text-center text-primary font-bold border-b">
+                    التواريخ المظللة بالزمردي تحتوي على رحلات متاحة
+                  </div>
                   <Calendar
                     mode="single"
                     selected={date}
                     onSelect={setDate}
                     initialFocus
-                    disabled={(date) => date < new Date()}
                     locale={ar}
                     className="rounded-2xl border-none"
+                    disabled={(date) => {
+                      const today = startOfDay(new Date());
+                      const isPast = date < today;
+                      const hasNoTrip = !availableTripDates.has(startOfDay(date).toDateString());
+                      return isPast || hasNoTrip;
+                    }}
                     classNames={{
                       day_selected: "bg-primary text-white hover:bg-primary/90 focus:bg-primary font-bold rounded-lg",
                       day_today: "bg-accent/10 text-accent border border-accent/20 rounded-lg",
@@ -211,6 +244,11 @@ export default function HomePage() {
                   />
                 </PopoverContent>
               </Popover>
+              {from && to && availableTripDates.size === 0 && !isTripsLoading && (
+                <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1 pr-1">
+                  <Info className="h-3 w-3" /> لا توجد رحلات مجدولة حالياً لهذا المسار
+                </p>
+              )}
             </div>
 
             <Button 
