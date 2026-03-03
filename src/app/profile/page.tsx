@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -10,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
   Ticket, 
-  Heart, 
   ChevronLeft, 
   Bus, 
   ShieldAlert, 
@@ -20,7 +20,9 @@ import {
   KeyRound,
   LogIn,
   UserPlus,
-  RefreshCcw
+  RefreshCcw,
+  Settings,
+  LayoutDashboard
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -63,7 +65,6 @@ export default function ProfilePage() {
   // جلب حجوزات المستخدم (بناءً على UID أو الإيميل)
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // إذا كان المستخدم مسجلاً، نبحث بحجوزاته التي تمت بنفس إيميله أو UID
     return query(
       collection(firestore, "bookings"), 
       where("userEmail", "==", user.email || profile?.email || "")
@@ -101,7 +102,6 @@ export default function ProfilePage() {
 
   if (isUserLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
-  // إذا كان المستخدم ضيفاً أو غير مسجل دخول
   if (!user || user.isAnonymous) {
     return (
       <div className="space-y-6 max-w-sm mx-auto pt-10">
@@ -166,50 +166,59 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-8 pb-24">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold font-headline text-primary">حسابي الشخصي</h1>
+        <h1 className="text-2xl font-bold font-headline text-primary">إدارة الحساب</h1>
       </header>
 
-      <div className="flex items-center gap-4 p-5 bg-white rounded-3xl shadow-sm border border-primary/5">
-        <Avatar className="h-20 w-20 border-2 border-primary/10">
-          <AvatarImage src={`https://picsum.photos/seed/${user?.uid}/200`} />
-          <AvatarFallback className="bg-primary/5 text-primary"><UserIcon className="h-8 w-8" /></AvatarFallback>
-        </Avatar>
-        <div className="flex-1 text-right">
-          <h2 className="text-xl font-bold text-primary">
-            {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : "مسافر العوجان"}
-          </h2>
-          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
-            <Mail className="h-3 w-3" />
-            <p className="text-xs">{user.email || profile?.email}</p>
-          </div>
-          <Badge variant="secondary" className="mt-2 bg-accent/10 text-accent hover:bg-accent/20 border-none font-bold">
-            عضو مسجل
-          </Badge>
-        </div>
-      </div>
-
-      <Card className="border-none bg-primary/5 shadow-none rounded-3xl overflow-hidden">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
-              <ShieldAlert className="h-5 w-5 text-white" />
+      {/* قسم الإدارة المنفرد */}
+      <Card className="border-none bg-primary text-primary-foreground shadow-2xl rounded-[2rem] overflow-hidden">
+        <CardContent className="p-6 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                <LayoutDashboard className="h-7 w-7 text-white" />
+              </div>
+              <div className="text-right">
+                <h2 className="text-xl font-black">لوحة التحكم الإدارية</h2>
+                <p className="text-[10px] text-white/70">إدارة الرحلات، الحافلات، والطرود</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="font-bold text-sm text-primary">لوحة إدارة النظام</p>
-              <p className="text-[10px] text-muted-foreground">خاص بمسؤولي الشركة</p>
-            </div>
+            <Button asChild size="lg" className="rounded-2xl bg-white text-primary hover:bg-white/90 font-bold px-8">
+              <Link href="/admin">دخول</Link>
+            </Button>
           </div>
-          <Button asChild size="sm" className="rounded-xl bg-primary hover:bg-primary/90">
-            <Link href="/admin">دخول</Link>
-          </Button>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
+      {/* بيانات المستخدم الشخصية */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-4 p-5 bg-white rounded-3xl shadow-sm border border-primary/5">
+          <Avatar className="h-20 w-20 border-2 border-primary/10">
+            <AvatarImage src={`https://picsum.photos/seed/${user?.uid}/200`} />
+            <AvatarFallback className="bg-primary/5 text-primary"><UserIcon className="h-8 w-8" /></AvatarFallback>
+          </Avatar>
+          <div className="flex-1 text-right">
+            <h2 className="text-xl font-bold text-primary">
+              {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : "مسافر العوجان"}
+            </h2>
+            <div className="flex items-center gap-1 mt-1 text-muted-foreground">
+              <Mail className="h-3 w-3" />
+              <p className="text-xs">{user.email || profile?.email}</p>
+            </div>
+            <Badge variant="secondary" className="mt-2 bg-accent/10 text-accent hover:bg-accent/20 border-none font-bold">
+              عضو مسجل
+            </Badge>
+          </div>
+        </div>
+      </section>
+
+      {/* قسم الحجوزات */}
+      <section className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h3 className="font-bold text-lg text-primary">رحلاتي السابقة والقادمة</h3>
+          <h3 className="font-bold text-lg text-primary flex items-center gap-2">
+            <Ticket className="h-5 w-5" /> رحلاتي وحجوزاتي
+          </h3>
           <span className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">{bookings?.length || 0} حجوزات</span>
         </div>
         
@@ -245,47 +254,54 @@ export default function ProfilePage() {
             </Button>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="space-y-2 pt-4">
-        <Button 
-          variant="ghost" 
-          onClick={() => setShowPasswordChange(!showPasswordChange)}
-          className="w-full justify-between h-14 bg-white border rounded-2xl hover:bg-primary/5 transition-colors group"
-        >
-          <div className="flex items-center gap-3">
-            <KeyRound className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-            <span className="font-bold text-sm">تغيير كلمة المرور</span>
-          </div>
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-        </Button>
+      {/* إعدادات الحساب */}
+      <section className="space-y-3">
+        <h3 className="font-bold text-lg text-primary px-1 flex items-center gap-2">
+          <Settings className="h-5 w-5" /> إعدادات الحساب
+        </h3>
+        
+        <div className="space-y-2">
+          <Button 
+            variant="ghost" 
+            onClick={() => setShowPasswordChange(!showPasswordChange)}
+            className="w-full justify-between h-14 bg-white border rounded-2xl hover:bg-primary/5 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <KeyRound className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-sm">تغيير كلمة المرور</span>
+            </div>
+            <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+          </Button>
 
-        {showPasswordChange && (
-          <Card className="border-primary/10 shadow-md">
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-2 text-right">
-                <Label>كلمة المرور الجديدة</Label>
-                <Input 
-                  type="password" 
-                  placeholder="أدخل 6 خانات على الأقل" 
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  className="rounded-xl h-11"
-                />
-              </div>
-              <Button onClick={handleChangePassword} className="w-full rounded-xl">تحديث الآن</Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          {showPasswordChange && (
+            <Card className="border-primary/10 shadow-md animate-in slide-in-from-top-2">
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2 text-right">
+                  <Label>كلمة المرور الجديدة</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="أدخل 6 خانات على الأقل" 
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="rounded-xl h-11"
+                  />
+                </div>
+                <Button onClick={handleChangePassword} className="w-full rounded-xl">تحديث الآن</Button>
+              </CardContent>
+            </Card>
+          )}
 
-      <Button 
-        variant="outline" 
-        onClick={handleLogout}
-        className="w-full h-14 rounded-2xl text-destructive border-destructive/20 hover:bg-destructive/5 transition-colors font-bold mt-6"
-      >
-        <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج
-      </Button>
+          <Button 
+            variant="outline" 
+            onClick={handleLogout}
+            className="w-full h-14 rounded-2xl text-destructive border-destructive/20 hover:bg-destructive/5 transition-colors font-bold mt-2"
+          >
+            <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
