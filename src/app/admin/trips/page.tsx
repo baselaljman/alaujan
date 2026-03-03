@@ -7,40 +7,77 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
-import { Plus, Trash2, Calendar, Clock, DollarSign, Bus, Loader2 } from "lucide-react";
+import { Plus, Trash2, Calendar as CalendarIcon, Clock, DollarSign, Bus, Loader2, ChevronLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export default function AdminTrips() {
   const firestore = useFirestore();
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState({
-    busId: "",
-    departureTime: "",
-    arrivalTime: "",
-    pricePerSeat: 350,
-    availableSeats: 40,
-    status: "Scheduled"
-  });
+  
+  // States for the new trip form
+  const [busId, setBusId] = useState("");
+  const [status, setStatus] = useState("Scheduled");
+  const [pricePerSeat, setPricePerSeat] = useState(350);
+  const [availableSeats, setAvailableSeats] = useState(40);
+  
+  const [departureDate, setDepartureDate] = useState<Date>();
+  const [departureTime, setDepartureTime] = useState("08:00");
+  
+  const [arrivalDate, setArrivalDate] = useState<Date>();
+  const [arrivalTime, setArrivalTime] = useState("20:00");
 
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.busId || !formData.departureTime) return;
+    if (!busId || !departureDate || !arrivalDate) {
+      toast({ 
+        title: "بيانات ناقصة", 
+        description: "يرجى اختيار التاريخ ورقم الحافلة",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Construct ISO strings
+    const depDateTime = new Date(departureDate);
+    const [depH, depM] = departureTime.split(':');
+    depDateTime.setHours(parseInt(depH), parseInt(depM));
+
+    const arrDateTime = new Date(arrivalDate);
+    const [arrH, arrM] = arrivalTime.split(':');
+    arrDateTime.setHours(parseInt(arrH), parseInt(arrM));
 
     addDocumentNonBlocking(tripsRef, {
-      ...formData,
-      pricePerSeat: Number(formData.pricePerSeat),
-      availableSeats: Number(formData.availableSeats),
-      totalSeats: Number(formData.availableSeats),
+      busId,
+      status,
+      pricePerSeat: Number(pricePerSeat),
+      availableSeats: Number(availableSeats),
+      totalSeats: Number(availableSeats),
+      departureTime: depDateTime.toISOString(),
+      arrivalTime: arrDateTime.toISOString(),
       createdAt: new Date().toISOString()
     });
 
     toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة الجديدة بنجاح" });
     setIsAdding(false);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setBusId("");
+    setDepartureDate(undefined);
+    setArrivalDate(undefined);
+    setPricePerSeat(350);
+    setAvailableSeats(40);
   };
 
   const handleDelete = (id: string) => {
@@ -65,20 +102,21 @@ export default function AdminTrips() {
             <CardTitle className="text-lg">تفاصيل الرحلة الجديدة</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAddTrip} className="space-y-4 text-right">
+            <form onSubmit={handleAddTrip} className="space-y-6 text-right">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>رقم الحافلة</Label>
                   <Input 
                     placeholder="مثلاً: AWJ-700" 
-                    value={formData.busId}
-                    onChange={e => setFormData({...formData, busId: e.target.value})}
+                    value={busId}
+                    onChange={e => setBusId(e.target.value)}
+                    className="rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>الحالة</Label>
-                  <Select onValueChange={v => setFormData({...formData, status: v})} defaultValue="Scheduled">
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select onValueChange={setStatus} defaultValue="Scheduled">
+                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Scheduled">مجدولة</SelectItem>
                       <SelectItem value="Departed">انطلقت</SelectItem>
@@ -87,41 +125,109 @@ export default function AdminTrips() {
                   </Select>
                 </div>
               </div>
+
+              {/* Departure Date & Time */}
+              <div className="space-y-3">
+                <Label className="font-bold text-primary">موعد الانطلاق</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-right h-12 rounded-xl border-primary/10",
+                          !departureDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                        {departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر تاريخ الانطلاق"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={departureDate}
+                        onSelect={setDepartureDate}
+                        locale={ar}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="relative">
+                    <Clock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      type="time" 
+                      value={departureTime}
+                      onChange={e => setDepartureTime(e.target.value)}
+                      className="pr-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrival Date & Time */}
+              <div className="space-y-3">
+                <Label className="font-bold text-primary">موعد الوصول المتوقع</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-right h-12 rounded-xl border-primary/10",
+                          !arrivalDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
+                        {arrivalDate ? format(arrivalDate, "PPP", { locale: ar }) : "اختر تاريخ الوصول"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={arrivalDate}
+                        onSelect={setArrivalDate}
+                        locale={ar}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="relative">
+                    <Clock className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      type="time" 
+                      value={arrivalTime}
+                      onChange={e => setArrivalTime(e.target.value)}
+                      className="pr-10 h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>وقت الانطلاق</Label>
-                  <Input 
-                    type="datetime-local" 
-                    onChange={e => setFormData({...formData, departureTime: e.target.value})}
-                  />
+                  <Label>سعر المقعد (بالريال)</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      type="number" 
+                      value={pricePerSeat}
+                      onChange={e => setPricePerSeat(Number(e.target.value))}
+                      className="pr-10 h-12 rounded-xl"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>وقت الوصول المتوقع</Label>
+                  <Label>عدد المقاعد الكلي</Label>
                   <Input 
-                    type="datetime-local" 
-                    onChange={e => setFormData({...formData, arrivalTime: e.target.value})}
+                    type="number" 
+                    value={availableSeats}
+                    onChange={e => setAvailableSeats(Number(e.target.value))}
+                    className="h-12 rounded-xl"
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>سعر المقعد</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.pricePerSeat}
-                    onChange={e => setFormData({...formData, pricePerSeat: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>عدد المقاعد</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.availableSeats}
-                    onChange={e => setFormData({...formData, availableSeats: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full h-12 rounded-xl">حفظ الرحلة</Button>
+              <Button type="submit" className="w-full h-14 text-lg font-bold rounded-2xl bg-primary shadow-xl">حفظ ونشر الرحلة</Button>
             </form>
           </CardContent>
         </Card>
@@ -131,31 +237,42 @@ export default function AdminTrips() {
         {isLoading ? (
           <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
         ) : trips?.map(trip => (
-          <Card key={trip.id} className="border-none shadow-sm ring-1 ring-border">
+          <Card key={trip.id} className="border-none shadow-sm ring-1 ring-border hover:ring-primary/20 transition-all">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/5 flex items-center justify-center">
+                <div className="h-10 w-10 rounded-xl bg-primary/5 flex items-center justify-center border border-primary/10">
                   <Bus className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-sm">حافلة: {trip.busId}</p>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleString('ar-EG')}
-                  </p>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <CalendarIcon className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                    <p className="text-[10px] text-primary font-bold flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> الساعة {new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-left">
-                  <p className="font-bold text-sm text-primary">${trip.pricePerSeat}</p>
-                  <p className="text-[10px] text-muted-foreground">{trip.status}</p>
+                  <p className="font-bold text-sm text-primary">{trip.pricePerSeat} ريال</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">{trip.status === "Scheduled" ? "مجدولة" : trip.status === "Departed" ? "في الطريق" : "متأخرة"}</p>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(trip.id)} className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
           </Card>
         ))}
+        {trips?.length === 0 && !isLoading && (
+          <div className="text-center py-20 text-muted-foreground">
+            <Bus className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            <p>لا توجد رحلات مسجلة حالياً</p>
+          </div>
+        )}
       </div>
     </div>
   );
