@@ -14,11 +14,35 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, query, where } from "firebase/firestore";
-import { Plus, Trash2, Bus, Loader2, Users, FileText, AlertCircle, Clock, Phone, Mail, CreditCard, Package, Edit, Save, Printer, Ticket, QrCode, PlaneTakeoff, Info, Search } from "lucide-react";
+import { 
+  Plus, 
+  Trash2, 
+  Bus, 
+  Loader2, 
+  Users, 
+  FileText, 
+  AlertCircle, 
+  Clock, 
+  Phone, 
+  Mail, 
+  CreditCard, 
+  Package, 
+  Edit, 
+  Save, 
+  Printer, 
+  Ticket, 
+  QrCode, 
+  PlaneTakeoff, 
+  Info, 
+  Search,
+  XCircle,
+  RotateCcw
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function AdminTrips() {
   const firestore = useFirestore();
@@ -180,6 +204,18 @@ export default function AdminTrips() {
     setEditingPassenger(null);
   };
 
+  const toggleBookingStatus = (bookingId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Cancelled' ? 'Confirmed' : 'Cancelled';
+    updateDocumentNonBlocking(doc(firestore, "bookings", bookingId), {
+      status: newStatus
+    });
+
+    toast({ 
+      title: newStatus === 'Cancelled' ? "تم الإلغاء" : "تم التفعيل", 
+      description: newStatus === 'Cancelled' ? "تم إلغاء الحجز بنجاح" : "تمت إعادة تفعيل الحجز بنجاح" 
+    });
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -275,9 +311,9 @@ export default function AdminTrips() {
                 <TableBody>
                   {manifestBookings?.map(booking => (
                     booking.passengers?.map((p: any, idx: number) => (
-                      <TableRow key={`${booking.id}-${idx}`} className="border-b">
-                        <TableCell className="font-bold py-4">{p.fullName}</TableCell>
-                        <TableCell className="font-mono text-xs">{p.passportNumber}</TableCell>
+                      <TableRow key={`${booking.id}-${idx}`} className={cn("border-b", booking.status === 'Cancelled' && "opacity-50 grayscale")}>
+                        <TableCell className={cn("font-bold py-4", booking.status === 'Cancelled' && "line-through")}>{p.fullName}</TableCell>
+                        <TableCell className={cn("font-mono text-xs", booking.status === 'Cancelled' && "line-through")}>{p.passportNumber}</TableCell>
                         <TableCell className="font-black text-lg">{p.seatNumber}</TableCell>
                         <TableCell className="text-[10px] leading-tight">
                           <p>{booking.userEmail}</p>
@@ -287,7 +323,7 @@ export default function AdminTrips() {
                           {idx === 0 ? (booking.extraBags > 0 ? `${booking.extraBags} إضافية` : "عادية") : "-"}
                         </TableCell>
                         <TableCell className="text-[10px] font-bold">
-                          {booking.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق'}
+                          {booking.status === 'Cancelled' ? 'ملغي' : (booking.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق')}
                         </TableCell>
                       </TableRow>
                     ))
@@ -309,7 +345,7 @@ export default function AdminTrips() {
           </div>
         )}
 
-        {/* SINGLE BOARDING PASS (AIRLINE STYLE) */}
+        {/* SINGLE BOARDING PASS */}
         {printingTicket && (
           <div className="ticket-print-wrapper">
             <div className="ticket-print-container flex divide-x divide-black divide-dashed bg-white overflow-hidden rounded-[30px]">
@@ -677,7 +713,7 @@ export default function AdminTrips() {
                                   <TableHead className="text-right font-bold">المقعد</TableHead>
                                   <TableHead className="text-right font-bold">بيانات التواصل</TableHead>
                                   <TableHead className="text-right font-bold">الأمتعة</TableHead>
-                                  <TableHead className="text-right font-bold">الدفع</TableHead>
+                                  <TableHead className="text-right font-bold">الدفع/الحالة</TableHead>
                                   <TableHead className="text-center font-bold">إجراءات</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -685,9 +721,13 @@ export default function AdminTrips() {
                                 {filteredManifestItems.length === 0 ? (
                                   <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد نتائج مطابقة لبحثك</TableCell></TableRow>
                                 ) : filteredManifestItems.map(({ booking, passenger, index }) => (
-                                  <TableRow key={`${booking.id}-${index}`}>
-                                    <TableCell className="font-bold">{passenger.fullName}</TableCell>
-                                    <TableCell className="font-mono text-xs">{passenger.passportNumber}</TableCell>
+                                  <TableRow key={`${booking.id}-${index}`} className={cn(booking.status === 'Cancelled' && "bg-red-50/30 opacity-70")}>
+                                    <TableCell className={cn("font-bold", booking.status === 'Cancelled' && "line-through text-muted-foreground")}>
+                                      {passenger.fullName}
+                                    </TableCell>
+                                    <TableCell className={cn("font-mono text-xs", booking.status === 'Cancelled' && "line-through")}>
+                                      {passenger.passportNumber}
+                                    </TableCell>
                                     <TableCell><Badge variant="outline" className="bg-primary/5">{passenger.seatNumber}</Badge></TableCell>
                                     <TableCell>
                                       <div className="flex flex-col gap-1 text-[10px]">
@@ -709,9 +749,14 @@ export default function AdminTrips() {
                                           <CreditCard className="h-3 w-3" />
                                           {booking.paymentMethodLabel || booking.paymentMethod}
                                         </div>
-                                        <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5">
-                                          {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
-                                        </Badge>
+                                        <div className="flex gap-1 items-center">
+                                          <Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5">
+                                            {booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}
+                                          </Badge>
+                                          {booking.status === 'Cancelled' && (
+                                            <Badge variant="destructive" className="text-[10px] h-5 font-black uppercase">ملغي</Badge>
+                                          )}
+                                        </div>
                                       </div>
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -726,6 +771,7 @@ export default function AdminTrips() {
                                             booking: booking
                                           })}
                                           title="طباعة تذكرة صعود"
+                                          disabled={booking.status === 'Cancelled'}
                                         >
                                           <Ticket className="h-4 w-4" />
                                         </Button>
@@ -740,9 +786,31 @@ export default function AdminTrips() {
                                             passportNumber: passenger.passportNumber
                                           })}
                                           title="تعديل البيانات"
+                                          disabled={booking.status === 'Cancelled'}
                                         >
                                           <Edit className="h-4 w-4" />
                                         </Button>
+                                        {booking.status === 'Cancelled' ? (
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-emerald-600 hover:bg-emerald-50"
+                                            onClick={() => toggleBookingStatus(booking.id, booking.status)}
+                                            title="إعادة تفعيل الحجز"
+                                          >
+                                            <RotateCcw className="h-4 w-4" />
+                                          </Button>
+                                        ) : (
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                            onClick={() => toggleBookingStatus(booking.id, booking.status)}
+                                            title="إلغاء الحجز"
+                                          >
+                                            <XCircle className="h-4 w-4" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
