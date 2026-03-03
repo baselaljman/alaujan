@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, use, useMemo } from "react";
@@ -91,20 +90,14 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60">مقدمة الحافلة</p>
             </CardHeader>
             <CardContent className="pt-8 pb-10 px-4">
-              {/* شبكة المقاعد: 2 مقاعد - ممر - 2 مقاعد */}
               <div className="grid grid-cols-5 gap-y-4 gap-x-2">
                 {Array.from({ length: 10 }).map((_, rowIndex) => (
                   <div key={rowIndex} className="contents">
-                    {/* مقعدين على اليمين */}
                     <SeatButton seat={seats[rowIndex * 4]} isSelected={selectedSeats.includes(seats[rowIndex * 4].id)} onClick={() => toggleSeat(seats[rowIndex * 4].id)} />
                     <SeatButton seat={seats[rowIndex * 4 + 1]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 1].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 1].id)} />
-                    
-                    {/* ممر الحافلة (العمود الأوسط) */}
                     <div className="flex items-center justify-center text-[8px] text-primary/20 font-bold rotate-90 pointer-events-none">
                       AISLE
                     </div>
-
-                    {/* مقعدين على اليسار */}
                     <SeatButton seat={seats[rowIndex * 4 + 2]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 2].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 2].id)} />
                     <SeatButton seat={seats[rowIndex * 4 + 3]} isSelected={selectedSeats.includes(seats[rowIndex * 4 + 3].id)} onClick={() => toggleSeat(seats[rowIndex * 4 + 3].id)} />
                   </div>
@@ -140,8 +133,8 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label className="text-xs font-semibold">الاسم الكامل (كما في الهوية)</Label>
-                        <input className="w-full h-12 px-4 bg-muted/30 border-transparent border focus:border-primary/30 focus:bg-white rounded-xl transition-all outline-none" placeholder="أدخل الاسم الرباعي" />
+                        <Label className="text-xs font-semibold">الاسم الرباعي (كما في الهوية)</Label>
+                        <input className="w-full h-12 px-4 bg-muted/30 border-transparent border focus:border-primary/30 focus:bg-white rounded-xl transition-all outline-none" placeholder="أدخل الاسم الرباعي كاملاً" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold">رقم الهوية أو جواز السفر</Label>
@@ -195,7 +188,6 @@ function SeatButton({ seat, isSelected, onClick }: { seat: any, isSelected: bool
       )}
     >
       {seat.id}
-      {/* تأثير بصري صغير للمقعد المختار */}
       {isSelected && (
         <div className="absolute -top-1 -right-1 h-3 w-3 bg-accent rounded-full border-2 border-white animate-in zoom-in" />
       )}
