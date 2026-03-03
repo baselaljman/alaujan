@@ -1,14 +1,41 @@
-
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Ticket, Heart, Bell, ChevronLeft, Bus, ShieldAlert, Loader2, Mail, User as UserIcon } from "lucide-react";
+import { 
+  LogOut, 
+  Ticket, 
+  Heart, 
+  ChevronLeft, 
+  Bus, 
+  ShieldAlert, 
+  Loader2, 
+  Mail, 
+  User as UserIcon,
+  KeyRound,
+  LogIn,
+  UserPlus,
+  RefreshCcw
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, useAuth } from "@/firebase";
+import { 
+  useUser, 
+  useFirestore, 
+  useCollection, 
+  useDoc, 
+  useMemoFirebase, 
+  useAuth,
+  initiateEmailSignIn,
+  initiateEmailSignUp,
+  initiatePasswordReset,
+  initiateUpdatePassword
+} from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
@@ -19,6 +46,12 @@ export default function ProfilePage() {
   const router = useRouter();
   const firestore = useFirestore();
 
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+
   // جلب بيانات ملف المستخدم الشخصي
   const profileRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -27,32 +60,110 @@ export default function ProfilePage() {
   
   const { data: profile, isLoading: isProfileLoading } = useDoc(profileRef);
 
-  // جلب حجوزات المستخدم
+  // جلب حجوزات المستخدم (بناءً على UID أو الإيميل)
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
-    return query(collection(firestore, "bookings"), where("userId", "==", user.uid));
-  }, [firestore, user?.uid]);
+    if (!firestore || !user) return null;
+    // إذا كان المستخدم مسجلاً، نبحث بحجوزاته التي تمت بنفس إيميله أو UID
+    return query(
+      collection(firestore, "bookings"), 
+      where("userEmail", "==", user.email || profile?.email || "")
+    );
+  }, [firestore, user, profile?.email]);
 
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({
-        title: "تم تسجيل الخروج",
-        description: "تم تسجيل خروجك من الحساب بنجاح.",
-      });
-      router.push("/");
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: "حدث خطأ أثناء محاولة تسجيل الخروج.",
-      });
+    await signOut(auth);
+    toast({ title: "تم تسجيل الخروج" });
+  };
+
+  const handleAuthAction = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    
+    if (authMode === 'login') {
+      initiateEmailSignIn(auth, email, password);
+    } else if (authMode === 'register') {
+      initiateEmailSignUp(auth, email, password);
+    } else {
+      initiatePasswordReset(auth, email);
     }
   };
 
-  if (isUserLoading || isProfileLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (user && newPassword) {
+      initiateUpdatePassword(user, newPassword);
+      setNewPassword("");
+      setShowPasswordChange(false);
+    }
+  };
+
+  if (isUserLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+
+  // إذا كان المستخدم ضيفاً أو غير مسجل دخول
+  if (!user || user.isAnonymous) {
+    return (
+      <div className="space-y-6 max-w-sm mx-auto pt-10">
+        <header className="text-center space-y-2">
+          <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <UserIcon className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold font-headline text-primary">
+            {authMode === 'login' ? 'تسجيل الدخول' : authMode === 'register' ? 'إنشاء حساب جديد' : 'استعادة كلمة المرور'}
+          </h1>
+          <p className="text-xs text-muted-foreground">أدخل بياناتك للوصول إلى تذاكرك وحجوزاتك</p>
+        </header>
+
+        <Card className="border-primary/10 shadow-xl overflow-hidden">
+          <CardContent className="p-6">
+            <form onSubmit={handleAuthAction} className="space-y-4">
+              <div className="space-y-2 text-right">
+                <Label>البريد الإلكتروني</Label>
+                <Input 
+                  type="email" 
+                  placeholder="example@mail.com" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="rounded-xl h-12"
+                  required
+                />
+              </div>
+              
+              {authMode !== 'forgot' && (
+                <div className="space-y-2 text-right">
+                  <Label>كلمة المرور</Label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="rounded-xl h-12"
+                    required
+                  />
+                </div>
+              )}
+
+              <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold gap-2">
+                {authMode === 'login' ? <><LogIn className="h-5 w-5" /> دخول</> : authMode === 'register' ? <><UserPlus className="h-5 w-5" /> تسجيل</> : <><RefreshCcw className="h-5 w-5" /> إرسال الرابط</>}
+              </Button>
+            </form>
+
+            <div className="mt-6 space-y-2 text-center text-xs">
+              {authMode === 'login' ? (
+                <>
+                  <button onClick={() => setAuthMode('register')} className="text-primary font-bold hover:underline block w-full">ليس لديك حساب؟ سجل الآن</button>
+                  <button onClick={() => setAuthMode('forgot')} className="text-muted-foreground hover:text-primary block w-full mt-2">نسيت كلمة المرور؟</button>
+                </>
+              ) : (
+                <button onClick={() => setAuthMode('login')} className="text-primary font-bold hover:underline block w-full">بالفعل لديك حساب؟ سجل دخول</button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -71,10 +182,10 @@ export default function ProfilePage() {
           </h2>
           <div className="flex items-center gap-1 mt-1 text-muted-foreground">
             <Mail className="h-3 w-3" />
-            <p className="text-xs">{profile?.email || "لم يتم ربط البريد بعد"}</p>
+            <p className="text-xs">{user.email || profile?.email}</p>
           </div>
           <Badge variant="secondary" className="mt-2 bg-accent/10 text-accent hover:bg-accent/20 border-none font-bold">
-            عضو ذهبي
+            عضو مسجل
           </Badge>
         </div>
       </div>
@@ -98,7 +209,7 @@ export default function ProfilePage() {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h3 className="font-bold text-lg text-primary">رحلاتي القادمة</h3>
+          <h3 className="font-bold text-lg text-primary">رحلاتي السابقة والقادمة</h3>
           <span className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">{bookings?.length || 0} حجوزات</span>
         </div>
         
@@ -115,10 +226,10 @@ export default function ProfilePage() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-sm text-primary">حجز {booking.numberOfSeats} مقاعد</p>
-                      <p className="text-[10px] text-muted-foreground">تاريخ الحجز: {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}</p>
+                      <p className="text-[10px] text-muted-foreground">تاريخ: {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}</p>
                     </div>
                   </div>
-                  <Badge className={booking.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-muted text-muted-foreground'}>
+                  <Badge variant="outline" className={booking.status === 'Confirmed' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' : 'bg-muted'}>
                     {booking.status === 'Confirmed' ? 'مؤكد' : booking.status}
                   </Badge>
                 </CardContent>
@@ -128,7 +239,7 @@ export default function ProfilePage() {
         ) : (
           <div className="text-center p-12 bg-muted/20 rounded-3xl border-2 border-dashed border-muted">
             <Ticket className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">لا توجد حجوزات نشطة حالياً</p>
+            <p className="text-sm text-muted-foreground">لا توجد حجوزات مرتبطة ببريدك حالياً</p>
             <Button variant="link" asChild className="text-primary font-bold mt-2">
               <Link href="/">احجز رحلتك الأولى الآن</Link>
             </Button>
@@ -137,20 +248,35 @@ export default function ProfilePage() {
       </div>
 
       <div className="space-y-2 pt-4">
-        <Button variant="ghost" className="w-full justify-between h-14 bg-white border rounded-2xl hover:bg-primary/5 transition-colors group">
+        <Button 
+          variant="ghost" 
+          onClick={() => setShowPasswordChange(!showPasswordChange)}
+          className="w-full justify-between h-14 bg-white border rounded-2xl hover:bg-primary/5 transition-colors group"
+        >
           <div className="flex items-center gap-3">
-            <Ticket className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-            <span className="font-bold text-sm">أرشيف التذاكر السابقة</span>
+            <KeyRound className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+            <span className="font-bold text-sm">تغيير كلمة المرور</span>
           </div>
           <ChevronLeft className="h-4 w-4 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" className="w-full justify-between h-14 bg-white border rounded-2xl hover:bg-primary/5 transition-colors group">
-          <div className="flex items-center gap-3">
-            <Heart className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-            <span className="font-bold text-sm">الوجهات المفضلة</span>
-          </div>
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-        </Button>
+
+        {showPasswordChange && (
+          <Card className="border-primary/10 shadow-md">
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-2 text-right">
+                <Label>كلمة المرور الجديدة</Label>
+                <Input 
+                  type="password" 
+                  placeholder="أدخل 6 خانات على الأقل" 
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="rounded-xl h-11"
+                />
+              </div>
+              <Button onClick={handleChangePassword} className="w-full rounded-xl">تحديث الآن</Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Button 
@@ -158,7 +284,7 @@ export default function ProfilePage() {
         onClick={handleLogout}
         className="w-full h-14 rounded-2xl text-destructive border-destructive/20 hover:bg-destructive/5 transition-colors font-bold mt-6"
       >
-        <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من الحساب
+        <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج
       </Button>
     </div>
   );
