@@ -1,13 +1,13 @@
 
 "use client"
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Bus, MapPin, Users, CheckCircle2, Play, Square, Loader2, AlertTriangle, Clock, Info } from "lucide-react";
+import { Bus, Users, Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking } from "@/firebase";
@@ -26,6 +26,8 @@ export default function DriverDashboard() {
   const firestore = useFirestore();
   const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
+  const watchId = useRef<number | null>(null);
+  
   const [passengers, setPassengers] = useState<Passenger[]>([
     { id: "1", name: "أحمد محمد علي", seat: 5, checkedIn: true },
     { id: "2", name: "سارة خالد", seat: 12, checkedIn: false },
@@ -33,17 +35,76 @@ export default function DriverDashboard() {
     { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
   ]);
 
-  // معرف الرحلة الثابت للتجربة (يجب استبداله بمعرف ديناميكي للسائق المسجل)
+  // معرف الرحلة (يجب أن يتم ربطه ديناميكياً في الإنتاج)
   const TRIP_ID = "AWJ-TRIP-TEST";
+
+  // دالة بدء تتبع الموقع الجغرافي من هاتف السائق
+  const startLocationTracking = () => {
+    if (!navigator.geolocation) {
+      toast({
+        variant: "destructive",
+        title: "خطأ في التتبع",
+        description: "متصفحك لا يدعم نظام تحديد المواقع (GPS).",
+      });
+      return;
+    }
+
+    setIsTracking(true);
+    
+    // مراقبة الموقع كلما تغير
+    watchId.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // تحديث إحداثيات الرحلة في Firestore
+        const tripRef = doc(firestore, "busTrips", TRIP_ID);
+        updateDocumentNonBlocking(tripRef, {
+          currentLat: latitude,
+          currentLng: longitude,
+          lastLocationUpdate: new Date().toISOString(),
+          isLive: true
+        });
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        setIsTracking(false);
+        toast({
+          variant: "destructive",
+          title: "فشل تتبع الموقع",
+          description: "يرجى التأكد من تفعيل الـ GPS وإعطاء الإذن للمتصفح.",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const stopLocationTracking = () => {
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+    setIsTracking(false);
+    
+    // تحديث حالة البث الحي
+    const tripRef = doc(firestore, "busTrips", TRIP_ID);
+    updateDocumentNonBlocking(tripRef, { isLive: false });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (watchId.current !== null) stopLocationTracking();
+    };
+  }, []);
 
   const toggleCheckIn = (id: string) => {
     setPassengers(prev => prev.map(p => 
       p.id === id ? { ...p, checkedIn: !p.checkedIn } : p
     ));
-    toast({
-      title: "تحديث الحالة",
-      description: "تم تغيير حالة صعود الراكب بنجاح.",
-    });
+    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب بنجاح." });
   };
 
   const syncParcelsStatus = async (newTripStatus: TripStatus) => {
@@ -54,7 +115,6 @@ export default function DriverDashboard() {
 
       snapshot.forEach((parcelDoc) => {
         let newParcelStatus = "Pending Pickup";
-        
         if (newTripStatus === "Departed") newParcelStatus = "In Transit";
         if (newTripStatus === "Delayed") newParcelStatus = "Delayed in Transit";
         if (newTripStatus === "Arrived") newParcelStatus = "Arrived at Station";
@@ -71,13 +131,13 @@ export default function DriverDashboard() {
 
   const handleStatusChange = (newStatus: TripStatus) => {
     setTripStatus(newStatus);
-    if (newStatus === "Departed" || newStatus === "Delayed") {
-      setIsTracking(true);
-    } else {
-      setIsTracking(false);
+    
+    if (newStatus === "Departed") {
+      startLocationTracking();
+    } else if (newStatus === "Arrived" || newStatus === "Scheduled") {
+      stopLocationTracking();
     }
 
-    // تحديث الرحلة في Firestore
     const tripRef = doc(firestore, "busTrips", TRIP_ID);
     updateDocumentNonBlocking(tripRef, {
       status: newStatus,
@@ -87,12 +147,11 @@ export default function DriverDashboard() {
                                    newStatus === "Arrived" ? "تم الوصول للمحطة" : "في المحطة"
     });
 
-    // مزامنة حالة الطرود آلياً مع حالة الرحلة
     syncParcelsStatus(newStatus);
 
     toast({
-      title: "تحديث حالة الرحلة والطرود",
-      description: `تم تغيير حالة الرحلة والطرود المرتبطة بها إلى: ${newStatus}`,
+      title: "تحديث حالة الرحلة",
+      description: `تم تغيير الحالة إلى: ${newStatus} وبدأ بث الموقع المباشر.`,
     });
   };
 
@@ -101,17 +160,17 @@ export default function DriverDashboard() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold font-headline text-primary">لوحة القائد</h1>
-          <p className="text-xs text-muted-foreground">مرحباً كابتن: محمد العتوم</p>
+          <p className="text-xs text-muted-foreground">كابتن: محمد العتوم (حافلة AWJ-700)</p>
         </div>
         <Badge 
           variant={tripStatus === "Departed" ? "default" : tripStatus === "Delayed" ? "destructive" : "secondary"}
           className={cn(
-            tripStatus === "Departed" && "bg-green-600",
+            tripStatus === "Departed" && "bg-green-600 animate-pulse",
             tripStatus === "Delayed" && "bg-red-600 animate-pulse"
           )}
         >
           {tripStatus === "Scheduled" && "مجدولة"}
-          {tripStatus === "Departed" && "رحلة نشطة"}
+          {tripStatus === "Departed" && "بث الموقع مباشر"}
           {tripStatus === "Delayed" && "تأخير مسجل"}
           {tripStatus === "Arrived" && "مكتملة"}
         </Badge>
@@ -120,49 +179,48 @@ export default function DriverDashboard() {
       <Card className="border-primary/10 shadow-lg overflow-hidden">
         <CardHeader className="bg-primary/5 border-b py-4">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bus className="h-5 w-5 text-primary" />
-              حافلة رقم: AWJ-700
+            <CardTitle className="text-base flex items-center gap-2 text-primary">
+              <Bus className="h-5 w-5" />
+              التحكم في البث الحي
             </CardTitle>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase">الرياض ⮕ دمشق</span>
+            {isTracking && (
+              <span className="flex items-center gap-1 text-[10px] text-green-600 font-bold">
+                <MapPin className="h-3 w-3 animate-bounce" /> جاري إرسال الموقع...
+              </span>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="grid grid-cols-1 gap-4">
             {tripStatus === "Scheduled" ? (
-              <Button onClick={() => handleStatusChange("Departed")} className="w-full h-14 text-lg font-bold gap-2 rounded-xl bg-primary">
-                <Play className="h-5 w-5" /> بدء الرحلة وبث الموقع والطرود
+              <Button onClick={() => handleStatusChange("Departed")} className="w-full h-16 text-lg font-bold gap-2 rounded-2xl bg-primary shadow-xl">
+                <Play className="h-6 w-6" /> بدء الرحلة وتفعيل الـ GPS
               </Button>
             ) : (
               <div className="space-y-4">
-                <div className="flex flex-col gap-2">
-                  <Label className="text-xs font-bold text-right pr-1">تحديث حالة الرحلة والطرود للركاب</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      variant={tripStatus === "Delayed" ? "destructive" : "outline"} 
-                      onClick={() => handleStatusChange("Delayed")}
-                      className="h-12 rounded-xl gap-2 text-xs"
-                    >
-                      <AlertTriangle className="h-4 w-4" /> تسجيل تأخير
-                    </Button>
-                    <Button 
-                      variant={tripStatus === "Departed" ? "default" : "outline"} 
-                      onClick={() => handleStatusChange("Departed")}
-                      className={cn("h-12 rounded-xl gap-2 text-xs", tripStatus === "Departed" && "bg-green-600")}
-                    >
-                      <Clock className="h-4 w-4" /> في الموعد
-                    </Button>
-                  </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant={tripStatus === "Delayed" ? "destructive" : "outline"} 
+                    onClick={() => handleStatusChange("Delayed")}
+                    className="h-14 rounded-xl gap-2 text-sm font-bold"
+                  >
+                    <AlertTriangle className="h-4 w-4" /> تسجيل تأخير
+                  </Button>
+                  <Button 
+                    variant={tripStatus === "Arrived" ? "secondary" : "default"} 
+                    onClick={() => handleStatusChange("Arrived")}
+                    className="h-14 rounded-xl gap-2 text-sm font-bold"
+                  >
+                    <Square className="h-4 w-4" /> إنهاء الرحلة
+                  </Button>
                 </div>
 
-                <div className="p-4 bg-muted/30 rounded-2xl border flex items-center justify-between">
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {isTracking && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-                    <span className="text-sm font-bold">بث الموقع المباشر مفعل</span>
+                    <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+                    <span className="text-sm font-bold text-emerald-800">بث الإحداثيات نشط الآن</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => handleStatusChange("Arrived")}>
-                    <Square className="h-4 w-4 ml-2" /> إنهاء الرحلة
-                  </Button>
+                  <Badge className="bg-emerald-600">LIVE</Badge>
                 </div>
               </div>
             )}
@@ -171,32 +229,30 @@ export default function DriverDashboard() {
       </Card>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-bold flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            تحضير الركاب ({passengers.filter(p => p.checkedIn).length}/{passengers.length})
-          </h2>
-        </div>
+        <h2 className="font-bold flex items-center gap-2 px-1">
+          <Users className="h-5 w-5 text-primary" />
+          تحضير الركاب ({passengers.filter(p => p.checkedIn).length}/{passengers.length})
+        </h2>
         
         <div className="space-y-2">
           {passengers.map((passenger) => (
-            <Card key={passenger.id} className={`transition-all border-none shadow-sm ring-1 ${passenger.checkedIn ? 'ring-green-200 bg-green-50/20' : 'ring-border bg-white'}`}>
+            <Card key={passenger.id} className={`transition-all border-none shadow-sm ring-1 ${passenger.checkedIn ? 'ring-emerald-100 bg-emerald-50/20' : 'ring-border bg-white'}`}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black ${passenger.checkedIn ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black ${passenger.checkedIn ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
                     {passenger.seat}
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-sm">{passenger.name}</p>
-                    <p className="text-[10px] text-muted-foreground">تذكرة: VIP-00{passenger.id}</p>
+                    <p className="text-[10px] text-muted-foreground">رقم التذكرة: AWJ-{passenger.id}00</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-muted-foreground">{passenger.checkedIn ? "صعد" : "لم يصعد"}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground">{passenger.checkedIn ? "صعد" : "انتظار"}</span>
                   <Switch 
                     checked={passenger.checkedIn} 
                     onCheckedChange={() => toggleCheckIn(passenger.id)}
-                    className="data-[state=checked]:bg-green-600"
+                    className="data-[state=checked]:bg-emerald-600"
                   />
                 </div>
               </CardContent>
@@ -207,11 +263,11 @@ export default function DriverDashboard() {
 
       <div className="p-4 bg-accent/5 rounded-2xl border border-accent/20 text-right space-y-2">
         <h4 className="text-sm font-bold text-accent flex items-center gap-2 justify-end">
-          تعليمات هامة للقائد
+          تنبيه فني للقائد
           <Info className="h-4 w-4" />
         </h4>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          عند الضغط على "بدء الرحلة"، سيتم تلقائياً إخطار جميع أصحاب الطرود بأن شحناتهم أصبحت "في الطريق". يرجى تحديث الحالة فوراً عند الوصول للمحطة النهائية لتسهيل عملية التسليم.
+          يرجى إبقاء هذه الصفحة مفتوحة في المتصفح طوال فترة الرحلة لضمان استمرار بث موقعك للركاب وأصحاب الطرود. النظام يقوم بتحديث الموقع تلقائياً كل 10 ثوانٍ.
         </p>
       </div>
     </div>
