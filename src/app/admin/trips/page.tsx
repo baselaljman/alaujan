@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export default function AdminTrips() {
   const [isAdding, setIsAdding] = useState(false);
   const [viewingManifestId, setViewingManifestId] = useState<string | null>(null);
   const [tripToDelete, setTripToDelete] = useState<string | null>(null);
+  const [printDate, setPrintDate] = useState<string>("");
   
   // State for editing a passenger
   const [editingPassenger, setEditingPassenger] = useState<{
@@ -42,6 +43,11 @@ export default function AdminTrips() {
   const [arrivalDate, setArrivalDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
   const [arrTime, setArrTime] = useState("20:00");
+
+  useEffect(() => {
+    // تحديد تاريخ الطباعة فقط عند التحميل في المتصفح لتجنب تعارض الـ Hydration
+    setPrintDate(format(new Date(), "PPPP p", { locale: ar }));
+  }, []);
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -146,7 +152,7 @@ export default function AdminTrips() {
           <div><span className="font-bold">المسار:</span> {currentTrip?.originName} ⮕ {currentTrip?.destinationName}</div>
           <div><span className="font-bold">الحافلة:</span> {currentTrip?.busLabel}</div>
           <div><span className="font-bold">تاريخ الانطلاق:</span> {currentTrip && format(new Date(currentTrip.departureTime), "PPPP p", { locale: ar })}</div>
-          <div><span className="font-bold">تاريخ الطباعة:</span> {format(new Date(), "PPPP p", { locale: ar })}</div>
+          <div><span className="font-bold">تاريخ الطباعة:</span> {printDate}</div>
         </div>
       </div>
 
