@@ -35,7 +35,9 @@ import {
   PlaneTakeoff, 
   Search,
   XCircle,
-  RotateCcw
+  RotateCcw,
+  Banknote,
+  CheckCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
@@ -197,6 +199,16 @@ export default function AdminTrips() {
     setEditingPassenger(null);
   };
 
+  const handleConfirmPayment = (bookingId: string) => {
+    updateDocumentNonBlocking(doc(firestore, "bookings", bookingId), {
+      paymentStatus: "Completed"
+    });
+    toast({ 
+      title: "تم تأكيد الدفع", 
+      description: "تم تحديث حالة الدفع إلى 'تم الدفع بنجاح' (كاش)." 
+    });
+  };
+
   const togglePassengerStatus = (bookingId: string, passengerIndex: number) => {
     if (!manifestBookings) return;
     const booking = manifestBookings.find(b => b.id === bookingId);
@@ -211,12 +223,10 @@ export default function AdminTrips() {
       status: newStatus
     };
 
-    // 1. تحديث حالة الراكب في وثيقة الحجز
     updateDocumentNonBlocking(doc(firestore, "bookings", bookingId), {
       passengers: updatedPassengers
     });
 
-    // 2. تحديث عدد المقاعد المتاحة في وثيقة الرحلة
     if (viewingManifestId) {
       const tripRef = doc(firestore, "busTrips", viewingManifestId);
       updateDocumentNonBlocking(tripRef, {
@@ -457,6 +467,8 @@ export default function AdminTrips() {
                               <TableBody>
                                 {filteredManifestItems.length === 0 ? (<TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">لا توجد نتائج مطابقة لبحثك</TableCell></TableRow>) : filteredManifestItems.map(({ booking, passenger, index }) => {
                                   const isCancelled = passenger.status === 'Cancelled';
+                                  const isPendingPayment = booking.paymentStatus === 'Pending';
+                                  
                                   return (
                                     <TableRow key={`${booking.id}-${index}`} className={cn(isCancelled && "bg-red-50/30 opacity-70")}>
                                       <TableCell className={cn("font-bold", isCancelled && "line-through text-muted-foreground")}>{passenger.fullName}</TableCell>
@@ -467,8 +479,19 @@ export default function AdminTrips() {
                                       <TableCell><div className="flex flex-col gap-1"><div className="flex items-center gap-1 text-[10px]"><CreditCard className="h-3 w-3" />{booking.paymentMethodLabel}</div><div className="flex gap-1 items-center"><Badge variant={booking.paymentStatus === 'Completed' ? 'default' : 'outline'} className="w-fit text-[10px] h-5">{booking.paymentStatus === 'Completed' ? 'تم الدفع' : 'معلق'}</Badge>{isCancelled && <Badge variant="destructive" className="text-[10px] h-5 font-black uppercase">ملغي</Badge>}</div></div></TableCell>
                                       <TableCell className="text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setPrintingTicket({ passenger, trip, booking })} disabled={isCancelled}><Ticket className="h-4 w-4" /></Button>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setEditingPassenger({ bookingId: booking.id, passengerIndex: index, fullName: passenger.fullName, passportNumber: passenger.passportNumber })} disabled={isCancelled}><Edit className="h-4 w-4" /></Button>
+                                          {isPendingPayment && !isCancelled && (
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" 
+                                              onClick={() => handleConfirmPayment(booking.id)}
+                                              title="تأكيد استلام الكاش"
+                                            >
+                                              <Banknote className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setPrintingTicket({ passenger, trip, booking })} disabled={isCancelled} title="طباعة تذكرة صعود"><Ticket className="h-4 w-4" /></Button>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => setEditingPassenger({ bookingId: booking.id, passengerIndex: index, fullName: passenger.fullName, passportNumber: passenger.passportNumber })} disabled={isCancelled} title="تعديل بيانات المسافر"><Edit className="h-4 w-4" /></Button>
                                           {isCancelled ? (
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-50" onClick={() => togglePassengerStatus(booking.id, index)} title="إعادة تفعيل المقعد"><RotateCcw className="h-4 w-4" /></Button>
                                           ) : (
