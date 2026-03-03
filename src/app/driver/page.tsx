@@ -27,6 +27,7 @@ export default function DriverDashboard() {
   const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
   const watchId = useRef<number | null>(null);
+  const lastUpdateRef = useRef<number>(0);
   
   const [passengers, setPassengers] = useState<Passenger[]>([
     { id: "1", name: "أحمد محمد علي", seat: 5, checkedIn: true },
@@ -35,10 +36,9 @@ export default function DriverDashboard() {
     { id: "4", name: "ليلى يوسف", seat: 22, checkedIn: true },
   ]);
 
-  // معرف الرحلة (يجب أن يتم ربطه ديناميكياً في الإنتاج)
+  // معرف الرحلة التجريبي (يمكن تغييره ديناميكياً)
   const TRIP_ID = "AWJ-TRIP-TEST";
 
-  // دالة بدء تتبع الموقع الجغرافي من هاتف السائق
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
       toast({
@@ -51,12 +51,15 @@ export default function DriverDashboard() {
 
     setIsTracking(true);
     
-    // مراقبة الموقع كلما تغير
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
+        const now = Date.now();
+        // إرسال التحديث فقط إذا مر 10 ثوانٍ على الأقل للحفاظ على البطارية والبيانات
+        if (now - lastUpdateRef.current < 10000) return;
+
         const { latitude, longitude } = position.coords;
+        lastUpdateRef.current = now;
         
-        // تحديث إحداثيات الرحلة في Firestore
         const tripRef = doc(firestore, "busTrips", TRIP_ID);
         updateDocumentNonBlocking(tripRef, {
           currentLat: latitude,
@@ -76,8 +79,8 @@ export default function DriverDashboard() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 15000,
+        maximumAge: 5000
       }
     );
   };
@@ -89,7 +92,6 @@ export default function DriverDashboard() {
     }
     setIsTracking(false);
     
-    // تحديث حالة البث الحي
     const tripRef = doc(firestore, "busTrips", TRIP_ID);
     updateDocumentNonBlocking(tripRef, { isLive: false });
   };
@@ -104,7 +106,7 @@ export default function DriverDashboard() {
     setPassengers(prev => prev.map(p => 
       p.id === id ? { ...p, checkedIn: !p.checkedIn } : p
     ));
-    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب بنجاح." });
+    toast({ title: "تحديث الحالة", description: "تم تغيير حالة صعود الراكب." });
   };
 
   const syncParcelsStatus = async (newTripStatus: TripStatus) => {
@@ -267,7 +269,7 @@ export default function DriverDashboard() {
           <Info className="h-4 w-4" />
         </h4>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          يرجى إبقاء هذه الصفحة مفتوحة في المتصفح طوال فترة الرحلة لضمان استمرار بث موقعك للركاب وأصحاب الطرود. النظام يقوم بتحديث الموقع تلقائياً كل 10 ثوانٍ.
+          يرجى إبقاء هذه الصفحة مفتوحة في المتصفح طوال فترة الرحلة لضمان استمرار بث موقعك. يتم تحديث الموقع في قاعدة البيانات كل 10 ثوانٍ لضمان الدقة مع توفير الطاقة.
         </p>
       </div>
     </div>

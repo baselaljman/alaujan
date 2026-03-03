@@ -29,13 +29,16 @@ export default function TrackingPage() {
     setActiveTrackingId(trackingId);
   };
 
-  // توليد رابط الخريطة بناءً على الإحداثيات الحية
+  // رابط الخريطة الحقيقي باستخدام مفتاح Google Maps المزود
+  const GOOGLE_MAPS_KEY = "AIzaSyAwALad8_XPMoqQp1VhxoT_fFKTcLQ-9S4";
+  
   const getMapUrl = () => {
     if (trip?.currentLat && trip?.currentLng) {
-      // نستخدم رابط Google Maps Embed للنموذج الأولي
-      return `https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${trip.currentLat},${trip.currentLng}&zoom=12`;
+      // استخدام إحداثيات السائق الحقيقية
+      return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_KEY}&q=${trip.currentLat},${trip.currentLng}&zoom=14`;
     }
-    return `https://picsum.photos/seed/${trip?.id || 'map'}/800/400`;
+    // في حالة عدم وجود إحداثيات، نعرض صورة خريطة ثابتة للمنطقة
+    return `https://picsum.photos/seed/map-static/800/400`;
   };
 
   return (
@@ -79,30 +82,27 @@ export default function TrackingPage() {
           {trip && (
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <Card className="overflow-hidden border-primary/20 shadow-xl bg-white/80 backdrop-blur-md">
-                <div className="h-64 bg-muted relative overflow-hidden border-b">
+                <div className="h-72 bg-muted relative overflow-hidden border-b">
                   {trip.isLive ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-                      {/* محاكاة خريطة حية */}
-                      <div className="absolute inset-0 opacity-40 grayscale" style={{ backgroundImage: "url('https://picsum.photos/seed/map/800/400')", backgroundSize: 'cover' }} />
-                      <div className="relative z-10 flex flex-col items-center gap-4">
-                        <div className="relative">
-                          <div className="absolute -inset-8 animate-ping rounded-full bg-primary/20" />
-                          <div className="h-12 w-12 rounded-full bg-primary border-4 border-white shadow-2xl flex items-center justify-center">
-                            <Bus className="h-6 w-6 text-white" />
-                          </div>
-                        </div>
-                        <div className="bg-white/90 px-4 py-2 rounded-full shadow-lg border border-primary/10">
-                          <p className="text-[10px] font-bold text-primary flex items-center gap-2">
-                            <Navigation className="h-3 w-3 animate-pulse" />
-                            بث مباشر من هاتف السائق
-                          </p>
-                        </div>
+                    <div className="absolute inset-0 w-full h-full">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        style={{ border: 0 }}
+                        src={getMapUrl()}
+                        allowFullScreen
+                      ></iframe>
+                      <div className="absolute top-4 left-4 z-10">
+                        <Badge className="bg-red-600 animate-pulse border-none shadow-lg">LIVE</Badge>
                       </div>
                     </div>
                   ) : (
                     <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('https://picsum.photos/seed/${trip.id}/800/400')` }}>
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-center p-6">
-                        <p className="text-white font-bold">بث الموقع المباشر غير نشط حالياً</p>
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 gap-3">
+                        <Bus className="h-12 w-12 text-white/50" />
+                        <p className="text-white font-bold text-lg">بث الموقع المباشر غير نشط</p>
+                        <p className="text-white/60 text-xs">ستظهر الخريطة فور انطلاق الحافلة وتفعيل السائق للـ GPS</p>
                       </div>
                     </div>
                   )}
@@ -134,11 +134,11 @@ export default function TrackingPage() {
                     <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                       <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground font-bold">الموقع التقريبي الحالي</p>
+                        <p className="text-[10px] text-muted-foreground font-bold">الموقع المباشر الحالي</p>
                         <p className="text-sm font-bold text-primary">{trip.currentLocationDescription || "الموقع يتم تحديثه من قبل السائق"}</p>
                         {trip.lastLocationUpdate && (
                           <p className="text-[9px] text-muted-foreground mt-1">
-                            آخر تحديث: {new Date(trip.lastLocationUpdate).toLocaleTimeString('ar-EG')}
+                            توقيت آخر إشارة: {new Date(trip.lastLocationUpdate).toLocaleTimeString('ar-EG')}
                           </p>
                         )}
                       </div>
