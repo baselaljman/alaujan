@@ -44,7 +44,6 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // استعلام لجلب الحجوزات المرتبطة برحلة محددة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !viewingManifestId) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
@@ -55,11 +54,10 @@ export default function AdminTrips() {
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!busId || !departureDate || !arrivalDate || !originId || !destinationId) {
-      toast({ title: "بيانات ناقصة", description: "يرجى تعبئة جميع الحقول"، variant: "destructive" });
+      toast({ title: "بيانات ناقصة", description: "يرجى تعبئة جميع الحقول", variant: "destructive" });
       return;
     }
 
-    // دمج التاريخ مع الوقت المختار
     const [dHours, dMinutes] = depTime.split(":").map(Number);
     const finalDepDate = setMinutes(setHours(departureDate, dHours), dMinutes);
 
@@ -88,7 +86,6 @@ export default function AdminTrips() {
 
     toast({ title: "تمت الإضافة", description: "تمت إضافة الرحلة للجدول بنجاح" });
     setIsAdding(false);
-    // Reset form
     setBusId("");
     setOriginId("");
     setDestinationId("");
@@ -113,7 +110,6 @@ export default function AdminTrips() {
         </Button>
       </header>
 
-      {/* نافذة تأكيد الحذف */}
       <AlertDialog open={!!tripToDelete} onOpenChange={(open) => !open && setTripToDelete(null)}>
         <AlertDialogContent className="text-right">
           <AlertDialogHeader>
