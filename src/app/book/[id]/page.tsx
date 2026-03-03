@@ -133,8 +133,8 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label className="text-xs font-semibold">الاسم الرباعي (كما في الهوية)</Label>
-                        <input className="w-full h-12 px-4 bg-muted/30 border-transparent border focus:border-primary/30 focus:bg-white rounded-xl transition-all outline-none" placeholder="أدخل الاسم الرباعي كاملاً" />
+                        <Label className="text-xs font-semibold">الاسم الثلاثي (كما في الهوية)</Label>
+                        <input className="w-full h-12 px-4 bg-muted/30 border-transparent border focus:border-primary/30 focus:bg-white rounded-xl transition-all outline-none" placeholder="أدخل الاسم الثلاثي كاملاً" />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs font-semibold">رقم الهوية أو جواز السفر</Label>
