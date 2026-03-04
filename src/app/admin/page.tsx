@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   LayoutDashboard,
   Loader2,
-  Users
+  Users,
+  ShieldAlert,
+  UserCheck
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -96,6 +98,14 @@ export default function AdminDashboard() {
       href: "/admin/parcels",
       color: "text-purple-600",
       bgColor: "bg-purple-50"
+    },
+    {
+      title: "الموظفين والصلاحيات",
+      description: "منح صلاحيات التعديل للموظفين",
+      icon: ShieldAlert,
+      href: "/admin/staff",
+      color: "text-red-600",
+      bgColor: "bg-red-50"
     }
   ];
 
