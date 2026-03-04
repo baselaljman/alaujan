@@ -151,10 +151,9 @@ export default function AdminStaff() {
                 <Label className="font-bold text-sm block mb-3">الصلاحيات الممنوحة:</Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {PERMISSIONS.map((perm) => (
-                    <div 
+                    <label 
                       key={perm.id} 
                       className={`flex items-center justify-between p-4 border rounded-2xl transition-all cursor-pointer hover:bg-red-50/30 ${formData.permissions[perm.id as keyof typeof formData.permissions] ? 'border-red-200 bg-red-50 ring-1 ring-red-100 shadow-sm' : 'bg-white'}`}
-                      onClick={() => togglePermission(perm.id)}
                     >
                       <div className="flex items-center gap-3">
                         <perm.icon className={`h-5 w-5 ${formData.permissions[perm.id as keyof typeof formData.permissions] ? 'text-red-600' : 'text-muted-foreground'}`} />
@@ -165,7 +164,7 @@ export default function AdminStaff() {
                         onCheckedChange={() => togglePermission(perm.id)}
                         className="rounded-full"
                       />
-                    </div>
+                    </label>
                   ))}
                 </div>
               </div>
