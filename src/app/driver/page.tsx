@@ -24,7 +24,6 @@ export default function DriverDashboard() {
   const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
 
-  // 1. جلب الحافلة المرتبطة بهذا السائق
   const busesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "buses"), where("driverEmail", "==", user.email));
@@ -33,7 +32,6 @@ export default function DriverDashboard() {
   const { data: assignedBuses, isLoading: isBusesLoading } = useCollection(busesQuery);
   const myBus = assignedBuses?.[0];
 
-  // 2. جلب الرحلات المجدولة لهذه الحافلة
   const tripsQuery = useMemoFirebase(() => {
     if (!firestore || !myBus) return null;
     return query(collection(firestore, "busTrips"), where("busId", "==", myBus.id));
@@ -41,7 +39,6 @@ export default function DriverDashboard() {
 
   const { data: myTrips, isLoading: isTripsLoading } = useCollection(tripsQuery);
 
-  // اختيار أول رحلة غير منتهية لتكون هي الرحلة النشطة تلقائياً
   useEffect(() => {
     if (myTrips && myTrips.length > 0) {
       const active = myTrips.find(t => t.status !== "Arrived") || myTrips[0];
@@ -52,7 +49,7 @@ export default function DriverDashboard() {
 
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
-      toast({ variant: "destructive", title: "خطأ", description: "GPS غير مدعوم" });
+      toast({ variant: "destructive", title: "خطأ", description: "GPS غير مدعوم في هذا الجهاز" });
       return;
     }
 
@@ -64,7 +61,7 @@ export default function DriverDashboard() {
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         const now = Date.now();
-        if (now - lastUpdateRef.current < 10000) return; // تحديث كل 10 ثواني
+        if (now - lastUpdateRef.current < 10000) return;
 
         const { latitude, longitude } = position.coords;
         lastUpdateRef.current = now;
@@ -78,7 +75,13 @@ export default function DriverDashboard() {
         });
       },
       (error) => {
-        console.error("GPS Error:", error);
+        // Avoid console.error to prevent red screen overlay in studio
+        toast({ 
+          variant: "destructive", 
+          title: "تنبيه الـ GPS", 
+          description: "تعذر تحديث موقعك المباشر. يرجى تفعيل خدمة الموقع وإعادة المحاولة." 
+        });
+        setIsTracking(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
     );
@@ -168,7 +171,7 @@ export default function DriverDashboard() {
         <Card className="border-primary/10 shadow-lg">
           <CardHeader className="bg-primary/5 border-b py-4">
             <CardTitle className="text-sm font-bold flex items-center gap-2 justify-end">
-              <span>التحكم في تتبع الرحلة: {activeTripId.substring(0, 8)}</span>
+              <span>التحكم في تتبع الرحلة: {activeTripId}</span>
               <MapPin className="h-4 w-4 text-primary" />
             </CardTitle>
           </CardHeader>
@@ -203,14 +206,5 @@ export default function DriverDashboard() {
         <p className="text-[10px] text-muted-foreground leading-relaxed">تأكد من بقاء هذه الصفحة مفتوحة في المتصفح أثناء القيادة لضمان استمرار ظهور موقع الحافلة للركاب ولأصحاب الطرود.</p>
       </div>
     </div>
-  );
-}
-
-// أيقونة الحافلة المخصصة
-function BusIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M8 6v6" /><path d="M15 6v6" /><path d="M2 12h19.6" /><path d="M18 18h3s1-1.33 1-3c0-4.67-3.33-8-8-8H7c-4.67 0-8 3.33-8 8 0 1.67 1 3 1 3h3" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" />
-    </svg>
   );
 }

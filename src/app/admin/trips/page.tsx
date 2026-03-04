@@ -45,9 +45,7 @@ export default function AdminTrips() {
   const [destinationId, setDestinationId] = useState("");
   const [pricePerSeat, setPricePerSeat] = useState(350);
   const [departureDate, setDepartureDate] = useState<Date>();
-  const [arrivalDate, setArrivalDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
-  const [arrTime, setArrTime] = useState("20:00");
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -101,10 +99,7 @@ export default function AdminTrips() {
 
     const [dHours, dMinutes] = depTime.split(":").map(Number);
     const finalDepDate = setMinutes(setHours(departureDate, dHours), dMinutes);
-    
-    const finalArrDate = arrivalDate 
-      ? setMinutes(setHours(arrivalDate, Number(arrTime.split(":")[0])), Number(arrTime.split(":")[1]))
-      : new Date(finalDepDate.getTime() + (12 * 60 * 60 * 1000));
+    const finalArrDate = new Date(finalDepDate.getTime() + (12 * 60 * 60 * 1000));
 
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
@@ -131,17 +126,19 @@ export default function AdminTrips() {
 
     toast({ title: "تمت إضافة الرحلة", description: `تم إصدار كود الرحلة الجديد: ${nextId}` });
     setIsAdding(false);
-    setBusId("");
-    setOriginId("");
-    setDestinationId("");
-    setPricePerSeat(350);
   };
 
   const handlePrintManifest = () => {
-    if (!viewingTrip || !manifestBookings) return;
+    if (!viewingTrip || !manifestBookings || manifestBookings.length === 0) {
+      toast({ variant: "destructive", title: "لا توجد بيانات", description: "لا يوجد ركاب لطباعة بيانهم." });
+      return;
+    }
 
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بفتح النوافذ المنبثقة (Popups) للطباعة." });
+      return;
+    }
 
     const passengers = manifestBookings.flatMap(b => b.passengers || []);
 
@@ -150,22 +147,23 @@ export default function AdminTrips() {
         <head>
           <title>بيان ركاب رحلة ${viewingTrip.id}</title>
           <style>
-            body { font-family: 'Noto Sans Arabic', sans-serif; padding: 40px; }
-            .header { text-align: center; border-bottom: 2px solid #003d2d; padding-bottom: 20px; margin-bottom: 30px; }
-            .header h1 { color: #003d2d; margin: 0; }
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
+            body { font-family: 'Noto Sans Arabic', sans-serif; padding: 40px; color: #333; }
+            .header { text-align: center; border-bottom: 3px solid #003d2d; padding-bottom: 20px; margin-bottom: 30px; }
+            .header h1 { color: #003d2d; margin: 0; font-size: 28px; }
             .trip-info { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-            .trip-info div { background: #f8f9fa; padding: 15px; border-radius: 8px; border-right: 4px solid #b08d40; }
+            .trip-info div { background: #f8f9fa; padding: 15px; border-radius: 12px; border-right: 5px solid #b08d40; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #dee2e6; padding: 12px; text-align: right; }
-            th { background-color: #003d2d; color: white; }
-            .footer { margin-top: 50px; text-align: left; font-size: 12px; color: #666; }
-            @media print { .no-print { display: none; } }
+            th { background-color: #003d2d; color: white; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            .footer { margin-top: 50px; text-align: left; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
           <div class="header">
             <h1>العوجان للسياحة والسفر</h1>
-            <p>بيان ركاب رسمي (المانيفست)</p>
+            <p>كشف ركاب رسمي - رحلة دولية</p>
           </div>
           <div class="trip-info">
             <div>
@@ -174,15 +172,15 @@ export default function AdminTrips() {
             </div>
             <div>
               <strong>المسار:</strong> ${viewingTrip.originName} ⮕ ${viewingTrip.destinationName}<br>
-              <strong>تاريخ الانطلاق:</strong> ${new Date(viewingTrip.departureTime).toLocaleString('ar-EG')}
+              <strong>التاريخ:</strong> ${new Date(viewingTrip.departureTime).toLocaleDateString('ar-EG')}
             </div>
           </div>
           <table>
             <thead>
               <tr>
                 <th>#</th>
-                <th>اسم المسافر</th>
-                <th>رقم الجواز</th>
+                <th>اسم المسافر الكامل</th>
+                <th>رقم الجواز / الهوية</th>
                 <th>رقم المقعد</th>
                 <th>الحالة</th>
               </tr>
@@ -200,9 +198,9 @@ export default function AdminTrips() {
             </tbody>
           </table>
           <div class="footer">
-            طبع بتاريخ: ${new Date().toLocaleString('ar-EG')} | شركة العوجان للسياحة والسفر
+            طبع بواسطة النظام: ${new Date().toLocaleString('ar-EG')} | شركة العوجان للسياحة والسفر
           </div>
-          <script>window.print();</script>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `;
@@ -213,30 +211,34 @@ export default function AdminTrips() {
 
   const handlePrintTicket = (passenger: any, trip: any) => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) {
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بالنوافذ المنبثقة للطباعة." });
+      return;
+    }
 
     const content = `
       <html dir="rtl">
         <head>
           <title>تذكرة سفر - ${passenger.fullName}</title>
           <style>
-            body { font-family: 'Noto Sans Arabic', sans-serif; display: flex; justify-content: center; padding: 20px; }
-            .ticket { width: 500px; border: 2px solid #003d2d; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-            .ticket-header { background: #003d2d; color: white; padding: 20px; text-align: center; }
-            .ticket-body { padding: 30px; position: relative; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 20px; }
-            .label { color: #666; font-size: 12px; margin-bottom: 5px; }
-            .value { font-weight: bold; font-size: 16px; color: #003d2d; }
-            .seat-badge { background: #b08d40; color: white; padding: 10px 20px; border-radius: 10px; font-size: 24px; font-weight: 900; }
-            .barcode { margin-top: 30px; text-align: center; border-top: 1px dashed #ccc; pt: 20px; }
-            .barcode-line { height: 40px; background: repeating-linear-gradient(90deg, #000, #000 2px, transparent 2px, transparent 4px); width: 100%; margin: 10px 0; }
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
+            body { font-family: 'Noto Sans Arabic', sans-serif; display: flex; justify-content: center; padding: 40px; }
+            .ticket { width: 500px; border: 3px solid #003d2d; border-radius: 25px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
+            .ticket-header { background: #003d2d; color: white; padding: 25px; text-align: center; }
+            .ticket-body { padding: 30px; position: relative; background: #fff; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 25px; }
+            .label { color: #888; font-size: 11px; margin-bottom: 5px; font-weight: bold; }
+            .value { font-weight: bold; font-size: 17px; color: #003d2d; }
+            .seat-badge { background: #b08d40; color: white; padding: 12px 25px; border-radius: 12px; font-size: 26px; font-weight: 900; }
+            .barcode { margin-top: 30px; text-align: center; border-top: 2px dashed #eee; padding-top: 20px; }
+            .barcode-line { height: 45px; background: repeating-linear-gradient(90deg, #333, #333 2px, transparent 2px, transparent 5px); width: 100%; margin-bottom: 10px; }
           </style>
         </head>
         <body>
           <div class="ticket">
             <div class="ticket-header">
               <h2 style="margin:0">العوجان للسياحة والسفر</h2>
-              <p style="margin:5px 0 0 0; opacity:0.8; font-size:12px">تذكرة سفر دولية - رحلة ${trip.id}</p>
+              <p style="margin:8px 0 0 0; opacity:0.8; font-size:13px">تذكرة سفر دولية - رحلة ${trip.id}</p>
             </div>
             <div class="ticket-body">
               <div class="row">
@@ -258,8 +260,8 @@ export default function AdminTrips() {
               </div>
               <div class="row">
                 <div>
-                  <div class="label">تاريخ ووقت المغادرة</div>
-                  <div class="value">${new Date(trip.departureTime).toLocaleString('ar-EG')}</div>
+                  <div class="label">وقت المغادرة</div>
+                  <div class="value">${new Date(trip.departureTime).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               </div>
               <div class="row">
@@ -268,17 +270,17 @@ export default function AdminTrips() {
                   <div class="value">${passenger.passportNumber}</div>
                 </div>
                 <div>
-                  <div class="label">الحالة</div>
-                  <div class="value">مؤكدة</div>
+                  <div class="label">حالة التذكرة</div>
+                  <div class="value" style="color: #059669">مؤكدة</div>
                 </div>
               </div>
               <div class="barcode">
                 <div class="barcode-line"></div>
-                <div style="font-family:monospace; font-size:10px">${trip.id}-${passenger.seatNumber}-AWJ</div>
+                <div style="font-family:monospace; font-size:11px; color: #666;">${trip.id}-${passenger.seatNumber}-${passenger.fullName.substring(0,2).toUpperCase()}</div>
               </div>
             </div>
           </div>
-          <script>window.print();</script>
+          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `;
@@ -289,7 +291,7 @@ export default function AdminTrips() {
 
   const copyTripId = (id: string) => {
     navigator.clipboard.writeText(id);
-    toast({ title: "تم نسخ كود التتبع", description: id });
+    toast({ title: "تم نسخ الكود", description: id });
   };
 
   const handleDeleteTrip = (id: string) => {
@@ -345,7 +347,7 @@ export default function AdminTrips() {
             <div className="space-y-2 text-right">
               <Label>الحافلة المخصصة</Label>
               <Select onValueChange={setBusId}>
-                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="اختر حافلة من الأسطول" /></SelectTrigger>
+                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="اختر حافلة" /></SelectTrigger>
                 <SelectContent>
                   {buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}
                 </SelectContent>
@@ -372,14 +374,7 @@ export default function AdminTrips() {
               </div>
             </div>
 
-            <div className="space-y-2 text-right">
-              <Label>سعر التذكرة (ريال)</Label>
-              <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(Number(e.target.value))} className="h-11 rounded-xl" />
-            </div>
-
-            <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold mt-4 shadow-xl">
-              تأكيد وحفظ الرحلة
-            </Button>
+            <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold mt-4 shadow-xl">تأكيد وحفظ الرحلة</Button>
           </form>
         </Card>
       )}
@@ -403,33 +398,28 @@ export default function AdminTrips() {
                   <div className="text-right">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-base">{trip.originName} ⮕ {trip.destinationName}</p>
-                      <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">
-                        {trip.id}
-                      </Badge>
+                      <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{trip.id}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats} من {trip.totalSeats}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <button onClick={() => copyTripId(trip.id)} className="flex items-center gap-1 text-[9px] text-primary font-bold hover:underline">
-                        <Copy className="h-2.5 w-2.5" /> نسخ كود التتبع
+                        <Copy className="h-2.5 w-2.5" /> نسخ الكود
                       </button>
-                      <span className="text-[9px] text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" /> {new Date(trip.departureTime).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
                    <Dialog onOpenChange={(open) => { if (open) { setViewingManifestId(trip.id); } else { setViewingManifestId(null); } }}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-xl text-xs h-9 px-4 gap-2 hover:bg-primary hover:text-white transition-all">
+                        <Button variant="outline" size="sm" className="rounded-xl text-xs h-9 px-4 gap-2">
                           <Users className="h-3.5 w-3.5" /> الركاب
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
                          <div className="bg-primary p-6 text-white text-right flex justify-between items-center">
                             <div>
-                               <DialogTitle className="text-xl font-bold">بيان الركاب (المانيفست) - رحلة {trip.id}</DialogTitle>
-                               <p className="text-xs opacity-70 mt-1">{trip.originName} ⬅ {trip.destinationName} | {new Date(trip.departureTime).toLocaleDateString('ar-EG')}</p>
+                               <DialogTitle className="text-xl font-bold">بيان الركاب (المانيفست) - {trip.id}</DialogTitle>
+                               <p className="text-xs opacity-70 mt-1">{trip.originName} ⮕ {trip.destinationName}</p>
                             </div>
                             <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary gap-2" onClick={handlePrintManifest}>
                                <Printer className="h-4 w-4" /> طباعة البيان الشامل
@@ -439,14 +429,14 @@ export default function AdminTrips() {
                            {isManifestLoading ? (
                              <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
                            ) : manifestBookings?.length === 0 ? (
-                             <div className="text-center py-12 text-muted-foreground">لا يوجد ركاب مسجلون في هذه الرحلة بعد</div>
+                             <div className="text-center py-12 text-muted-foreground">لا يوجد ركاب مسجلون بعد</div>
                            ) : (
                              <div className="overflow-x-auto">
                                <Table dir="rtl">
                                  <TableHeader>
                                    <TableRow className="bg-muted/50">
-                                     <TableHead className="text-right font-bold">الاسم الكامل</TableHead>
-                                     <TableHead className="text-right font-bold">رقم الجواز</TableHead>
+                                     <TableHead className="text-right font-bold">المسافر</TableHead>
+                                     <TableHead className="text-right font-bold">الجواز</TableHead>
                                      <TableHead className="text-right font-bold">المقعد</TableHead>
                                      <TableHead className="text-center font-bold">إجراءات</TableHead>
                                    </TableRow>
@@ -459,26 +449,17 @@ export default function AdminTrips() {
                                        <TableCell><Badge variant="outline" className="font-bold">{p.seatNumber}</Badge></TableCell>
                                        <TableCell className="text-center">
                                          <div className="flex justify-center gap-1">
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className="h-8 w-8 text-primary hover:bg-primary/10" 
-                                              onClick={() => handlePrintTicket(p, trip)}
-                                              title="طباعة تذكرة"
-                                            >
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintTicket(p, trip)}>
                                               <Ticket className="h-4 w-4" />
                                             </Button>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className={cn("h-8 w-8", p.status === 'Cancelled' ? "text-emerald-500" : "text-red-500")}
+                                            <Button variant="ghost" size="icon" className={cn("h-8 w-8", p.status === 'Cancelled' ? "text-emerald-500" : "text-red-500")}
                                               onClick={() => {
                                                 const updated = [...b.passengers];
                                                 const isCancelling = p.status !== 'Cancelled';
                                                 updated[i].status = isCancelling ? 'Cancelled' : 'Confirmed';
                                                 updateDocumentNonBlocking(doc(firestore, "bookings", b.id), { passengers: updated });
                                                 updateDocumentNonBlocking(doc(firestore, "busTrips", trip.id), { availableSeats: increment(isCancelling ? 1 : -1) });
-                                                toast({ title: isCancelling ? "تم الإلغاء" : "تم التنشيط", description: `تم تحديث حالة الراكب ${p.fullName}` });
+                                                toast({ title: isCancelling ? "تم الإلغاء" : "تم التنشيط" });
                                               }}
                                             >
                                               {p.status === 'Cancelled' ? <RotateCcw className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
