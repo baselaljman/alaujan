@@ -35,17 +35,6 @@ export default function TrackingPage() {
 
   const GOOGLE_MAPS_KEY = "AIzaSyAwALad8_XPMoqQp1VhxoT_fFKTcLQ-9S4";
 
-  // أيقونة الحافلة المخصصة (SVG)
-  const busIcon = {
-    path: "M18,18H3s-1-1.33-1-3c0-4.67,3.33-8,8-8h3c4.67,0,8,3.33,8,8C21,16.67,20,18,20,18z M7,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S5.9,18,7,18z M17,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S15.9,18,17,18z M8,6v6 M15,6v6 M2,12h19.6",
-    fillColor: "#b08d40", // اللون الذهبي الخاص بالهوية
-    fillOpacity: 1,
-    strokeWeight: 1,
-    strokeColor: "#003d2d", // اللون الزمردي للحدود
-    scale: 1.5,
-    anchor: new google.maps.Point(12, 24),
-  };
-
   useEffect(() => {
     if (trip && (trip.isLive || trip.status === "Departed") && mapRef.current) {
       const loader = new Loader({
@@ -57,6 +46,16 @@ export default function TrackingPage() {
         const position = { 
           lat: trip.currentLat || 24.7136, 
           lng: trip.currentLng || 46.6753 
+        };
+
+        const busIcon = {
+          path: "M18,18H3s-1-1.33-1-3c0-4.67,3.33-8,8-8h3c4.67,0,8,3.33,8,8C21,16.67,20,18,20,18z M7,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S5.9,18,7,18z M17,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S15.9,18,17,18z M8,6v6 M15,6v6 M2,12h19.6",
+          fillColor: "#b08d40", // اللون الذهبي الخاص بالهوية
+          fillOpacity: 1,
+          strokeWeight: 1,
+          strokeColor: "#003d2d", // اللون الزمردي للحدود
+          scale: 1.5,
+          anchor: new google.maps.Point(12, 12),
         };
 
         if (!googleMapRef.current) {
@@ -71,10 +70,7 @@ export default function TrackingPage() {
           markerRef.current = new google.maps.Marker({
             position: position,
             map: googleMapRef.current,
-            icon: {
-              ...busIcon,
-              anchor: new google.maps.Point(12, 12),
-            },
+            icon: busIcon,
             title: "حافلة العوجان",
             animation: google.maps.Animation.DROP,
           });
