@@ -48,14 +48,11 @@ export default function TrackingPage() {
           lng: trip.currentLng || 46.6753 
         };
 
+        // استخدام الرابط المخصص للأيقونة
         const busIcon = {
-          path: "M18,18H3s-1-1.33-1-3c0-4.67,3.33-8,8-8h3c4.67,0,8,3.33,8,8C21,16.67,20,18,20,18z M7,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S5.9,18,7,18z M17,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S15.9,18,17,18z M8,6v6 M15,6v6 M2,12h19.6",
-          fillColor: "#b08d40", // اللون الذهبي الخاص بالهوية
-          fillOpacity: 1,
-          strokeWeight: 1,
-          strokeColor: "#003d2d", // اللون الزمردي للحدود
-          scale: 1.5,
-          anchor: new google.maps.Point(12, 12),
+          url: "https://xn--ogbhrq.vip/wp-content/uploads/2026/03/bus-svgrepo-com.svg",
+          scaledSize: new google.maps.Size(50, 50),
+          anchor: new google.maps.Point(25, 25),
         };
 
         if (!googleMapRef.current) {
@@ -78,6 +75,8 @@ export default function TrackingPage() {
           // تحديث الموقع بسلاسة عند تغيير الإحداثيات في Firestore
           googleMapRef.current.panTo(position);
           markerRef.current?.setPosition(position);
+          // التأكد من تحديث الأيقونة إذا تغيرت
+          markerRef.current?.setIcon(busIcon);
         }
       });
     }
