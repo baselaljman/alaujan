@@ -48,9 +48,9 @@ export default function TrackingPage() {
           lng: trip.currentLng || 46.6753 
         };
 
-        // استخدام الرابط المخصص للأيقونة
+        // استخدام الرابط المحدث للأيقونة
         const busIcon = {
-          url: "https://xn--ogbhrq.vip/wp-content/uploads/2026/03/bus-svgrepo-com.svg",
+          url: "https://xn--ogbhrq.vip/wp-content/uploads/2026/03/bus-svgrepo-com-1.svg",
           scaledSize: new google.maps.Size(50, 50),
           anchor: new google.maps.Point(25, 25),
         };
@@ -75,7 +75,6 @@ export default function TrackingPage() {
           // تحديث الموقع بسلاسة عند تغيير الإحداثيات في Firestore
           googleMapRef.current.panTo(position);
           markerRef.current?.setPosition(position);
-          // التأكد من تحديث الأيقونة إذا تغيرت
           markerRef.current?.setIcon(busIcon);
         }
       });
@@ -124,7 +123,7 @@ export default function TrackingPage() {
           {activeTrackingId && !isLoading && !trip && (
             <div className="text-center p-12 bg-red-50 text-red-600 rounded-3xl border border-red-100 animate-in fade-in">
               <p className="font-bold">عذراً، لم يتم العثور على رحلة بهذا الرقم</p>
-              <p className="text-xs mt-1">تأكد من كتابة الرقم بشكل صحيح (مثال: AWJ-TRIP-TEST)</p>
+              <p className="text-xs mt-1">تأكد من كتابة الرقم بشكل صحيح</p>
             </div>
           )}
 
@@ -139,7 +138,7 @@ export default function TrackingPage() {
                       <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 gap-3">
                         <Bus className="h-12 w-12 text-white/50" />
                         <p className="text-white font-bold text-lg">بث الموقع المباشر غير نشط</p>
-                        <p className="text-white/60 text-xs">ستظهر الخريطة فور انطلاق الحافلة وتفعيل السائق للـ GPS من لوحة القائد</p>
+                        <p className="text-white/60 text-xs">ستظهر الخريطة فور انطلاق الحافلة وتفعيل السائق للـ GPS</p>
                       </div>
                     </div>
                   )}
@@ -178,10 +177,10 @@ export default function TrackingPage() {
                       <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
                         <p className="text-[10px] text-muted-foreground font-bold">الموقع المباشر الحالي</p>
-                        <p className="text-sm font-bold text-primary">{trip.currentLocationDescription || "الموقع يتم تحديثه من قبل السائق"}</p>
+                        <p className="text-sm font-bold text-primary">{trip.currentLocationDescription || "جاري التحديث..."}</p>
                         {trip.lastLocationUpdate && (
                           <p className="text-[9px] text-muted-foreground mt-1">
-                            توقيت آخر إشارة: {new Date(trip.lastLocationUpdate).toLocaleTimeString('ar-EG')}
+                            آخر تحديث: {new Date(trip.lastLocationUpdate).toLocaleTimeString('ar-EG')}
                           </p>
                         )}
                       </div>
@@ -190,7 +189,7 @@ export default function TrackingPage() {
                     {trip.status === "Delayed" && (
                       <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-pulse">
                         <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <p className="text-xs font-bold text-red-700">تنبيه: تم تسجيل تأخير بسبب إجراءات الحدود</p>
+                        <p className="text-xs font-bold text-red-700">تنبيه: تم تسجيل تأخير في الرحلة</p>
                       </div>
                     )}
                   </div>
