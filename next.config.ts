@@ -1,14 +1,12 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // تفعيل التصدير الثابت لتحويل التطبيق إلى ملفات يفهمها الجوال
+  output: 'export',
+  // تعطيل تحسين الصور لأن الجوال يحتاج لملفات محلية
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -28,7 +26,19 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'xn--ogbhrq.vip',
+        port: '',
+        pathname: '/**',
+      },
     ],
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 
