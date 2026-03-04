@@ -11,9 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { format, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
-import { CalendarIcon, MapPin, Bus, Search, Package, Loader2, Info } from "lucide-react";
+import { CalendarIcon, MapPin, Bus, Search, Package, Loader2, Info, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
@@ -26,33 +27,27 @@ export default function HomePage() {
   const [to, setTo] = useState("");
   const [date, setDate] = useState<Date>();
 
-  // جلب المدن من Firestore
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations, isLoading: isLocationsLoading } = useCollection(locationsRef);
 
-  // جلب الرحلات المتاحة لعرض تواريخها
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استخراج التواريخ التي تتوفر فيها رحلات للمسار المختار
   const availableTripDates = useMemo(() => {
     if (!trips) return new Set<string>();
     
     return new Set(
       trips
         .filter(trip => {
-          // إذا تم اختيار المدن، نعرض فقط تواريخ الرحلات لهذا المسار
           if (from && to) {
             return trip.originName === from && trip.destinationName === to;
           }
-          // إذا لم يتم اختيار المسار، نعرض كل تواريخ الرحلات القادمة
           return true;
         })
         .map(trip => startOfDay(new Date(trip.departureTime)).toDateString())
     );
   }, [trips, from, to]);
 
-  // تقسيم المدن حسب الدولة
   const groupedLocations = useMemo(() => {
     if (!locations) return { saudi: [], syria: [], others: [] };
     
@@ -77,7 +72,6 @@ export default function HomePage() {
     return groupedLocations.syria.some((l: any) => l.name === locationName);
   };
 
-  // تصفية الوجهات بناءً على مدينة الانطلاق
   const availableDestinations = useMemo(() => {
     if (!from) return locations || [];
     
@@ -100,7 +94,6 @@ export default function HomePage() {
         setTo("");
       }
     }
-    // تصفير التاريخ عند تغيير المسار لضمان اختيار تاريخ متاح للمسار الجديد
     setDate(undefined);
   }, [from, to]);
 
@@ -116,9 +109,11 @@ export default function HomePage() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-2xl font-bold text-primary font-headline">العوجان للسياحة والسفر</h1>
-          <p className="text-sm text-muted-foreground italic">Al-Awajan Travel</p>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-primary font-headline tracking-tight">العوجان للسياحة والسفر</h1>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
+            <Globe className="h-2.5 w-2.5" /> alaujantravel.com
+          </div>
         </div>
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm">
           <Bus className="h-6 w-6 text-primary" />
@@ -136,7 +131,8 @@ export default function HomePage() {
             data-ai-hint="travel bus"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+          <Badge className="w-fit mb-2 bg-accent/90 text-white border-none text-[10px] font-bold">بوابتك للسفر الدولي</Badge>
           <p className="text-white font-bold text-xl shadow-sm">رحلات آمنة ومريحة عبر الحدود</p>
         </div>
       </div>
@@ -147,7 +143,7 @@ export default function HomePage() {
             <Search className="h-5 w-5" />
             ابحث عن رحلتك
           </CardTitle>
-          <CardDescription>حدد وجهتك الدولية وتاريخ السفر</CardDescription>
+          <CardTitle className="text-sm font-normal text-muted-foreground">حدد وجهتك الدولية وتاريخ السفر</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-6">
@@ -286,6 +282,10 @@ export default function HomePage() {
           </Link>
         </Button>
       </div>
+
+      <footer className="text-center pt-8 pb-4 opacity-40">
+        <p className="text-[9px] font-bold uppercase tracking-tighter">© 2024 Al-Awajan Travel | alaujantravel.com</p>
+      </footer>
     </div>
   );
 }

@@ -14,8 +14,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'العوجان للسياحة والسفر | Al-Awajan Travel',
-  description: 'احجز تذاكر الحافلات بين الرياض والأردن وسوريا.',
+  metadataBase: new URL('https://alaujantravel.com'),
+  title: {
+    default: 'العوجان للسياحة والسفر | Al-Awajan Travel',
+    template: '%s | العوجان للسفر'
+  },
+  description: 'الموقع الرسمي لشركة العوجان للسياحة والسفر. حجز رحلات دولية بين السعودية والأردن وسوريا، وتتبع مباشر للطرود والحافلات بأحدث التقنيات.',
+  keywords: ['العوجان للسفر', 'حجز حافلات سوريا', 'رحلات الأردن', 'تتبع طرود العوجان', 'سفريات الرياض'],
+  authors: [{ name: 'Al-Awajan Travel' }],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -25,6 +31,14 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: true,
   },
+  openGraph: {
+    type: 'website',
+    locale: 'ar_SA',
+    url: 'https://alaujantravel.com',
+    siteName: 'العوجان للسياحة والسفر',
+    title: 'العوجان للسياحة والسفر - رحلتك تبدأ هنا',
+    description: 'خدمات النقل الدولي والطرود بين الرياض وعمان ودمشق بأعلى معايير الراحة والأمان.',
+  }
 };
 
 export default function RootLayout({
@@ -40,6 +54,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="canonical" href="https://alaujantravel.com" />
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen bg-background" style={{ fontFamily: "'Noto Sans Arabic', 'Inter', sans-serif" }}>
         <FirebaseClientProvider>
