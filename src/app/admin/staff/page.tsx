@@ -20,7 +20,8 @@ import {
   Bus,
   MapPin,
   Package,
-  Users as UsersIcon
+  Users as UsersIcon,
+  Edit2
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
@@ -33,11 +34,13 @@ const PERMISSIONS = [
   { id: "canManageDrivers", label: "إدارة السائقين", icon: UsersIcon },
   { id: "canManageLocations", label: "إدارة المدن", icon: MapPin },
   { id: "canManageParcels", label: "إدارة الطرود", icon: Package },
+  { id: "canManageStaff", label: "إدارة الموظفين والصلاحيات", icon: ShieldAlert },
 ];
 
 export default function AdminStaff() {
   const firestore = useFirestore();
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -47,26 +50,42 @@ export default function AdminStaff() {
       canManageDrivers: false,
       canManageLocations: false,
       canManageParcels: false,
+      canManageStaff: false,
     }
   });
 
   const staffRef = useMemoFirebase(() => collection(firestore, "staff_permissions"), [firestore]);
   const { data: staffList, isLoading } = useCollection(staffRef);
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleSaveStaff = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.fullName) {
       toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى إدخال الاسم والبريد الإلكتروني." });
       return;
     }
 
-    addDocumentNonBlocking(staffRef, {
-      ...formData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+    if (editingId) {
+      // تعديل موظف موجود
+      const staffDocRef = doc(firestore, "staff_permissions", editingId);
+      updateDocumentNonBlocking(staffDocRef, {
+        ...formData,
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "تم التحديث", description: "تم تحديث صلاحيات الموظف بنجاح." });
+    } else {
+      // إضافة موظف جديد
+      addDocumentNonBlocking(staffRef, {
+        ...formData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast({ title: "تمت الإضافة", description: "تم منح الصلاحيات للموظف الجديد بنجاح." });
+    }
 
-    toast({ title: "تمت الإضافة", description: "تم منح الصلاحيات للموظف الجديد بنجاح." });
+    resetForm();
+  };
+
+  const resetForm = () => {
     setFormData({
       fullName: "",
       email: "",
@@ -76,9 +95,25 @@ export default function AdminStaff() {
         canManageDrivers: false,
         canManageLocations: false,
         canManageParcels: false,
+        canManageStaff: false,
       }
     });
     setIsAdding(false);
+    setEditingId(null);
+  };
+
+  const handleEdit = (staff: any) => {
+    setEditingId(staff.id);
+    setFormData({
+      fullName: staff.fullName,
+      email: staff.email,
+      permissions: {
+        ...formData.permissions,
+        ...(staff.permissions || {})
+      }
+    });
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const togglePermission = (permId: string) => {
@@ -110,7 +145,10 @@ export default function AdminStaff() {
             <p className="text-xs text-muted-foreground">منح صلاحيات التعديل والدخول للنظام</p>
           </div>
         </div>
-        <Button onClick={() => setIsAdding(!isAdding)} className="rounded-xl gap-2 h-12 px-6 shadow-md">
+        <Button 
+          onClick={() => isAdding ? resetForm() : setIsAdding(true)} 
+          className="rounded-xl gap-2 h-12 px-6 shadow-md"
+        >
           {isAdding ? "إلغاء" : <><Plus className="h-4 w-4" /> إضافة موظف</>}
         </Button>
       </header>
@@ -119,12 +157,15 @@ export default function AdminStaff() {
         <Card className="border-red-100 shadow-2xl animate-in slide-in-from-top-4 duration-500">
           <CardHeader className="bg-red-50/50 border-b">
             <CardTitle className="text-lg flex items-center gap-2 text-red-700">
-              <Lock className="h-5 w-5" /> منح صلاحيات جديدة
+              {editingId ? <Edit2 className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+              {editingId ? "تعديل صلاحيات الموظف" : "منح صلاحيات جديدة"}
             </CardTitle>
-            <CardDescription>أدخل بريد الموظف وحدد ما يمكنه التعديل عليه</CardDescription>
+            <CardDescription>
+              {editingId ? `تعديل بيانات وصلاحيات ${formData.fullName}` : "أدخل بريد الموظف وحدد ما يمكنه التعديل عليه"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <form onSubmit={handleAddStaff} className="space-y-6">
+            <form onSubmit={handleSaveStaff} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>اسم الموظف</Label>
@@ -157,7 +198,7 @@ export default function AdminStaff() {
                     >
                       <div className="flex items-center gap-3">
                         <perm.icon className={`h-5 w-5 ${formData.permissions[perm.id as keyof typeof formData.permissions] ? 'text-red-600' : 'text-muted-foreground'}`} />
-                        <span className="text-sm font-bold">{perm.label}</span>
+                        <span className="text-xs font-bold">{perm.label}</span>
                       </div>
                       <Checkbox 
                         checked={formData.permissions[perm.id as keyof typeof formData.permissions]}
@@ -170,7 +211,8 @@ export default function AdminStaff() {
               </div>
 
               <Button type="submit" className="w-full h-14 rounded-2xl text-lg font-bold bg-red-600 hover:bg-red-700 shadow-xl gap-2 mt-4">
-                <UserCheck className="h-5 w-5" /> حفظ الموظف ومنح الصلاحيات
+                {editingId ? <RefreshCcw className="h-5 w-5" /> : <UserCheck className="h-5 w-5" />}
+                {editingId ? "تحديث بيانات الموظف" : "حفظ الموظف ومنح الصلاحيات"}
               </Button>
             </form>
           </CardContent>
@@ -203,9 +245,14 @@ export default function AdminStaff() {
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(staff.id)} className="text-red-500 hover:bg-red-50 rounded-xl">
-                      <Trash2 className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(staff)} className="text-primary hover:bg-primary/5 rounded-xl">
+                        <Edit2 className="h-5 w-5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(staff.id)} className="text-red-500 hover:bg-red-50 rounded-xl">
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="bg-muted/30 px-5 py-3 border-t flex flex-wrap gap-2">
                     {PERMISSIONS.map(p => staff.permissions?.[p.id] && (
@@ -234,5 +281,14 @@ export default function AdminStaff() {
         </div>
       </div>
     </div>
+  );
+}
+
+// أيقونات إضافية لمحاكاة الناقص
+function RefreshCcw({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" />
+    </svg>
   );
 }
