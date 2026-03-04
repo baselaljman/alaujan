@@ -1,21 +1,25 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Bus, Clock, Info, AlertTriangle, CheckCircle2, Loader2, Navigation } from "lucide-react";
+import { Search, MapPin, Bus, Clock, Info, AlertTriangle, Loader2, Navigation } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { Loader } from "@googlemaps/js-api-loader";
 
 export default function TrackingPage() {
   const [trackingId, setTrackingId] = useState("");
   const [activeTrackingId, setActiveTrackingId] = useState<string | null>(null);
   const firestore = useFirestore();
+  const mapRef = useRef<HTMLDivElement>(null);
+  const googleMapRef = useRef<google.maps.Map | null>(null);
+  const markerRef = useRef<google.maps.Marker | null>(null);
 
   const tripRef = useMemoFirebase(() => {
     if (!firestore || !activeTrackingId) return null;
@@ -30,13 +34,58 @@ export default function TrackingPage() {
   };
 
   const GOOGLE_MAPS_KEY = "AIzaSyAwALad8_XPMoqQp1VhxoT_fFKTcLQ-9S4";
-  
-  const getMapUrl = () => {
-    // نستخدم الإحداثيات المباشرة أو إحداثيات افتراضية إذا كان البث نشطاً
-    const lat = trip?.currentLat || 24.7136;
-    const lng = trip?.currentLng || 46.6753;
-    return `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_KEY}&q=${lat},${lng}&zoom=14`;
+
+  // أيقونة الحافلة المخصصة (SVG)
+  const busIcon = {
+    path: "M18,18H3s-1-1.33-1-3c0-4.67,3.33-8,8-8h3c4.67,0,8,3.33,8,8C21,16.67,20,18,20,18z M7,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S5.9,18,7,18z M17,18c1.1,0,2,0.9,2,2s-0.9,2-2,2s-2-0.9-2-2S15.9,18,17,18z M8,6v6 M15,6v6 M2,12h19.6",
+    fillColor: "#b08d40", // اللون الذهبي الخاص بالهوية
+    fillOpacity: 1,
+    strokeWeight: 1,
+    strokeColor: "#003d2d", // اللون الزمردي للحدود
+    scale: 1.5,
+    anchor: new google.maps.Point(12, 24),
   };
+
+  useEffect(() => {
+    if (trip && (trip.isLive || trip.status === "Departed") && mapRef.current) {
+      const loader = new Loader({
+        apiKey: GOOGLE_MAPS_KEY,
+        version: "weekly",
+      });
+
+      loader.load().then((google) => {
+        const position = { 
+          lat: trip.currentLat || 24.7136, 
+          lng: trip.currentLng || 46.6753 
+        };
+
+        if (!googleMapRef.current) {
+          googleMapRef.current = new google.maps.Map(mapRef.current!, {
+            center: position,
+            zoom: 15,
+            mapId: "AL_AWAJAN_MAP",
+            disableDefaultUI: true,
+            zoomControl: true,
+          });
+
+          markerRef.current = new google.maps.Marker({
+            position: position,
+            map: googleMapRef.current,
+            icon: {
+              ...busIcon,
+              anchor: new google.maps.Point(12, 12),
+            },
+            title: "حافلة العوجان",
+            animation: google.maps.Animation.DROP,
+          });
+        } else {
+          // تحديث الموقع بسلاسة عند تغيير الإحداثيات في Firestore
+          googleMapRef.current.panTo(position);
+          markerRef.current?.setPosition(position);
+        }
+      });
+    }
+  }, [trip]);
 
   return (
     <div className="space-y-6 pb-20">
@@ -87,21 +136,9 @@ export default function TrackingPage() {
           {trip && (
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <Card className="overflow-hidden border-primary/20 shadow-xl bg-white/80 backdrop-blur-md">
-                <div className="h-72 bg-muted relative overflow-hidden border-b">
+                <div className="h-80 bg-muted relative overflow-hidden border-b">
                   {(trip.isLive || trip.status === "Departed") ? (
-                    <div className="absolute inset-0 w-full h-full">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        style={{ border: 0 }}
-                        src={getMapUrl()}
-                        allowFullScreen
-                      ></iframe>
-                      <div className="absolute top-4 left-4 z-10">
-                        <Badge className="bg-red-600 animate-pulse border-none shadow-lg">LIVE</Badge>
-                      </div>
-                    </div>
+                    <div ref={mapRef} className="absolute inset-0 w-full h-full" />
                   ) : (
                     <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('https://picsum.photos/seed/${trip.id}/800/400')` }}>
                       <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-6 gap-3">
@@ -113,7 +150,7 @@ export default function TrackingPage() {
                   )}
 
                   <Badge className={cn(
-                    "absolute top-4 right-4 text-xs py-1 px-3 shadow-lg",
+                    "absolute top-4 right-4 text-xs py-1 px-3 shadow-lg z-10",
                     trip.status === "Departed" ? "bg-green-600" : "bg-primary"
                   )}>
                     {trip.status === "Scheduled" && "بانتظار الانطلاق"}
@@ -121,6 +158,12 @@ export default function TrackingPage() {
                     {trip.status === "Delayed" && "تأخير في الرحلة"}
                     {trip.status === "Arrived" && "تم الوصول"}
                   </Badge>
+                  
+                  {(trip.isLive || trip.status === "Departed") && (
+                    <div className="absolute top-4 left-4 z-10">
+                      <Badge className="bg-red-600 animate-pulse border-none shadow-lg">LIVE</Badge>
+                    </div>
+                  )}
                 </div>
 
                 <CardContent className="p-6 space-y-6 text-right">
