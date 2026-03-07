@@ -1,16 +1,17 @@
-
 "use client"
 
-import { useState, use, useMemo } from "react";
+import { useState, use, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Package, Plus, Minus, Loader2, User, CreditCard, ShieldCheck } from "lucide-react";
+import { ArrowRight, Package, Plus, Minus, Loader2, User, CreditCard, ShieldCheck, Smartphone, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
+import { ConfirmationResult } from "firebase/auth";
+import { toast } from "@/hooks/use-toast";
 
 interface PassengerDetail {
   seatNumber: number;
@@ -23,6 +24,7 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const resolvedParams = use(params);
   const tripId = resolvedParams.id;
   const firestore = useFirestore();
+  const auth = useAuth();
 
   const tripRef = useMemoFirebase(() => doc(firestore, "busTrips", tripId), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
@@ -49,7 +51,13 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
   const [extraBags, setExtraBags] = useState(0);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  
+  // OTP States
   const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
 
   const TICKET_PRICE = trip?.pricePerSeat || 350;
   const BAG_PRICE = 100;
@@ -92,6 +100,39 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
     return passengers.every(p => p.fullName.trim() !== "" && p.passportNumber.trim() !== "");
   }, [passengers]);
 
+  const handleSendOtp = async () => {
+    if (!phone || isSendingCode) return;
+    
+    // Ensure phone starts with +
+    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    
+    setIsSendingCode(true);
+    try {
+      const verifier = setupRecaptcha(auth, 'recaptcha-container');
+      const result = await sendOtpToPhone(auth, formattedPhone, verifier);
+      setConfirmationResult(result);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || !confirmationResult || isVerifyingCode) return;
+    
+    setIsVerifyingCode(true);
+    try {
+      await confirmationResult.confirm(otpCode);
+      setIsOtpVerified(true);
+      toast({ title: "تم التحقق بنجاح", description: "يمكنك الآن إكمال عملية الدفع" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "رمز خاطئ", description: "يرجى التأكد من الرمز وإعادة المحاولة" });
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
   const handlePayment = () => {
     if (!isOtpVerified || !email || !isPassengerInfoComplete) return;
     const finalTotal = (selectedSeats.length * TICKET_PRICE) + (extraBags * BAG_PRICE);
@@ -119,6 +160,8 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
           {step === 3 && "الإضافات والتواصل"}
         </h1>
       </header>
+
+      <div id="recaptcha-container"></div>
 
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">
@@ -228,19 +271,68 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
 
             <div className="space-y-4">
               <h3 className="font-bold text-sm border-b pb-2 flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" /> بيانات التواصل
+                <CreditCard className="h-4 w-4 text-primary" /> بيانات التواصل والتحقق
               </h3>
               <div className="space-y-2">
                 <Label>البريد الإلكتروني (لتلقي التذاكر)</Label>
                 <Input placeholder="example@mail.com" value={email} onChange={e => setEmail(e.target.value)} className="rounded-xl h-12" />
               </div>
-              <div className="space-y-2">
-                <Label>رقم الهاتف</Label>
-                <Input placeholder="05XXXXXXXX" value={phone} onChange={e => setPhone(e.target.value)} className="rounded-xl h-12" />
+              
+              <div className="space-y-3">
+                <Label>رقم الهاتف (بصيغة دولية: +966...)</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="+9665XXXXXXXX" 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value)} 
+                    className="rounded-xl h-12 flex-1" 
+                    disabled={isOtpVerified}
+                  />
+                  {!isOtpVerified && (
+                    <Button 
+                      onClick={handleSendOtp} 
+                      disabled={isSendingCode || !phone} 
+                      className="rounded-xl h-12 px-4"
+                      variant="outline"
+                    >
+                      {isSendingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </div>
               </div>
-              <Button onClick={() => setIsOtpVerified(true)} className="w-full rounded-xl h-12 gap-2" variant={isOtpVerified ? "secondary" : "outline"}>
-                {isOtpVerified ? <><ShieldCheck className="h-4 w-4" /> تم التحقق بنجاح</> : "تحقق من رقم الهاتف عبر الرسالة"}
-              </Button>
+
+              {confirmationResult && !isOtpVerified && (
+                <div className="space-y-3 p-4 bg-muted/30 rounded-2xl animate-in slide-in-from-top-2">
+                  <Label className="text-xs font-bold">أدخل الرمز المرسل لجوالك</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="000000" 
+                      value={otpCode} 
+                      onChange={e => setOtpCode(e.target.value)} 
+                      className="rounded-xl h-12 flex-1 text-center font-bold tracking-widest" 
+                    />
+                    <Button 
+                      onClick={handleVerifyOtp} 
+                      disabled={isVerifyingCode || otpCode.length < 6} 
+                      className="rounded-xl h-12 px-6"
+                    >
+                      {isVerifyingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "تحقق"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {isOtpVerified && (
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-800">تم التحقق من الهاتف</p>
+                    <p className="text-[10px] text-emerald-600">رقمك {phone} موثق الآن في النظام</p>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -261,7 +353,13 @@ export default function BookTrip({ params }: { params: Promise<{ id: string }> }
             </div>
           </div>
 
-          <Button onClick={handlePayment} disabled={!isOtpVerified || !email} className="w-full h-16 text-xl font-bold rounded-2xl bg-primary shadow-xl">الانتقال للدفع وتأكيد الحجز</Button>
+          <Button 
+            onClick={handlePayment} 
+            disabled={!isOtpVerified || !email} 
+            className="w-full h-16 text-xl font-bold rounded-2xl bg-primary shadow-xl"
+          >
+            الانتقال للدفع وتأكيد الحجز
+          </Button>
         </div>
       )}
     </div>

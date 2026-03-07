@@ -6,7 +6,10 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updatePassword,
-  User
+  User,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult
 } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -15,6 +18,28 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
   signInAnonymously(authInstance).catch(error => {
     console.error("Auth Error:", error);
   });
+}
+
+/** Setup Recaptcha Verifier */
+export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
+  return new RecaptchaVerifier(authInstance, containerId, {
+    size: 'invisible',
+    callback: () => {
+      // reCAPTCHA solved, allow signInWithPhoneNumber.
+    }
+  });
+}
+
+/** Send OTP to Phone */
+export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
+  try {
+    const confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, appVerifier);
+    toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام" });
+    return confirmationResult;
+  } catch (error: any) {
+    toast({ variant: "destructive", title: "خطأ في الإرسال", description: "تأكد من صيغة الرقم الدولية (مثلاً: +966...)" });
+    throw error;
+  }
 }
 
 /** Initiate email/password sign-up (non-blocking). */
