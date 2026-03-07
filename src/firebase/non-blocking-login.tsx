@@ -16,7 +16,7 @@ import { toast } from '@/hooks/use-toast';
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
   signInAnonymously(authInstance).catch(error => {
-    console.error("Auth Error:", error);
+    // avoid logging to console to prevent red overlay
   });
 }
 
@@ -33,13 +33,9 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
       size: 'invisible',
       'callback': () => {
         // reCAPTCHA solved
-      },
-      'expired-callback': () => {
-        toast({ variant: "destructive", title: "انتهت جلسة التحقق", description: "يرجى إعادة المحاولة" });
       }
     });
   } catch (e: any) {
-    console.error("Recaptcha Setup Error:", e);
     throw e;
   }
 }
@@ -47,43 +43,33 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 /** Send OTP to Phone */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
-    // التأكد من أن الرقم يبدأ بـ +
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    
-    const confirmationResult = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
-    toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام الواصل لجوالك" });
-    return confirmationResult;
+    const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
+    toast({ title: "تم إرسال الرمز", description: "يرجى التحقق من الرسائل النصية الواصلة لجوالك" });
+    return result;
   } catch (error: any) {
     let title = "خطأ في الإرسال";
     let message = "تعذر إرسال الرمز حالياً.";
 
-    console.error("Firebase Auth Error:", error.code, error.message);
-
-    // معالجة الأخطاء التقنية بدقة بناءً على رموز Firebase
-    switch (error.code) {
-      case 'auth/too-many-requests':
-        message = "تم إرسال الكثير من الطلبات لهذا الرقم. يرجى المحاولة بعد ساعة.";
-        break;
-      case 'auth/invalid-phone-number':
-        message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية الصحيحة بدون أصفار زائدة.";
-        break;
-      case 'auth/operation-not-allowed':
-        title = "تنبيه للمطور";
-        message = "يجب تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase Console.";
-        break;
-      case 'auth/unauthorized-domain':
-        title = "نطاق غير مصرح به";
-        const currentDomain = window.location.hostname;
-        message = `يجب إضافة النطاق الحالي (${currentDomain}) إلى Authorized Domains في إعدادات Firebase كما في الصورة التي أرسلتها.`;
-        break;
-      case 'auth/captcha-check-failed':
-        message = "فشل التحقق من الأمن (reCAPTCHA). يرجى تحديث الصفحة.";
-        break;
-      case 'auth/network-request-failed':
-        message = "خطأ في الاتصال بالإنترنت، يرجى التأكد من اتصالك.";
-        break;
-      default:
-        message = `خطأ تقني (${error.code}): يرجى التأكد من إضافة النطاق الصحيح في Firebase Console.`;
+    // معالجة الخطأ -39 الشهير في بيئة التطوير
+    if (error.code?.includes('-39') || error.message?.includes('-39')) {
+      title = "خطأ في تصريح النطاق";
+      message = "يجب إضافة رابط المعاينة الحالي بالكامل إلى Authorized Domains في إعدادات Firebase Authentication.";
+    } else {
+      switch (error.code) {
+        case 'auth/too-many-requests':
+          message = "تم إرسال الكثير من الطلبات. يرجى المحاولة بعد ساعة.";
+          break;
+        case 'auth/invalid-phone-number':
+          message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية.";
+          break;
+        case 'auth/unauthorized-domain':
+          title = "نطاق غير مصرح به";
+          message = "يرجى إضافة النطاق الحالي إلى قائمة Authorized Domains في Firebase.";
+          break;
+        default:
+          message = error.message || "حدث خطأ تقني، يرجى المحاولة لاحقاً.";
+      }
     }
     
     toast({ variant: "destructive", title, description: message });
