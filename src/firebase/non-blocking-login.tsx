@@ -31,10 +31,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   return new RecaptchaVerifier(authInstance, containerId, {
     size: 'invisible',
     'callback': () => {
-      // reCAPTCHA solved, allow signInWithPhoneNumber.
-    },
-    'expired-callback': () => {
-      // Response expired. Ask user to solve reCAPTCHA again.
+      // reCAPTCHA solved
     }
   });
 }
@@ -46,15 +43,23 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام" });
     return confirmationResult;
   } catch (error: any) {
-    // معالجة الأخطاء الشائعة بشكل أفضل للمستخدم
+    let title = "خطأ في الإرسال";
     let message = "تأكد من صيغة الرقم الدولية (مثلاً: +966...)";
+
+    // معالجة الأخطاء التقنية بدقة
     if (error.code === 'auth/too-many-requests') {
-      message = "محاولات كثيرة جداً، يرجى المحاولة لاحقاً.";
+      message = "محاولات كثيرة جداً، يرجى الانتظار قليلاً ثم المحاولة.";
     } else if (error.code === 'auth/invalid-phone-number') {
-      message = "رقم الهاتف غير صحيح.";
+      message = "رقم الهاتف غير صحيح أو غير مدعوم.";
+    } else if (error.code === 'auth/operation-not-allowed') {
+      title = "إعدادات Firebase ناقصة";
+      message = "يجب تفعيل 'Phone Authentication' من Firebase Console أولاً.";
+    } else if (error.code === 'auth/unauthorized-domain') {
+      title = "نطاق غير مصرح به";
+      message = "يجب إضافة رابط الموقع الحالي إلى 'Authorized Domains' في إعدادات Firebase.";
     }
     
-    toast({ variant: "destructive", title: "خطأ في الإرسال", description: message });
+    toast({ variant: "destructive", title, description: message });
     throw error;
   }
 }

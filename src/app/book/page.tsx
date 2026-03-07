@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, Suspense, useRef } from "react";
@@ -106,22 +105,20 @@ function BookTripContent() {
   const handleSendOtp = async () => {
     if (!phone || isSendingCode) return;
     
-    // 1. تنظيف الرقم من أي رموز غير رقمية
+    // تنظيف الرقم بشكل متقدم
     let digitsOnly = phone.replace(/\D/g, '');
     
-    // 2. التحقق مما إذا كان المستخدم قد أدخل كود الدولة يدوياً وحذفه لمنع التكرار
-    const currentCodeStripped = countryCode.replace(/\D/g, '');
-    if (digitsOnly.startsWith(currentCodeStripped)) {
-      digitsOnly = digitsOnly.substring(currentCodeStripped.length);
+    // إزالة كود الدولة إذا كتبه المستخدم يدوياً في الحقل
+    const currentCodeDigits = countryCode.replace(/\D/g, '');
+    if (digitsOnly.startsWith(currentCodeDigits)) {
+      digitsOnly = digitsOnly.substring(currentCodeDigits.length);
     }
     
-    // 3. إزالة الأصفار البادئة (مثل 050 تصبح 50)
-    while (digitsOnly.startsWith('0')) {
-      digitsOnly = digitsOnly.substring(1);
-    }
+    // إزالة الأصفار في البداية (050 تصبح 50)
+    digitsOnly = digitsOnly.replace(/^0+/, '');
     
     if (digitsOnly.length < 7) {
-      toast({ variant: "destructive", title: "رقم ناقص", description: "يرجى إدخال رقم هاتف صحيح بعد اختيار كود الدولة." });
+      toast({ variant: "destructive", title: "رقم ناقص", description: "يرجى إدخال رقم هاتف صحيح." });
       return;
     }
 
@@ -133,7 +130,7 @@ function BookTripContent() {
       const result = await sendOtpToPhone(auth, fullPhoneNumber, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      // Error handled by Toast inside sendOtpToPhone
+      // الأخطاء يتم التعامل معها في sendOtpToPhone
     } finally {
       setIsSendingCode(false);
     }
@@ -157,7 +154,6 @@ function BookTripContent() {
     if (!isOtpVerified || !email || !isPassengerInfoComplete) return;
     const finalTotal = (selectedSeats.length * TICKET_PRICE) + (extraBags * BAG_PRICE);
     
-    // تنظيف الرقم النهائي للإرسال للتشيك أوت
     const digitsOnly = phone.replace(/\D/g, '').replace(/^0+/, '');
     const fullPhoneNumber = `${countryCode}${digitsOnly}`;
     
@@ -372,7 +368,7 @@ function BookTripContent() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-emerald-800">تم التحقق من الهاتف</p>
-                    <p className="text-[10px] text-emerald-600">رقمك {countryCode}{phone.replace(/\D/g, '').replace(/^0+/, '')} موثق الآن في النظام</p>
+                    <p className="text-[10px] text-emerald-600">رقمك موثق الآن في النظام</p>
                   </div>
                 </div>
               )}
