@@ -28,13 +28,12 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // إذا كان هناك موثق قديم، قم بتنظيفه تماماً لتجنب الخطأ -39
+  // تنظيف أي محاولة سابقة بشكل قطعي
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
-    } catch (e) {
-      // تجاهل أخطاء التنظيف
-    }
+      globalRecaptchaVerifier = null;
+    } catch (e) {}
   }
 
   const container = document.getElementById(containerId);
@@ -46,10 +45,10 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       'callback': () => {
-        // reCAPTCHA solved
+        // تم حل التحدي بنجاح
       },
       'expired-callback': () => {
-        toast({ title: "انتهت صلاحية التحقق", description: "يرجى المحاولة مرة أخرى" });
+        toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
       }
     });
     return globalRecaptchaVerifier;
@@ -62,29 +61,31 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    
+    // إجبار المحرك على التحميل الأولي لتجنب خطأ التوقيت
+    await appVerifier.render();
+    
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
     
     toast({ 
       title: "تم إرسال الرمز بنجاح", 
-      description: "ستصلك رسالة نصية (SMS) على جوالك خلال لحظات." 
+      description: "ستصلك رسالة نصية (SMS) خلال لحظات." 
     });
     
     return result;
   } catch (error: any) {
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const cleanOrigin = currentOrigin.replace('https://', '').replace('http://', '');
+    
     let title = "فشل في الإرسال";
     let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
-    const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى إضافة هذا الرقم كـ 'رقم اختبار' في Firebase Console لتجاوز الحظر.";
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو استخدام رقم مختلف للاختبار.";
     } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
-      title = "نطاق غير مسجل";
-      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase:\n\n${currentHostname}\n\nتأكد من نسخه بدقة بالكامل.`;
-    } else if (error.code === 'auth/operation-not-allowed') {
-      title = "الخدمة غير مفعلة";
-      message = "يرجى تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase.";
+      title = "مشكلة في تصريح النطاق";
+      message = `يجب أن تتأكد من إضافة هذا النطاق بدقة في Firebase:\n\n${cleanOrigin}\n\nتأكد من عدم وجود مسافات زائدة.`;
     } else if (error.code === 'auth/invalid-phone-number') {
       message = "صيغة الرقم غير صحيحة. يرجى التأكد من إدخال الرقم بشكل سليم.";
     }
