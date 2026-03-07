@@ -29,7 +29,7 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً لمنع الخطأ -39
+  // 1. تنظيف أي محاولة سابقة برمجياً لمنع الخطأ -39 بشكل قطعي
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -37,11 +37,15 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     } catch (e) {}
   }
 
-  // 2. تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا محركات قديمة
+  // 2. تفريغ الحاوية في الـ DOM تماماً لضمان عدم وجود بقايا محركات قديمة
   if (typeof document !== 'undefined') {
     const container = document.getElementById(containerId);
     if (container) {
       container.innerHTML = '';
+      // إضافة عنصر جديد لضمان نظافة الحاوية
+      const newDiv = document.createElement('div');
+      newDiv.id = 'recaptcha-widget-container';
+      container.appendChild(newDiv);
     }
   }
 
@@ -62,7 +66,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
-    // إجبار المحرك على التحميل الأولي لتجنب خطأ التوقيت
+    // إجبار المحرك على التحميل الأولي لتجنب خطأ التوقيت والتأكد من الصلاحية
     await appVerifier.render();
     
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
@@ -80,12 +84,13 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     let title = "فشل في الإرسال";
     let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
+    // تحليل الأخطاء بدقة لمساعدة المطور
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
       message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو إضافة رقمك كـ 'رقم اختبار' في لوحة التحكم.";
-    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
+    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.code === 'auth/error-code:-39') {
       title = "مشكلة في تصريح النطاق";
-      message = `يجب إضافة هذا النطاق بدقة في Firebase Console:\n\n${cleanOrigin}`;
+      message = `يجب إضافة الرابط التالي في Firebase Console (Authorized Domains):\n\n${currentOrigin}\n\nتأكد من نسخه بالكامل بدون مسافات.`;
     }
     
     toast({ variant: "destructive", title, description: message });

@@ -2,9 +2,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  // تفعيل التصدير الثابت لتحويل التطبيق إلى ملفات يفهمها الجوال
-  output: 'export',
-  // تعطيل تحسين الصور لأن الجوال يحتاج لملفات محلية
+  // تم إزالة output: 'export' لأنها لا تدعم Server Actions المطلوبة للذكاء الاصطناعي
   images: {
     unoptimized: true,
     remotePatterns: [
