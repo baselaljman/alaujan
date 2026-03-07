@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Send } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Send, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
@@ -26,8 +27,7 @@ function BookTripContent() {
   const tripId = searchParams.get("id") || "";
   const firestore = useFirestore();
   const auth = useAuth();
-  const recaptchaVerifierBus = useRef<RecaptchaVerifier | null>(null);
-
+  
   const tripRef = useMemoFirebase(() => (tripId ? doc(firestore, "busTrips", tripId) : null), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
 
@@ -52,6 +52,7 @@ function BookTripContent() {
   const [passengers, setPassengers] = useState<PassengerDetail[]>([]);
   const [extraBags, setExtraBags] = useState(0);
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+966");
   const [email, setEmail] = useState("");
   
   // OTP States
@@ -104,15 +105,18 @@ function BookTripContent() {
 
   const handleSendOtp = async () => {
     if (!phone || isSendingCode) return;
-    const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    
+    // إزالة الصفر البادئ إذا وجد في الرقم المدخل
+    const cleanPhone = phone.startsWith('0') ? phone.substring(1) : phone;
+    const fullPhoneNumber = `${countryCode}${cleanPhone}`;
+    
     setIsSendingCode(true);
     try {
-      // تهيئة الـ Recaptcha بذكاء لتجنب الخطأ -39
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
-      const result = await sendOtpToPhone(auth, formattedPhone, verifier);
+      const result = await sendOtpToPhone(auth, fullPhoneNumber, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      // الخطأ يتم معالجته وعرضه بواسطة Toasts داخل sendOtpToPhone
+      // Error handled by Toast inside sendOtpToPhone
     } finally {
       setIsSendingCode(false);
     }
@@ -135,12 +139,15 @@ function BookTripContent() {
   const handlePayment = () => {
     if (!isOtpVerified || !email || !isPassengerInfoComplete) return;
     const finalTotal = (selectedSeats.length * TICKET_PRICE) + (extraBags * BAG_PRICE);
+    const cleanPhone = phone.startsWith('0') ? phone.substring(1) : phone;
+    const fullPhoneNumber = `${countryCode}${cleanPhone}`;
+    
     const queryParams = new URLSearchParams({ 
       tripId, 
       seats: selectedSeats.join(","), 
       total: finalTotal.toString(), 
       email,
-      phone,
+      phone: fullPhoneNumber,
       extraBags: extraBags.toString(),
       passengers: JSON.stringify(passengers)
     });
@@ -279,30 +286,47 @@ function BookTripContent() {
               </div>
               
               <div className="space-y-3">
-                <Label>رقم الهاتف (بصيغة دولية: +966...)</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="+9665XXXXXXXX" 
-                    value={phone} 
-                    onChange={e => setPhone(e.target.value)} 
-                    className="rounded-xl h-12 flex-1" 
-                    disabled={isOtpVerified}
-                  />
+                <Label>رقم الهاتف</Label>
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2">
+                    <Select value={countryCode} onValueChange={setCountryCode} disabled={isOtpVerified}>
+                      <SelectTrigger className="w-[110px] h-12 rounded-xl bg-muted/30">
+                        <SelectValue placeholder="كود" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="+966">🇸🇦 +966</SelectItem>
+                        <SelectItem value="+963">🇸🇾 +963</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input 
+                      placeholder="5XXXXXXXX" 
+                      type="tel"
+                      value={phone} 
+                      onChange={e => setPhone(e.target.value)} 
+                      className="rounded-xl h-12 flex-1" 
+                      disabled={isOtpVerified}
+                    />
+                  </div>
+                  
                   {!isOtpVerified && (
                     <Button 
                       onClick={handleSendOtp} 
                       disabled={isSendingCode || !phone} 
-                      className="rounded-xl h-12 px-4"
+                      className="w-full h-12 rounded-xl gap-2 font-bold shadow-md"
                       variant="outline"
                     >
-                      {isSendingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {isSendingCode ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>تحقق من الرقم</>
+                      )}
                     </Button>
                   )}
                 </div>
               </div>
 
               {confirmationResult && !isOtpVerified && (
-                <div className="space-y-3 p-4 bg-muted/30 rounded-2xl animate-in slide-in-from-top-2">
+                <div className="space-y-3 p-4 bg-muted/30 rounded-2xl animate-in slide-in-from-top-2 border border-primary/5">
                   <Label className="text-xs font-bold">أدخل الرمز المرسل لجوالك</Label>
                   <div className="flex gap-2">
                     <Input 
@@ -329,7 +353,7 @@ function BookTripContent() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-emerald-800">تم التحقق من الهاتف</p>
-                    <p className="text-[10px] text-emerald-600">رقمك {phone} موثق الآن في النظام</p>
+                    <p className="text-[10px] text-emerald-600">رقمك {countryCode}{phone} موثق الآن في النظام</p>
                   </div>
                 </div>
               )}
