@@ -14,21 +14,21 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 /** 
- * تخزين موثق Recaptcha بشكل عالمي في الملف للسماح بتنظيفه 
+ * تخزين موثق Recaptcha بشكل عالمي للسماح بتنظيفه 
  * وتجنب الخطأ -39 (تكرار التحميل)
  */
-let globalRecaptchaVerifier: RecaptchaVerifier | null = null;
+let globalRecaptchaVerifier: any = null;
 
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
   signInAnonymously(authInstance).catch(error => {
-    // avoid logging to console to prevent red overlay
+    // ignore
   });
 }
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // تنظيف أي محاولة سابقة بشكل قطعي لمنع الخطأ -39
+  // 1. تنظيف أي محاولة سابقة برمجياً
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -36,18 +36,17 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     } catch (e) {}
   }
 
-  // تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا محركات سابقة
+  // 2. تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = '';
   }
 
+  // 3. إنشاء المحرك الجديد
   try {
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': () => {
-        // تم حل التحدي بنجاح
-      },
+      'callback': () => {},
       'expired-callback': () => {
         toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
       }
@@ -86,9 +85,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو استخدام رقم اختبار بكود ثابت.";
     } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
       title = "مشكلة في تصريح النطاق";
-      message = `يجب أن تتأكد من إضافة هذا النطاق بدقة في Firebase Console تحت (Authorized Domains):\n\n${cleanOrigin}`;
-    } else if (error.code === 'auth/invalid-phone-number') {
-      message = "صيغة الرقم غير صحيحة. يرجى التأكد من إدخال الرقم بشكل سليم.";
+      message = `يجب إضافة هذا النطاق بدقة في Firebase Console:\n\n${cleanOrigin}`;
     }
     
     toast({ variant: "destructive", title, description: message });
@@ -136,6 +133,6 @@ export function initiateUpdatePassword(user: User, newPassword: string): void {
       toast({ title: "تم التغيير", description: "تمت تحديث كلمة المرور بنجاح" });
     })
     .catch(error => {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى تسجيل الخروج والدخول مرة أخرى لتغيير كلمة المرور" });
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى تسجيل الخروج والدخول مرة أخرى" });
     });
 }
