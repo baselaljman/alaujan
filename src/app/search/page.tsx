@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useSearchParams, useRouter } from "next/navigation";
@@ -41,7 +42,9 @@ function SearchContent() {
 
   // Filter results client-side for additional accuracy (since firestore composite indexes might not be ready)
   const filteredTrips = trips?.filter((t: any) => {
-    // Basic filtering check - in production you'd use structured Firestore queries
+    // Basic filtering check
+    if (from && t.originName !== from) return false;
+    if (to && t.destinationName !== to) return false;
     return true; 
   }) || [];
 
@@ -75,7 +78,7 @@ function SearchContent() {
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-primary">{trip.departureTime || "08:00 صباحاً"}</p>
+                        <p className="text-lg font-bold text-primary">{trip.departureTime ? new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "08:00 صباحاً"}</p>
                         <p className="text-xs text-muted-foreground">{from}</p>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-2">
@@ -114,7 +117,7 @@ function SearchContent() {
                     </div>
                   </div>
                   <Button asChild className="bg-primary hover:bg-primary/95 rounded-full px-8 shadow-lg group-hover:scale-105 transition-transform">
-                    <Link href={`/book/${trip.id}`}>احجز مقعدك</Link>
+                    <Link href={`/book?id=${trip.id}`}>احجز مقعدك</Link>
                   </Button>
                 </div>
               </div>
