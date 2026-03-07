@@ -13,6 +13,12 @@ import {
 } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
+/** 
+ * تخزين موثق Recaptcha بشكل عالمي في الملف للسماح بتنظيفه 
+ * وتجنب الخطأ -39 (تكرار التحميل)
+ */
+let globalRecaptchaVerifier: RecaptchaVerifier | null = null;
+
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
   signInAnonymously(authInstance).catch(error => {
@@ -22,18 +28,31 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
+  // إذا كان هناك موثق قديم، قم بتنظيفه تماماً لتجنب الخطأ -39
+  if (globalRecaptchaVerifier) {
+    try {
+      globalRecaptchaVerifier.clear();
+    } catch (e) {
+      // تجاهل أخطاء التنظيف
+    }
+  }
+
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = '';
   }
 
   try {
-    return new RecaptchaVerifier(authInstance, containerId, {
+    globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       'callback': () => {
         // reCAPTCHA solved
+      },
+      'expired-callback': () => {
+        toast({ title: "انتهت صلاحية التحقق", description: "يرجى المحاولة مرة أخرى" });
       }
     });
+    return globalRecaptchaVerifier;
   } catch (e: any) {
     throw e;
   }
@@ -59,10 +78,10 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
 
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة. يرجى الانتظار لمدة ساعة أو إضافة هذا الرقم كـ 'رقم اختبار' في Firebase Console.";
-    } else if (error.code === 'auth/unauthorized-domain' || error.code?.includes('-39') || error.message?.includes('-39')) {
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى إضافة هذا الرقم كـ 'رقم اختبار' في Firebase Console لتجاوز الحظر.";
+    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
       title = "نطاق غير مسجل";
-      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase:\n\n${currentHostname}`;
+      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase:\n\n${currentHostname}\n\nتأكد من نسخه بدقة بالكامل.`;
     } else if (error.code === 'auth/operation-not-allowed') {
       title = "الخدمة غير مفعلة";
       message = "يرجى تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase.";
