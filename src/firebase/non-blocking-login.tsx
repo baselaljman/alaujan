@@ -32,6 +32,9 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     size: 'invisible',
     'callback': () => {
       // reCAPTCHA solved
+    },
+    'expired-callback': () => {
+      toast({ variant: "destructive", title: "انتهت جلسة التحقق", description: "يرجى إعادة المحاولة" });
     }
   });
 }
@@ -40,23 +43,33 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     const confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, appVerifier);
-    toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام" });
+    toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام الواصل لجوالك" });
     return confirmationResult;
   } catch (error: any) {
     let title = "خطأ في الإرسال";
-    let message = "تأكد من صيغة الرقم الدولية (مثلاً: +966...)";
+    let message = "تعذر إرسال الرمز حالياً.";
 
-    // معالجة الأخطاء التقنية بدقة
-    if (error.code === 'auth/too-many-requests') {
-      message = "محاولات كثيرة جداً، يرجى الانتظار قليلاً ثم المحاولة.";
-    } else if (error.code === 'auth/invalid-phone-number') {
-      message = "رقم الهاتف غير صحيح أو غير مدعوم.";
-    } else if (error.code === 'auth/operation-not-allowed') {
-      title = "إعدادات Firebase ناقصة";
-      message = "يجب تفعيل 'Phone Authentication' من Firebase Console أولاً.";
-    } else if (error.code === 'auth/unauthorized-domain') {
-      title = "نطاق غير مصرح به";
-      message = "يجب إضافة رابط الموقع الحالي إلى 'Authorized Domains' في إعدادات Firebase.";
+    // معالجة الأخطاء التقنية بدقة بناءً على رموز Firebase
+    switch (error.code) {
+      case 'auth/too-many-requests':
+        message = "تم إرسال الكثير من الطلبات لهذا الرقم. يرجى المحاولة بعد ساعة.";
+        break;
+      case 'auth/invalid-phone-number':
+        message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية (مثلاً +966...).";
+        break;
+      case 'auth/operation-not-allowed':
+        title = "تنبيه للمطور";
+        message = "يجب تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase Console.";
+        break;
+      case 'auth/unauthorized-domain':
+        title = "نطاق غير مصرح به";
+        message = "يجب إضافة رابط هذا الموقع إلى 'Authorized Domains' في إعدادات Authentication في Firebase.";
+        break;
+      case 'auth/captcha-check-failed':
+        message = "فشل التحقق من الأمن (reCAPTCHA). يرجى تحديث الصفحة.";
+        break;
+      default:
+        message = `خطأ تقني: ${error.message}`;
     }
     
     toast({ variant: "destructive", title, description: message });
