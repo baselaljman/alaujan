@@ -62,7 +62,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       message = "لقد قمت بمحاولات كثيرة. يرجى الانتظار لمدة ساعة أو إضافة هذا الرقم كـ 'رقم اختبار' في Firebase Console.";
     } else if (error.code === 'auth/unauthorized-domain' || error.code?.includes('-39') || error.message?.includes('-39')) {
       title = "نطاق غير مسجل";
-      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase: ${currentHostname}`;
+      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase:\n\n${currentHostname}`;
     } else if (error.code === 'auth/operation-not-allowed') {
       title = "الخدمة غير مفعلة";
       message = "يرجى تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase.";
