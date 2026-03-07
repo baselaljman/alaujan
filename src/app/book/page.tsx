@@ -106,9 +106,26 @@ function BookTripContent() {
   const handleSendOtp = async () => {
     if (!phone || isSendingCode) return;
     
-    // إزالة الصفر البادئ إذا وجد في الرقم المدخل
-    const cleanPhone = phone.startsWith('0') ? phone.substring(1) : phone;
-    const fullPhoneNumber = `${countryCode}${cleanPhone}`;
+    // 1. تنظيف الرقم من أي رموز غير رقمية
+    let digitsOnly = phone.replace(/\D/g, '');
+    
+    // 2. التحقق مما إذا كان المستخدم قد أدخل كود الدولة يدوياً وحذفه لمنع التكرار
+    const currentCodeStripped = countryCode.replace(/\D/g, '');
+    if (digitsOnly.startsWith(currentCodeStripped)) {
+      digitsOnly = digitsOnly.substring(currentCodeStripped.length);
+    }
+    
+    // 3. إزالة الأصفار البادئة (مثل 050 تصبح 50)
+    while (digitsOnly.startsWith('0')) {
+      digitsOnly = digitsOnly.substring(1);
+    }
+    
+    if (digitsOnly.length < 7) {
+      toast({ variant: "destructive", title: "رقم ناقص", description: "يرجى إدخال رقم هاتف صحيح بعد اختيار كود الدولة." });
+      return;
+    }
+
+    const fullPhoneNumber = `${countryCode}${digitsOnly}`;
     
     setIsSendingCode(true);
     try {
@@ -139,8 +156,10 @@ function BookTripContent() {
   const handlePayment = () => {
     if (!isOtpVerified || !email || !isPassengerInfoComplete) return;
     const finalTotal = (selectedSeats.length * TICKET_PRICE) + (extraBags * BAG_PRICE);
-    const cleanPhone = phone.startsWith('0') ? phone.substring(1) : phone;
-    const fullPhoneNumber = `${countryCode}${cleanPhone}`;
+    
+    // تنظيف الرقم النهائي للإرسال للتشيك أوت
+    const digitsOnly = phone.replace(/\D/g, '').replace(/^0+/, '');
+    const fullPhoneNumber = `${countryCode}${digitsOnly}`;
     
     const queryParams = new URLSearchParams({ 
       tripId, 
@@ -201,7 +220,7 @@ function BookTripContent() {
 
       {step === 2 && (
         <div className="space-y-6 animate-in slide-in-from-left">
-          <p className="text-sm text-muted-foreground text-center">يرجى إدخال بيانات المسافرين كما تظهر في جواز السفر للرحلات الدولية</p>
+          <p className="text-sm text-muted-foreground text-center">يرجى إدخل بيانات المسافرين كما تظهر في جواز السفر للرحلات الدولية</p>
           {passengers.map((p, idx) => (
             <Card key={idx} className="border-primary/10 shadow-md">
               <CardContent className="p-5 space-y-4">
@@ -353,7 +372,7 @@ function BookTripContent() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-emerald-800">تم التحقق من الهاتف</p>
-                    <p className="text-[10px] text-emerald-600">رقمك {countryCode}{phone} موثق الآن في النظام</p>
+                    <p className="text-[10px] text-emerald-600">رقمك {countryCode}{phone.replace(/\D/g, '').replace(/^0+/, '')} موثق الآن في النظام</p>
                   </div>
                 </div>
               )}
