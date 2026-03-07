@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Sen
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { ConfirmationResult } from "firebase/auth";
+import { ConfirmationResult, RecaptchaVerifier } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 
 interface PassengerDetail {
@@ -26,6 +26,7 @@ function BookTripContent() {
   const tripId = searchParams.get("id") || "";
   const firestore = useFirestore();
   const auth = useAuth();
+  const recaptchaVerifierBus = useRef<RecaptchaVerifier | null>(null);
 
   const tripRef = useMemoFirebase(() => (tripId ? doc(firestore, "busTrips", tripId) : null), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
@@ -106,11 +107,12 @@ function BookTripContent() {
     const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
     setIsSendingCode(true);
     try {
+      // تهيئة الـ Recaptcha بذكاء لتجنب الخطأ -39
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
       const result = await sendOtpToPhone(auth, formattedPhone, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      console.error(error);
+      // الخطأ يتم معالجته وعرضه بواسطة Toasts داخل sendOtpToPhone
     } finally {
       setIsSendingCode(false);
     }
@@ -159,7 +161,7 @@ function BookTripContent() {
         </h1>
       </header>
 
-      <div id="recaptcha-container"></div>
+      <div id="recaptcha-container" className="fixed bottom-0 left-0"></div>
 
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">

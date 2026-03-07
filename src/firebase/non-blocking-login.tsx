@@ -22,10 +22,19 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
+  // تصفية الحاوية من أي محاولات سابقة لمنع الخطأ -39
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = '';
+  }
+
   return new RecaptchaVerifier(authInstance, containerId, {
     size: 'invisible',
-    callback: () => {
+    'callback': () => {
       // reCAPTCHA solved, allow signInWithPhoneNumber.
+    },
+    'expired-callback': () => {
+      // Response expired. Ask user to solve reCAPTCHA again.
     }
   });
 }
@@ -37,7 +46,15 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام" });
     return confirmationResult;
   } catch (error: any) {
-    toast({ variant: "destructive", title: "خطأ في الإرسال", description: "تأكد من صيغة الرقم الدولية (مثلاً: +966...)" });
+    // معالجة الأخطاء الشائعة بشكل أفضل للمستخدم
+    let message = "تأكد من صيغة الرقم الدولية (مثلاً: +966...)";
+    if (error.code === 'auth/too-many-requests') {
+      message = "محاولات كثيرة جداً، يرجى المحاولة لاحقاً.";
+    } else if (error.code === 'auth/invalid-phone-number') {
+      message = "رقم الهاتف غير صحيح.";
+    }
+    
+    toast({ variant: "destructive", title: "خطأ في الإرسال", description: message });
     throw error;
   }
 }
