@@ -20,7 +20,6 @@ function SearchContent() {
   const to = searchParams.get("to");
   const date = searchParams.get("date");
 
-  // Query Firestore for real trips
   const tripsQuery = useMemoFirebase(() => {
     if (!firestore || !from || !to) return null;
     return query(
@@ -40,9 +39,7 @@ function SearchContent() {
     );
   }
 
-  // Filter results client-side for additional accuracy (since firestore composite indexes might not be ready)
   const filteredTrips = trips?.filter((t: any) => {
-    // Basic filtering check
     if (from && t.originName !== from) return false;
     if (to && t.destinationName !== to) return false;
     return true; 
@@ -117,6 +114,7 @@ function SearchContent() {
                     </div>
                   </div>
                   <Button asChild className="bg-primary hover:bg-primary/95 rounded-full px-8 shadow-lg group-hover:scale-105 transition-transform">
+                    {/* استخدام Query Params لضمان التوافق مع التصدير الثابت */}
                     <Link href={`/book?id=${trip.id}`}>احجز مقعدك</Link>
                   </Button>
                 </div>

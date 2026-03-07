@@ -1,30 +1,20 @@
 
-"use client"
-
-import { useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { redirect } from "next/navigation";
 
 /**
- * This page is kept as a redirect to support old links while avoiding the 
- * "generateStaticParams" requirement for static exports. 
- * The logic has moved to /src/app/book/page.tsx
+ * @fileOverview صفحة تحويل للمسارات الديناميكية لضمان التوافق مع التصدير الثابت (Static Export).
+ * يتطلب Next.js وجود generateStaticParams عند استخدام output: export.
  */
-export default function BookTripRedirect() {
-  const router = useRouter();
-  const params = useParams();
-  const id = params?.id;
 
-  useEffect(() => {
-    if (id) {
-      router.replace(`/book?id=${id}`);
-    } else {
-      router.replace('/');
-    }
-  }, [id, router]);
+export function generateStaticParams() {
+  // نقوم بتوليد مسار افتراضي واحد على الأقل لإرضاء معالج البناء (Build)
+  return [{ id: "select" }];
+}
 
-  return (
-    <div className="flex justify-center p-20">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-    </div>
-  );
+export default async function BookTripRedirect(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const id = params.id;
+  
+  // التحويل إلى المسار الجديد الذي يستخدم Query Parameters المتوافق مع التصدير الثابت
+  redirect(`/book?id=${id}`);
 }

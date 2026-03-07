@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Auth,
@@ -17,7 +18,7 @@ import { toast } from '@/hooks/use-toast';
  * تخزين موثق Recaptcha بشكل عالمي للسماح بتنظيفه 
  * وتجنب الخطأ -39 (تكرار التحميل)
  */
-let globalRecaptchaVerifier: any = null;
+let globalRecaptchaVerifier: RecaptchaVerifier | null = null;
 
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
@@ -28,7 +29,7 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً
+  // 1. تنظيف أي محاولة سابقة برمجياً لمنع الخطأ -39
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -36,25 +37,24 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     } catch (e) {}
   }
 
-  // 2. تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا
-  const container = document.getElementById(containerId);
-  if (container) {
-    container.innerHTML = '';
+  // 2. تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا محركات قديمة
+  if (typeof document !== 'undefined') {
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.innerHTML = '';
+    }
   }
 
   // 3. إنشاء المحرك الجديد
-  try {
-    globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
-      size: 'invisible',
-      'callback': () => {},
-      'expired-callback': () => {
-        toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
-      }
-    });
-    return globalRecaptchaVerifier;
-  } catch (e: any) {
-    throw e;
-  }
+  globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
+    size: 'invisible',
+    'callback': () => {},
+    'expired-callback': () => {
+      toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
+    }
+  });
+  
+  return globalRecaptchaVerifier;
 }
 
 /** Send OTP to Phone */
@@ -82,7 +82,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
 
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو استخدام رقم اختبار بكود ثابت.";
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو إضافة رقمك كـ 'رقم اختبار' في لوحة التحكم.";
     } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
       title = "مشكلة في تصريح النطاق";
       message = `يجب إضافة هذا النطاق بدقة في Firebase Console:\n\n${cleanOrigin}`;
