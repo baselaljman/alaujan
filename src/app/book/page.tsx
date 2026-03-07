@@ -126,6 +126,7 @@ function BookTripContent() {
     
     setIsSendingCode(true);
     try {
+      // إعداد محرك التحقق في كل محاولة لضمان النظافة
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
       const result = await sendOtpToPhone(auth, fullPhoneNumber, verifier);
       setConfirmationResult(result);
@@ -184,7 +185,7 @@ function BookTripContent() {
       </header>
 
       {/* حاوية الـ Recaptcha - يجب أن تكون مرئية لـ Firebase ولكن مخفية عن المستخدم */}
-      <div id="recaptcha-container" className="fixed bottom-0 left-0 z-0"></div>
+      <div id="recaptcha-container" className="fixed bottom-0 left-0 z-0 opacity-0 pointer-events-none"></div>
 
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">
