@@ -28,26 +28,36 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     container.innerHTML = '';
   }
 
-  return new RecaptchaVerifier(authInstance, containerId, {
-    size: 'invisible',
-    'callback': () => {
-      // reCAPTCHA solved
-    },
-    'expired-callback': () => {
-      toast({ variant: "destructive", title: "انتهت جلسة التحقق", description: "يرجى إعادة المحاولة" });
-    }
-  });
+  try {
+    return new RecaptchaVerifier(authInstance, containerId, {
+      size: 'invisible',
+      'callback': () => {
+        // reCAPTCHA solved
+      },
+      'expired-callback': () => {
+        toast({ variant: "destructive", title: "انتهت جلسة التحقق", description: "يرجى إعادة المحاولة" });
+      }
+    });
+  } catch (e: any) {
+    console.error("Recaptcha Setup Error:", e);
+    throw e;
+  }
 }
 
 /** Send OTP to Phone */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
-    const confirmationResult = await signInWithPhoneNumber(authInstance, phoneNumber, appVerifier);
+    // التأكد من أن الرقم يبدأ بـ +
+    const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+    
+    const confirmationResult = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
     toast({ title: "تم إرسال الرمز", description: "يرجى إدخال الرمز المكون من 6 أرقام الواصل لجوالك" });
     return confirmationResult;
   } catch (error: any) {
     let title = "خطأ في الإرسال";
     let message = "تعذر إرسال الرمز حالياً.";
+
+    console.error("Firebase Auth Error:", error.code, error.message);
 
     // معالجة الأخطاء التقنية بدقة بناءً على رموز Firebase
     switch (error.code) {
@@ -55,7 +65,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
         message = "تم إرسال الكثير من الطلبات لهذا الرقم. يرجى المحاولة بعد ساعة.";
         break;
       case 'auth/invalid-phone-number':
-        message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية (مثلاً +966...).";
+        message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية الصحيحة بدون أصفار زائدة.";
         break;
       case 'auth/operation-not-allowed':
         title = "تنبيه للمطور";
@@ -63,13 +73,17 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
         break;
       case 'auth/unauthorized-domain':
         title = "نطاق غير مصرح به";
-        message = "يجب إضافة رابط هذا الموقع إلى 'Authorized Domains' في إعدادات Authentication في Firebase.";
+        const currentDomain = window.location.hostname;
+        message = `يجب إضافة النطاق الحالي (${currentDomain}) إلى Authorized Domains في إعدادات Firebase كما في الصورة التي أرسلتها.`;
         break;
       case 'auth/captcha-check-failed':
         message = "فشل التحقق من الأمن (reCAPTCHA). يرجى تحديث الصفحة.";
         break;
+      case 'auth/network-request-failed':
+        message = "خطأ في الاتصال بالإنترنت، يرجى التأكد من اتصالك.";
+        break;
       default:
-        message = `خطأ تقني: ${error.message}`;
+        message = `خطأ تقني (${error.code}): يرجى التأكد من إضافة النطاق الصحيح في Firebase Console.`;
     }
     
     toast({ variant: "destructive", title, description: message });

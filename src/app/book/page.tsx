@@ -105,16 +105,16 @@ function BookTripContent() {
   const handleSendOtp = async () => {
     if (!phone || isSendingCode) return;
     
-    // تنظيف الرقم بشكل متقدم
+    // تنظيف الرقم من أي شيء غير الأرقام
     let digitsOnly = phone.replace(/\D/g, '');
     
-    // إزالة كود الدولة إذا كتبه المستخدم يدوياً في الحقل
+    // إزالة كود الدولة المختار يدوياً إذا كتبه المستخدم في الحقل لمنع التكرار
     const currentCodeDigits = countryCode.replace(/\D/g, '');
     if (digitsOnly.startsWith(currentCodeDigits)) {
       digitsOnly = digitsOnly.substring(currentCodeDigits.length);
     }
     
-    // إزالة الأصفار في البداية (050 تصبح 50)
+    // إزالة كافة الأصفار في البداية (00966 تصبح 966، و 050 تصبح 50)
     digitsOnly = digitsOnly.replace(/^0+/, '');
     
     if (digitsOnly.length < 7) {
@@ -183,7 +183,8 @@ function BookTripContent() {
         </h1>
       </header>
 
-      <div id="recaptcha-container" className="fixed bottom-0 left-0"></div>
+      {/* حاوية الـ Recaptcha - يجب أن تكون مرئية لـ Firebase ولكن مخفية عن المستخدم */}
+      <div id="recaptcha-container" className="fixed bottom-0 left-0 z-0"></div>
 
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">
