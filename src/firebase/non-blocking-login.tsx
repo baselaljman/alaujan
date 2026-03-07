@@ -22,14 +22,12 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // تصفية الحاوية من أي محاولات سابقة لمنع الخطأ -39 وتضارب الجلسات
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = '';
   }
 
   try {
-    // إنشاء موثق جديد في كل مرة لضمان عدم حدوث خطأ "Already Rendered"
     return new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
       'callback': () => {
@@ -45,8 +43,6 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    
-    // المحاولة الحقيقية للإرسال عبر بوابة Firebase
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
     
     toast({ 
@@ -57,22 +53,21 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     return result;
   } catch (error: any) {
     let title = "فشل في الإرسال";
-    let message = "تعذر إرسال الرسالة حالياً.";
+    let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
-    // معالجة الأخطاء الشائعة أثناء التجربة
+    const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة في وقت قصير. يرجى الانتظار لمدة ساعة أو تجربة رقم هاتف آخر تماماً.";
-    } else if (error.code?.includes('-39') || error.message?.includes('-39')) {
-      title = "خطأ في تصريح النطاق";
-      message = "تأكد من إضافة رابط المعاينة الحالي بالكامل إلى Authorized Domains في إعدادات Firebase.";
+      message = "لقد قمت بمحاولات كثيرة. يرجى الانتظار لمدة ساعة أو إضافة هذا الرقم كـ 'رقم اختبار' في Firebase Console.";
+    } else if (error.code === 'auth/unauthorized-domain' || error.code?.includes('-39') || error.message?.includes('-39')) {
+      title = "نطاق غير مسجل";
+      message = `يجب إضافة النطاق التالي في Authorized Domains بـ Firebase: ${currentHostname}`;
+    } else if (error.code === 'auth/operation-not-allowed') {
+      title = "الخدمة غير مفعلة";
+      message = "يرجى تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase.";
     } else if (error.code === 'auth/invalid-phone-number') {
       message = "صيغة الرقم غير صحيحة. يرجى التأكد من إدخال الرقم بشكل سليم.";
-    } else if (error.code === 'auth/unauthorized-domain') {
-      title = "نطاق غير مسجل";
-      message = "يجب تسجيل هذا الرابط في قائمة النطاقات المسموح بها في Firebase Console.";
-    } else {
-      message = error.message || "حدث خطأ غير متوقع، يرجى المحاولة لاحقاً.";
     }
     
     toast({ variant: "destructive", title, description: message });
