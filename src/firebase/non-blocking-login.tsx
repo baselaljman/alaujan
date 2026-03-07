@@ -58,7 +58,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     } else {
       switch (error.code) {
         case 'auth/too-many-requests':
-          message = "تم إرسال الكثير من الطلبات. يرجى المحاولة بعد ساعة.";
+          message = "تم إرسال الكثير من الطلبات لهذا الرقم. يرجى إضافة رقمك كـ 'رقم اختبار' في Firebase Console لتجاوز هذا القيد أثناء التطوير.";
           break;
         case 'auth/invalid-phone-number':
           message = "رقم الهاتف غير صحيح. تأكد من الصيغة الدولية.";
@@ -66,6 +66,10 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
         case 'auth/unauthorized-domain':
           title = "نطاق غير مصرح به";
           message = "يرجى إضافة النطاق الحالي إلى قائمة Authorized Domains في Firebase.";
+          break;
+        case 'auth/operation-not-allowed':
+          title = "إعدادات Firebase ناقصة";
+          message = "يجب تفعيل 'Phone Authentication' من تبويب Sign-in method في Firebase.";
           break;
         default:
           message = error.message || "حدث خطأ تقني، يرجى المحاولة لاحقاً.";
