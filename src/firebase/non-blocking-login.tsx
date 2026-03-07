@@ -28,7 +28,7 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // تنظيف أي محاولة سابقة بشكل قطعي
+  // تنظيف أي محاولة سابقة بشكل قطعي لمنع الخطأ -39
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -36,6 +36,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     } catch (e) {}
   }
 
+  // تفريغ الحاوية في الـ DOM لضمان عدم وجود بقايا محركات سابقة
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = '';
@@ -82,10 +83,10 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
 
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو استخدام رقم مختلف للاختبار.";
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو استخدام رقم اختبار بكود ثابت.";
     } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.message?.includes('-39')) {
       title = "مشكلة في تصريح النطاق";
-      message = `يجب أن تتأكد من إضافة هذا النطاق بدقة في Firebase:\n\n${cleanOrigin}\n\nتأكد من عدم وجود مسافات زائدة.`;
+      message = `يجب أن تتأكد من إضافة هذا النطاق بدقة في Firebase Console تحت (Authorized Domains):\n\n${cleanOrigin}`;
     } else if (error.code === 'auth/invalid-phone-number') {
       message = "صيغة الرقم غير صحيحة. يرجى التأكد من إدخال الرقم بشكل سليم.";
     }

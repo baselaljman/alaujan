@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, Suspense, useRef } from "react";
+import { useState, useMemo, Suspense, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Sen
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { ConfirmationResult, RecaptchaVerifier } from "firebase/auth";
+import { ConfirmationResult } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 
 interface PassengerDetail {
@@ -114,7 +114,7 @@ function BookTripContent() {
       digitsOnly = digitsOnly.substring(currentCodeDigits.length);
     }
     
-    // إزالة كافة الأصفار في البداية (00966 تصبح 966، و 050 تصبح 50)
+    // إزالة كافة الأصفار في البداية
     digitsOnly = digitsOnly.replace(/^0+/, '');
     
     if (digitsOnly.length < 7) {
@@ -126,7 +126,7 @@ function BookTripContent() {
     
     setIsSendingCode(true);
     try {
-      // إعداد محرك التحقق في كل محاولة لضمان النظافة
+      // تهيئة المحرك في كل محاولة لضمان النظافة ومنع الخطأ -39
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
       const result = await sendOtpToPhone(auth, fullPhoneNumber, verifier);
       setConfirmationResult(result);
