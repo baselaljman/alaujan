@@ -16,9 +16,9 @@ import { toast } from '@/hooks/use-toast';
 
 /** 
  * تخزين موثق Recaptcha بشكل عالمي للسماح بتنظيفه 
- * وتجنب الخطأ -39 (تكرار التحميل)
+ * وتجنب الخطأ -39 والخطأ placeholder must be empty
  */
-let globalRecaptchaVerifier: RecaptchaVerifier | null = null;
+let globalRecaptchaVerifier: any = null;
 
 /** Initiate anonymous sign-in (non-blocking). */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
@@ -29,30 +29,33 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً لمنع الخطأ -39 بشكل قطعي
+  // 1. تنظيف أي محاولة سابقة برمجياً
   if (globalRecaptchaVerifier) {
     try {
-      globalRecaptchaVerifier.clear();
+      if (typeof globalRecaptchaVerifier.clear === 'function') {
+        globalRecaptchaVerifier.clear();
+      }
       globalRecaptchaVerifier = null;
-    } catch (e) {}
-  }
-
-  // 2. تفريغ الحاوية في الـ DOM تماماً لضمان عدم وجود بقايا محركات قديمة
-  if (typeof document !== 'undefined') {
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = '';
-      // إضافة عنصر جديد لضمان نظافة الحاوية
-      const newDiv = document.createElement('div');
-      newDiv.id = 'recaptcha-widget-container';
-      container.appendChild(newDiv);
+    } catch (e) {
+      console.warn("Error clearing recaptcha:", e);
     }
   }
 
-  // 3. إنشاء المحرك الجديد
+  // 2. تفريغ الحاوية في الـ DOM تماماً لضمان أنها فارغة 100%
+  // هذا يحل خطأ "reCAPTCHA placeholder element must be empty"
+  if (typeof document !== 'undefined') {
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.innerHTML = ''; 
+    }
+  }
+
+  // 3. إنشاء المحرك الجديد بحجم "invisible" لتقليل ظهور الصور
   globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
     size: 'invisible',
-    'callback': () => {},
+    'callback': () => {
+      // reCAPTCHA solved
+    },
     'expired-callback': () => {
       toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
     }
@@ -66,7 +69,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
-    // إجبار المحرك على التحميل الأولي لتجنب خطأ التوقيت والتأكد من الصلاحية
+    // التأكد من أن المحرك جاهز
     await appVerifier.render();
     
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
@@ -78,19 +81,19 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     
     return result;
   } catch (error: any) {
-    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-    const cleanOrigin = currentOrigin.replace('https://', '').replace('http://', '');
-    
     let title = "فشل في الإرسال";
     let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
-    // تحليل الأخطاء بدقة لمساعدة المطور
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار 30 دقيقة أو إضافة رقمك كـ 'رقم اختبار' في لوحة التحكم.";
-    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized') || error.code === 'auth/error-code:-39') {
-      title = "مشكلة في تصريح النطاق";
-      message = `يجب إضافة الرابط التالي في Firebase Console (Authorized Domains):\n\n${currentOrigin}\n\nتأكد من نسخه بالكامل بدون مسافات.`;
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار أو استخدام رقم اختبار.";
+    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized')) {
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'this domain';
+      title = "نطاق غير مصرح به";
+      message = `يجب إضافة الرابط التالي في Firebase Console:\n${currentOrigin}`;
+    } else if (error.message?.includes('placeholder')) {
+      title = "خطأ في تحميل المحرك";
+      message = "يرجى تحديث الصفحة والمحاولة مرة أخرى.";
     }
     
     toast({ variant: "destructive", title, description: message });
