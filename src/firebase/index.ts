@@ -6,22 +6,15 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
-// تم تحسين هذه الدالة لتعمل بسلاسة أثناء البناء (Build) ولتجنب أخطاء الإعدادات الناقصة
+/**
+ * تهيئة خدمات Firebase بطريقة متوافقة مع التصدير الثابت وبناء Next.js.
+ * تمنع هذه الطريقة محاولة الاكتشاف التلقائي للإعدادات التي تسبب أخطاء أثناء البناء.
+ */
 export function initializeFirebase() {
-  if (!getApps().length) {
-    let firebaseApp;
-    try {
-      // في بيئة التطوير المحلية والبناء الثابت، نستخدم ملف الإعدادات مباشرة
-      firebaseApp = initializeApp(firebaseConfig);
-    } catch (e) {
-      console.error('Firebase initialization error:', e);
-      // محاولة أخيرة للتهيئة الافتراضية إذا فشل ما سبق
-      firebaseApp = initializeApp();
-    }
-    return getSdks(firebaseApp);
-  }
-
-  return getSdks(getApp());
+  const apps = getApps();
+  const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
+  
+  return getSdks(app);
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
