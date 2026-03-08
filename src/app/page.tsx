@@ -110,8 +110,8 @@ export default function HomePage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex items-center justify-between mb-2">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-primary font-headline tracking-tight">العوجان للسياحة والسفر</h1>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
+          <h1 className="text-2xl font-bold text-primary font-headline tracking-tight text-right">العوجان للسياحة والسفر</h1>
+          <div className="flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
             <Globe className="h-2.5 w-2.5" /> alaujantravel.com
           </div>
         </div>
@@ -120,7 +120,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="relative h-48 w-full rounded-2xl overflow-hidden shadow-lg border border-primary/10">
+      <div className="relative h-56 w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-primary/5">
         {heroImage && (
           <Image
             src={heroImage.imageUrl}
@@ -128,54 +128,54 @@ export default function HomePage() {
             fill
             className="object-cover"
             priority
-            data-ai-hint="travel bus"
+            data-ai-hint="luxury bus"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
-          <Badge className="w-fit mb-2 bg-accent/90 text-white border-none text-[10px] font-bold">بوابتك للسفر الدولي</Badge>
-          <p className="text-white font-bold text-xl shadow-sm">رحلات آمنة ومريحة عبر الحدود</p>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent flex flex-col justify-end p-8">
+          <Badge className="w-fit mb-3 bg-accent/90 text-white border-none text-[10px] font-bold px-4">أهلاً بك في العوجان</Badge>
+          <p className="text-white font-black text-2xl shadow-sm leading-tight text-right">سفريات دولية آمنة ومريحة</p>
         </div>
       </div>
 
-      <Card className="shadow-2xl border-none ring-1 ring-primary/10 bg-white/70 backdrop-blur-md">
-        <CardHeader>
-          <CardTitle className="text-xl font-headline flex items-center gap-2 text-primary">
-            <Search className="h-5 w-5" />
+      <Card className="shadow-2xl border-none ring-1 ring-primary/10 bg-white/70 backdrop-blur-md rounded-[2.5rem]">
+        <CardHeader className="text-right">
+          <CardTitle className="text-xl font-headline flex items-center justify-end gap-2 text-primary">
             ابحث عن رحلتك
+            <Search className="h-5 w-5" />
           </CardTitle>
-          <CardTitle className="text-sm font-normal text-muted-foreground">حدد وجهتك الدولية وتاريخ السفر</CardTitle>
+          <CardDescription className="text-xs">حدد وجهتك الدولية وتاريخ السفر</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2 text-right">
-                <Label htmlFor="from" className="text-sm font-semibold pr-1">من مدينة الانطلاق</Label>
+                <Label htmlFor="from" className="text-sm font-bold pr-1">من مدينة الانطلاق</Label>
                 <Select onValueChange={setFrom} value={from} disabled={isLocationsLoading}>
-                  <SelectTrigger id="from" className="bg-background border-primary/10 h-14 rounded-xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
+                  <SelectTrigger id="from" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
                     <SelectValue placeholder={isLocationsLoading ? "جاري التحميل..." : "اختر مدينة الانطلاق"} />
                   </SelectTrigger>
                   <SelectContent>
                     {groupedLocations.saudi.length > 0 && (
                       <SelectGroup>
-                        <SelectLabel>المملكة العربية السعودية</SelectLabel>
+                        <SelectLabel className="text-right">المملكة العربية السعودية</SelectLabel>
                         {groupedLocations.saudi.map((city: any) => (
-                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                          <SelectItem key={city.id} value={city.name} className="text-right justify-end">{city.name}</SelectItem>
                         ))}
                       </SelectGroup>
                     )}
                     {groupedLocations.syria.length > 0 && (
                       <SelectGroup>
-                        <SelectLabel>الجمهورية العربية السورية</SelectLabel>
+                        <SelectLabel className="text-right">الجمهورية العربية السورية</SelectLabel>
                         {groupedLocations.syria.map((city: any) => (
-                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                          <SelectItem key={city.id} value={city.name} className="text-right justify-end">{city.name}</SelectItem>
                         ))}
                       </SelectGroup>
                     )}
                     {groupedLocations.others.length > 0 && (
                       <SelectGroup>
-                        <SelectLabel>وجهات أخرى</SelectLabel>
+                        <SelectLabel className="text-right">وجهات أخرى</SelectLabel>
                         {groupedLocations.others.map((city: any) => (
-                          <SelectItem key={city.id} value={city.name}>{city.name}</SelectItem>
+                          <SelectItem key={city.id} value={city.name} className="text-right justify-end">{city.name}</SelectItem>
                         ))}
                       </SelectGroup>
                     )}
@@ -184,14 +184,14 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-2 text-right">
-                <Label htmlFor="to" className="text-sm font-semibold pr-1">إلى الوجهة</Label>
+                <Label htmlFor="to" className="text-sm font-bold pr-1">إلى الوجهة</Label>
                 <Select onValueChange={setTo} value={to} disabled={!from || isLocationsLoading}>
-                  <SelectTrigger id="to" className="bg-background border-primary/10 h-14 rounded-xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
+                  <SelectTrigger id="to" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
                     <SelectValue placeholder={from ? "اختر مدينة الوصول" : "اختر مدينة الانطلاق أولاً"} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableDestinations.map((city: any) => (
-                      <SelectItem key={city.id} value={city.name}>{city.name} - {city.country}</SelectItem>
+                      <SelectItem key={city.id} value={city.name} className="text-right justify-end">{city.name} - {city.country}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -199,19 +199,19 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2 text-right">
-              <Label className="text-sm font-semibold pr-1">تاريخ السفر</Label>
+              <Label className="text-sm font-bold pr-1">تاريخ السفر</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-right font-normal bg-background border-primary/10 h-14 rounded-xl shadow-sm transition-all hover:border-primary/30 hover:bg-white",
+                      "w-full justify-end text-right font-normal bg-background border-primary/10 h-14 rounded-2xl shadow-sm transition-all hover:border-primary/30 hover:bg-white",
                       !date && "text-muted-foreground"
                     )}
                     disabled={!from || !to}
                   >
-                    <CalendarIcon className="ml-3 h-5 w-5 text-primary opacity-70" />
-                    {date ? format(date, "PPP", { locale: ar }) : <span>{(!from || !to) ? "اختر المسار أولاً لعرض التواريخ" : "اختر تاريخاً تتوفر فيه رحلات"}</span>}
+                    {date ? format(date, "PPP", { locale: ar }) : <span>{(!from || !to) ? "اختر المسار أولاً" : "اختر تاريخاً"}</span>}
+                    <CalendarIcon className="mr-3 h-5 w-5 text-primary opacity-70" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-2xl border-primary/10 shadow-2xl" align="center" sideOffset={10}>
@@ -246,16 +246,11 @@ export default function HomePage() {
                   />
                 </PopoverContent>
               </Popover>
-              {from && to && availableTripDates.size === 0 && !isTripsLoading && (
-                <p className="text-[10px] text-red-500 font-bold flex items-center gap-1 mt-1 pr-1">
-                  <Info className="h-3 w-3" /> لا توجد رحلات مجدولة حالياً لهذا المسار
-                </p>
-              )}
             </div>
 
             <Button 
               type="submit" 
-              className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/95 transition-all shadow-xl hover:scale-[1.01] active:scale-[0.98] rounded-xl" 
+              className="w-full h-16 text-lg font-black bg-primary hover:bg-primary/95 transition-all shadow-xl hover:scale-[1.01] active:scale-[0.98] rounded-2xl" 
               disabled={!from || !to || !date || isLocationsLoading}
             >
               {isLocationsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "بحث عن الرحلات المتاحة"}
@@ -265,7 +260,7 @@ export default function HomePage() {
       </Card>
 
       <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="h-auto flex-col py-8 gap-3 border-primary/10 hover:border-primary/40 bg-white/70 shadow-sm transition-all hover:bg-white rounded-2xl" asChild>
+        <Button variant="outline" className="h-auto flex-col py-8 gap-3 border-primary/10 hover:border-primary/40 bg-white shadow-sm transition-all hover:bg-white rounded-[2rem]" asChild>
           <Link href="/track">
             <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/5">
               <MapPin className="h-6 w-6 text-primary" />
@@ -273,7 +268,7 @@ export default function HomePage() {
             <span className="font-bold">تتبع الرحلة</span>
           </Link>
         </Button>
-        <Button variant="outline" className="h-auto flex-col py-8 gap-3 border-primary/10 hover:border-primary/40 bg-white/70 shadow-sm transition-all hover:bg-white rounded-2xl" asChild>
+        <Button variant="outline" className="h-auto flex-col py-8 gap-3 border-primary/10 hover:border-primary/40 bg-white shadow-sm transition-all hover:bg-white rounded-[2rem]" asChild>
           <Link href="/parcels">
             <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/5">
               <Package className="h-6 w-6 text-primary" />
