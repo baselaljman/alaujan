@@ -2,7 +2,8 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  // تم إزالة output: 'export' لأنها لا تدعم Server Actions المطلوبة للذكاء الاصطناعي
+  // تفعيل التصدير الثابت لضمان التوافق مع تطبيقات الجوال (Capacitor)
+  output: 'export',
   images: {
     unoptimized: true,
     remotePatterns: [
