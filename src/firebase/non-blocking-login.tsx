@@ -29,7 +29,7 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً
+  // 1. تنظيف أي محاولة سابقة برمجياً وجسدياً في الـ DOM
   if (globalRecaptchaVerifier) {
     try {
       if (typeof globalRecaptchaVerifier.clear === 'function') {
@@ -37,29 +37,38 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
       }
       globalRecaptchaVerifier = null;
     } catch (e) {
-      console.warn("Error clearing recaptcha:", e);
+      console.warn("Error clearing recaptcha instance:", e);
     }
   }
 
   // 2. تفريغ الحاوية في الـ DOM تماماً لضمان أنها فارغة 100%
-  // هذا يحل خطأ "reCAPTCHA placeholder element must be empty"
+  // هذا هو الحل الجذري لخطأ "reCAPTCHA placeholder element must be empty"
   if (typeof document !== 'undefined') {
     const container = document.getElementById(containerId);
     if (container) {
+      // حذف كافة العناصر الأبناء برمجياً لضمان الفراغ المطلق
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
       container.innerHTML = ''; 
     }
   }
 
   // 3. إنشاء المحرك الجديد بحجم "invisible" لتقليل ظهور الصور
-  globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
-    size: 'invisible',
-    'callback': () => {
-      // reCAPTCHA solved
-    },
-    'expired-callback': () => {
-      toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
-    }
-  });
+  try {
+    globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
+      size: 'invisible',
+      'callback': () => {
+        // reCAPTCHA solved
+      },
+      'expired-callback': () => {
+        toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
+      }
+    });
+  } catch (error: any) {
+    console.error("Failed to construct RecaptchaVerifier:", error);
+    throw error;
+  }
   
   return globalRecaptchaVerifier;
 }
@@ -69,7 +78,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
-    // التأكد من أن المحرك جاهز
+    // التأكد من أن المحرك جاهز ومنظف
     await appVerifier.render();
     
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
@@ -84,16 +93,20 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     let title = "فشل في الإرسال";
     let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
+    // معالجة الأخطاء الشائعة لتوجيه المستخدم
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار أو استخدام رقم اختبار.";
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار ساعة أو إضافة رقمك كـ 'رقم اختبار' في Firebase Console.";
     } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized')) {
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'this domain';
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'هذا النطاق';
       title = "نطاق غير مصرح به";
-      message = `يجب إضافة الرابط التالي في Firebase Console:\n${currentOrigin}`;
+      message = `يجب إضافة الرابط التالي في Firebase Console (Authorized Domains):\n${currentOrigin}`;
     } else if (error.message?.includes('placeholder')) {
-      title = "خطأ في تحميل المحرك";
-      message = "يرجى تحديث الصفحة والمحاولة مرة أخرى.";
+      title = "خطأ في تهيئة الحماية";
+      message = "حدث تعارض في تحميل أداة التحقق. يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى.";
+    } else if (error.code === 'auth/invalid-phone-number') {
+      title = "رقم هاتف غير صحيح";
+      message = "يرجى التأكد من كتابة الرقم بشكل صحيح مع مفتاح الدولة.";
     }
     
     toast({ variant: "destructive", title, description: message });
