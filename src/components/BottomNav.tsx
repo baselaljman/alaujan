@@ -1,15 +1,15 @@
+
 "use client"
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, MapPin, Package, MessageSquare, User } from "lucide-react";
+import { Search, MapPin, Package, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "حجز", href: "/", icon: Search },
   { label: "تتبع", href: "/track", icon: MapPin },
   { label: "طرود", href: "/parcels", icon: Package },
-  { label: "المساعد الآلي", href: "/assistant", icon: MessageSquare },
   { label: "حسابي", href: "/profile", icon: User },
 ];
 

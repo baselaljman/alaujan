@@ -1,4 +1,3 @@
-import { config } from 'dotenv';
-config();
 
-import '@/ai/flows/ai-trip-faq-assistant-flow.ts';
+// تم تعطيل ملفات الذكاء الاصطناعي بناءً على طلب العميل
+export {};
