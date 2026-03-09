@@ -1,3 +1,4 @@
+
 # العوجان للسياحة والسفر | Al-Awajan Travel
 
 تطبيق متطور لحجز الرحلات الدولية والطرود، مصمم ليعمل كـ Web App و Mobile App (Android/iOS) بهوية بصرية فاخرة.
@@ -7,39 +8,34 @@
 - **مكتبة الواجهة (UI Library)**: React 19.
 - **التصميم (Styling)**: Tailwind CSS مع مكونات Shadcn UI.
 - **قواعد البيانات (Backend)**: Firebase (Firestore & Authentication).
-- **الجوال (Mobile)**: Capacitor JS (لتحويل كود الويب إلى تطبيقات أصيلة Android/iOS).
+- **الجوال (Mobile)**: Capacitor JS.
 
 ## 🎨 الهوية البصرية
 - **الألوان**: أخضر زمردي ملكي (Primary) وذهبي كلاسيكي (Accent).
-- **الخطوط**: Noto Sans Arabic (للعربية) و Inter (للأرقام والإنجليزية).
-- **التصميم**: يدعم RTL بالكامل، تصميم Mobile-first، حواف مستديرة (2xl).
+- **الخطوط**: Noto Sans Arabic.
+- **التصميم**: يدعم RTL بالكامل، تصميم Mobile-first.
 
-## 🚀 تعليمات التشغيل والبناء
-1. **بيئة التطوير**: `npm run dev` للتشغيل على المتصفح (Port 9002).
-2. **بناء وتصدير ملفات الجوال**:
-   - يجب أولاً تشغيل `npm run build` لإنتاج مجلد `out`.
-   - لمزامنة التغييرات مع الأندرويد: `npx cap sync`.
-   - لفتح المشروع في Android Studio: `npx cap open android`.
+## 🚀 خطوات تجهيز وبناء الأندرويد
+لضمان عمل التطبيق كـ APK بنجاح، اتبع الخطوات التالية بالترتيب:
 
-## 📱 إعدادات الأندرويد (Android Configuration)
-لضمان عمل الميزات المتقدمة على الجوال، يجب اتباع الخطوات التالية في **Android Studio**:
+1. **البناء والتصدير**:
+   - شغّل `npm run build`. سينتج مجلد `out`.
+2. **إضافة منصة الأندرويد**:
+   - شغّل `npx cap add android`.
+3. **تجهيز خدمات Firebase (مهم جداً)**:
+   - قم بنسخ ملف `google-services.json` من جذر المشروع وضعه في المسار التالي:
+     `android/app/google-services.json`.
+4. **تفعيل تصاريح الموقع الجغرافي**:
+   - افتح ملف `android/app/src/main/AndroidManifest.xml` وأضف الأسطر التالية داخل وسم `<manifest>`:
+     ```xml
+     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+     <uses-feature android:name="android.hardware.location.gps" />
+     ```
+5. **المزامنة والتشغيل**:
+   - شغّل `npx cap sync`.
+   - شغّل `npx cap open android` لفتح المشروع في Android Studio والبناء النهائي.
 
-### 1. الإشعارات (Firebase Cloud Messaging)
-- يجب وضع ملف `google-services.json` في المسار التالي: `android/app/google-services.json`.
-- هذا الملف ضروري جداً لاستقبال الإشعارات وتفعيل خدمات Firebase على الأندرويد.
-
-### 2. الموقع الجغرافي (Geolocation)
-- لتفعيل تتبع الحافلة، يجب إضافة التصاريح التالية في ملف `android/app/src/main/AndroidManifest.xml`:
-  ```xml
-  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-  <uses-feature android:name="android.hardware.location.gps" />
-  ```
-
-## 📌 ملاحظات هامة
-- التطبيق يستخدم **Static Export** لضمان أعلى توافقية مع تطبيقات الجوال.
-- تم تعطيل ميزات Server Actions لضمان عمل التطبيق بدون الحاجة لسيرفر Node.js نشط (Serverless).
-- التحقق من رقم الهاتف يتطلب إضافة النطاق (Domain) في Firebase Console تحت Authorized Domains.
-
----
-تم إعداد هذا الملف ليكون مرجعاً تقنياً لمشروع العوجان للسياحة والسفر.
+## 📌 ملاحظات تقنية
+- تم تعطيل Server Actions واستخدام Firebase Client SDK لضمان التوافق مع التصدير الثابت.
+- يجب إضافة رابط الـ Origin الخاص بالتطبيق في Firebase Console تحت "Authorized Domains" ليعمل التحقق من الهاتف.

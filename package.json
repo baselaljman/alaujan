@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "static": "next build",
     "export": "next build",
-    "cap:sync": "next build && npx cap sync",
+    "cap:sync": "npm run build && npx cap sync",
     "cap:add-android": "npm run build && npx cap add android",
     "cap:open-android": "npx cap open android"
   },
