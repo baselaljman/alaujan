@@ -67,3 +67,4 @@ npx cap open android
 - تم ضبط `next.config.ts` ليعمل بنظام `output: 'export'` لضمان التوافق مع تطبيقات الجوال.
 - تم ضبط `capacitor.config.ts` ليوجه مسار الويب إلى مجلد `out`.
 - في حال قمت بأي تعديل على الكود البرمجي، يجب عليك دائماً تشغيل `npm run build` ثم `npx cap sync` لتظهر التعديلات في التطبيق.
+# alaujan
