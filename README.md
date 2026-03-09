@@ -21,6 +21,21 @@
    - لمزامنة التغييرات مع الأندرويد: `npx cap sync`.
    - لفتح المشروع في Android Studio: `npx cap open android`.
 
+## 📱 إعدادات الأندرويد (Android Configuration)
+لضمان عمل الميزات المتقدمة على الجوال، يجب اتباع الخطوات التالية في **Android Studio**:
+
+### 1. الإشعارات (Firebase Cloud Messaging)
+- يجب وضع ملف `google-services.json` في المسار التالي: `android/app/google-services.json`.
+- هذا الملف ضروري جداً لاستقبال الإشعارات وتفعيل خدمات Firebase على الأندرويد.
+
+### 2. الموقع الجغرافي (Geolocation)
+- لتفعيل تتبع الحافلة، يجب إضافة التصاريح التالية في ملف `android/app/src/main/AndroidManifest.xml`:
+  ```xml
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-feature android:name="android.hardware.location.gps" />
+  ```
+
 ## 📌 ملاحظات هامة
 - التطبيق يستخدم **Static Export** لضمان أعلى توافقية مع تطبيقات الجوال.
 - تم تعطيل ميزات Server Actions لضمان عمل التطبيق بدون الحاجة لسيرفر Node.js نشط (Serverless).

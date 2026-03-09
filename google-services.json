@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "405308956959",
+    "firebase_url": "https://studio-4172277375-12167-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "studio-4172277375-12167",
+    "storage_bucket": "studio-4172277375-12167.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:405308956959:android:8965e8f1581d8992a3502a",
+        "android_client_info": {
+          "package_name": "com.alaujan.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDAzbgcCgmarJZ8jYysbv-GTIeyZ4LLKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
