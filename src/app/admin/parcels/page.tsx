@@ -284,7 +284,7 @@ export default function AdminParcelEntry() {
                       <SelectContent>
                         {filteredTrips.map(t => (
                           <SelectItem key={t.id} value={t.id}>
-                            {t.originName} ⮕ {t.destinationName} ({t.busLabel})
+                            {t.originName} ⬅ {t.destinationName} ({t.busLabel})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -332,12 +332,12 @@ export default function AdminParcelEntry() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-                        <Bus className="h-5 w-5 text-white" />
+                        <BusIcon className="h-5 w-5 text-white" />
                       </div>
                       <div className="text-right">
                         <CardTitle className="text-sm font-bold">{trip.busLabel}</CardTitle>
                         <CardDescription className="text-[10px] flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {trip.originName} ⮕ {trip.destinationName}
+                          <MapPin className="h-3 w-3" /> {trip.originName} ⬅ {trip.destinationName}
                         </CardDescription>
                       </div>
                     </div>
@@ -401,7 +401,7 @@ export default function AdminParcelEntry() {
 }
 
 // أيقونات إضافية غير موجودة في lucide-react (محاكاة)
-function Bus({ className }: { className?: string }) {
+function BusIcon({ className }: { className?: string }) {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 

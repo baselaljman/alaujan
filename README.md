@@ -69,3 +69,4 @@ npx cap open android
 - في حال قمت بأي تعديل على الكود البرمجي، يجب عليك دائماً تشغيل `npm run build` ثم `npx cap sync` لتظهر التعديلات في التطبيق.
 # alaujan
 # alaujan
+# alaujan

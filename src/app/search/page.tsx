@@ -79,9 +79,9 @@ function SearchContent() {
                         <p className="text-xs text-muted-foreground">{from}</p>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-2">
-                        <div className="w-full h-[2px] bg-gradient-to-r from-primary to-primary/10 relative">
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
-                          <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-primary bg-background" />
+                        <div className="w-full h-[2px] bg-gradient-to-l from-primary to-primary/10 relative">
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-primary bg-background" />
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">حوالي 18 ساعة</p>
                       </div>
@@ -114,7 +114,6 @@ function SearchContent() {
                     </div>
                   </div>
                   <Button asChild className="bg-primary hover:bg-primary/95 rounded-full px-8 shadow-lg group-hover:scale-105 transition-transform">
-                    {/* استخدام Query Params لضمان التوافق مع التصدير الثابت */}
                     <Link href={`/book?id=${trip.id}`}>احجز مقعدك</Link>
                   </Button>
                 </div>

@@ -171,7 +171,7 @@ export default function AdminTrips() {
               <strong>الحافلة:</strong> ${viewingTrip.busLabel}
             </div>
             <div>
-              <strong>المسار:</strong> ${viewingTrip.originName} ⮕ ${viewingTrip.destinationName}<br>
+              <strong>المسار:</strong> ${viewingTrip.originName} ⬅ ${viewingTrip.destinationName}<br>
               <strong>التاريخ:</strong> ${new Date(viewingTrip.departureTime).toLocaleDateString('ar-EG')}
             </div>
           </div>
@@ -397,7 +397,7 @@ export default function AdminTrips() {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-base">{trip.originName} ⮕ {trip.destinationName}</p>
+                      <p className="font-bold text-base">{trip.originName} ⬅ {trip.destinationName}</p>
                       <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{trip.id}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats}</p>
@@ -419,7 +419,7 @@ export default function AdminTrips() {
                          <div className="bg-primary p-6 text-white text-right flex justify-between items-center">
                             <div>
                                <DialogTitle className="text-xl font-bold">بيان الركاب (المانيفست) - {trip.id}</DialogTitle>
-                               <p className="text-xs opacity-70 mt-1">{trip.originName} ⮕ {trip.destinationName}</p>
+                               <p className="text-xs opacity-70 mt-1">{trip.originName} ⬅ {trip.destinationName}</p>
                             </div>
                             <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary gap-2" onClick={handlePrintManifest}>
                                <Printer className="h-4 w-4" /> طباعة البيان الشامل
