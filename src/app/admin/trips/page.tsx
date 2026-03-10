@@ -27,7 +27,8 @@ import {
   RotateCcw,
   Copy,
   FileText,
-  ArrowLeft
+  ArrowLeft,
+  Banknote
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
@@ -44,7 +45,7 @@ export default function AdminTrips() {
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
-  const [pricePerSeat, setPricePerSeat] = useState(350);
+  const [pricePerSeat, setPricePerSeat] = useState<string>("350");
   const [departureDate, setDepartureDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
 
@@ -82,8 +83,8 @@ export default function AdminTrips() {
 
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!busId || !departureDate || !originId || !destinationId) {
-      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى إكمال جميع الحقول المطلوبة" });
+    if (!busId || !departureDate || !originId || !destinationId || !pricePerSeat) {
+      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى إكمال جميع الحقول المطلوبة بما في ذلك السعر" });
       return;
     }
 
@@ -125,7 +126,7 @@ export default function AdminTrips() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: "تمت إضافة الرحلة", description: `تم إصدار كود الرحلة الجديد: ${nextId}` });
+    toast({ title: "تمت إضافة الرحلة", description: `تم إصدار كود الرحلة الجديد: ${nextId} بسعر ${pricePerSeat} ريال` });
     setIsAdding(false);
   };
 
@@ -325,7 +326,6 @@ export default function AdminTrips() {
         <Card className="p-6 border-primary/20 shadow-lg animate-in slide-in-from-top-4 duration-300">
           <form onSubmit={handleAddTrip} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              {/* تبديل الترتيب ليظهر الانطلاق على اليمين */}
               <div className="space-y-2 text-right">
                 <Label>مدينة الانطلاق</Label>
                 <Select onValueChange={setOriginId}>
@@ -346,14 +346,28 @@ export default function AdminTrips() {
               </div>
             </div>
             
-            <div className="space-y-2 text-right">
-              <Label>الحافلة المخصصة</Label>
-              <Select onValueChange={setBusId}>
-                <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="اختر حافلة" /></SelectTrigger>
-                <SelectContent>
-                  {buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 text-right">
+                <Label>الحافلة المخصصة</Label>
+                <Select onValueChange={setBusId}>
+                  <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="اختر حافلة" /></SelectTrigger>
+                  <SelectContent>
+                    {buses?.map(bus => <SelectItem key={bus.id} value={bus.id}>{bus.licensePlate} - {bus.model}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 text-right">
+                <Label className="flex items-center gap-1 justify-end">
+                  سعر التذكرة (ريال) <Banknote className="h-3 w-3 text-primary" />
+                </Label>
+                <Input 
+                  type="number" 
+                  value={pricePerSeat} 
+                  onChange={e => setPricePerSeat(e.target.value)} 
+                  className="h-11 rounded-xl"
+                  placeholder="350"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -399,11 +413,10 @@ export default function AdminTrips() {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-2">
-                      {/* عرض المسار من اليمين لليسار */}
                       <p className="font-bold text-base">{trip.originName} <ArrowLeft className="inline h-3 w-3 mx-1 opacity-50" /> {trip.destinationName}</p>
                       <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{trip.id}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats} | السعر: {trip.pricePerSeat} ريال</p>
                     <div className="flex items-center gap-3 mt-2">
                       <button onClick={() => copyTripId(trip.id)} className="flex items-center gap-1 text-[9px] text-primary font-bold hover:underline">
                         <Copy className="h-2.5 w-2.5" /> نسخ الكود
