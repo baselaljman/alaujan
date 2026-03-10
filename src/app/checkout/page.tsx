@@ -22,6 +22,7 @@ function CheckoutContent() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [generatedTicketId, setGeneratedTicketId] = useState("");
 
   const tripId = searchParams.get("tripId");
   const seats = searchParams.get("seats")?.split(",") || [];
@@ -49,6 +50,10 @@ function CheckoutContent() {
     if (!user) return;
     setIsProcessing(true);
 
+    // توليد رقم تتبع فريد للتذكرة
+    const trackingNumber = `AWJ-TKT-${Math.floor(100000 + Math.random() * 900000)}`;
+    setGeneratedTicketId(trackingNumber);
+
     // تحديث ملف المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
@@ -64,6 +69,7 @@ function CheckoutContent() {
     // حفظ الحجز في المسار الخاص بالمستخدم لضمان الخصوصية التامة
     const bookingsRef = collection(firestore, "users", user.uid, "bookings");
     const bookingData = {
+      trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
       userEmail: email.toLowerCase(),
@@ -98,7 +104,7 @@ function CheckoutContent() {
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: "تم تسجيل كافة بيانات المسافرين وتحديث حسابك بنجاح.",
+        description: `رقم التتبع الخاص بك هو: ${trackingNumber}`,
       });
     }, 2000);
   };
@@ -110,9 +116,15 @@ function CheckoutContent() {
           <CheckCircle2 className="h-16 w-16 text-green-600" />
         </div>
         <h1 className="text-3xl font-bold font-headline">تم الحجز بنجاح!</h1>
-        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-center gap-3 max-w-xs mx-auto">
-          <Mail className="h-5 w-5 text-primary" />
-          <p className="text-xs text-primary font-medium text-right">تم إرسال تذاكر المسافرين إلى {email} وربطها بحسابك.</p>
+        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex flex-col gap-3 max-w-xs mx-auto">
+          <div className="flex items-center gap-3 justify-center text-primary">
+            <Mail className="h-5 w-5" />
+            <p className="text-xs font-medium text-right">تم إرسال التذاكر إلى {email}</p>
+          </div>
+          <div className="bg-white p-2 rounded-lg border border-dashed border-primary/30">
+            <p className="text-[10px] text-muted-foreground">رقم التتبع الخاص بالحجز:</p>
+            <p className="text-lg font-black text-primary font-mono">{generatedTicketId}</p>
+          </div>
         </div>
         <div className="space-y-3 w-full max-w-xs pt-4">
           <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض التذاكر في حسابي</Button>

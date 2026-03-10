@@ -22,7 +22,8 @@ import {
   MapPin,
   ArrowLeft,
   Download,
-  QrCode
+  QrCode,
+  Hash
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -308,7 +309,10 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-left">
                           <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-black px-4 h-8">مؤكد</Badge>
-                          <p className="text-[9px] text-muted-foreground mt-1 font-mono">ID: {booking.id.slice(-8).toUpperCase()}</p>
+                          <div className="mt-1 flex items-center gap-1 justify-end text-primary font-bold">
+                            <Hash className="h-3 w-3" />
+                            <p className="text-[10px] font-mono">{booking.trackingNumber || booking.id.slice(-8).toUpperCase()}</p>
+                          </div>
                         </div>
                       </div>
 
@@ -345,8 +349,9 @@ export default function ProfilePage() {
 
                          <div className="flex items-center justify-between pt-6 border-t border-dashed border-primary/20">
                             <div className="text-right">
-                              <p className="text-[10px] text-muted-foreground font-black mb-1">تاريخ الحجز</p>
-                              <p className="font-bold text-sm">{new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</p>
+                              <p className="text-[10px] text-muted-foreground font-black mb-1">رقم التتبع</p>
+                              <p className="font-black text-sm text-primary font-mono">{booking.trackingNumber || "N/A"}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">{new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</p>
                             </div>
                             <div className="h-16 w-16 bg-muted/30 rounded-xl flex items-center justify-center">
                               <QrCode className="h-10 w-10 text-primary/20" />
