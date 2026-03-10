@@ -50,7 +50,11 @@ export default function AdminTrips() {
   const [pricePerSeat, setPricePerSeat] = useState<string>("350");
   const [departureDate, setDepartureDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
-  const [intermediateStopIds, setIntermediateStopIds] = useState<string[]>([]);
+  
+  // نقاط التوقف بأسعارها
+  const [tempStopId, setTempStopId] = useState("");
+  const [tempStopPrice, setTempStopPrice] = useState("");
+  const [intermediateStops, setIntermediateStops] = useState<any[]>([]);
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -73,25 +77,30 @@ export default function AdminTrips() {
     );
   }, [trips, mainSearchQuery]);
 
-  const viewingTrip = useMemo(() => {
-    return trips?.find(t => t.id === viewingManifestId);
-  }, [trips, viewingManifestId]);
-
-  const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !viewingManifestId) return null;
-    return query(collection(firestore, "bookings"), where("busTripId", "==", viewingManifestId));
-  }, [firestore, viewingManifestId]);
-
-  const { data: manifestBookings, isLoading: isManifestLoading } = useCollection(bookingsQuery);
-
-  const handleAddStop = (stopId: string) => {
-    if (stopId && !intermediateStopIds.includes(stopId)) {
-      setIntermediateStopIds([...intermediateStopIds, stopId]);
+  const handleAddStop = () => {
+    if (!tempStopId || !tempStopPrice) {
+      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى اختيار المدينة وتحديد سعرها من الانطلاق" });
+      return;
     }
+    
+    if (intermediateStops.find(s => s.id === tempStopId)) {
+      toast({ variant: "destructive", title: "مكرر", description: "هذه المدينة مضافة بالفعل" });
+      return;
+    }
+
+    const loc = locations?.find(l => l.id === tempStopId);
+    setIntermediateStops([...intermediateStops, { 
+      id: tempStopId, 
+      name: loc?.name, 
+      price: Number(tempStopPrice) 
+    }]);
+    
+    setTempStopId("");
+    setTempStopPrice("");
   };
 
   const removeStop = (stopId: string) => {
-    setIntermediateStopIds(intermediateStopIds.filter(id => id !== stopId));
+    setIntermediateStops(intermediateStops.filter(s => s.id !== stopId));
   };
 
   const handleAddTrip = (e: React.FormEvent) => {
@@ -120,12 +129,6 @@ export default function AdminTrips() {
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
     const selectedBus = buses?.find(b => b.id === busId);
     
-    // تحويل معرفات المدن إلى أسماء لسهولة العرض والبحث
-    const intermediateStops = intermediateStopIds.map(id => {
-      const loc = locations?.find(l => l.id === id);
-      return { id: loc?.id, name: loc?.name };
-    });
-
     const tripDocRef = doc(firestore, "busTrips", nextId);
 
     setDocumentNonBlocking(tripDocRef, {
@@ -136,7 +139,7 @@ export default function AdminTrips() {
       originName,
       destinationId,
       destinationName,
-      intermediateStops, // تخزين مصفوفة المحطات
+      intermediateStops, // تخزين مصفوفة المحطات بأسعارها
       status: "Scheduled",
       pricePerSeat: Number(pricePerSeat),
       availableSeats: selectedBus?.capacity || 40,
@@ -148,147 +151,7 @@ export default function AdminTrips() {
 
     toast({ title: "تمت إضافة الرحلة", description: `كود الرحلة: ${nextId}` });
     setIsAdding(false);
-    setIntermediateStopIds([]);
-  };
-
-  const handlePrintManifest = () => {
-    if (!viewingTrip || !manifestBookings || manifestBookings.length === 0) {
-      toast({ variant: "destructive", title: "لا توجد بيانات", description: "لا يوجد ركاب لطباعة بيانهم." });
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بفتح النوافذ المنبثقة." });
-      return;
-    }
-
-    const passengers = manifestBookings.flatMap(b => b.passengers || []);
-
-    const content = `
-      <html dir="rtl">
-        <head>
-          <title>بيان ركاب رحلة ${viewingTrip.id}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
-            body { font-family: 'Noto Sans Arabic', sans-serif; padding: 40px; color: #333; }
-            .header { text-align: center; border-bottom: 3px solid #003d2d; padding-bottom: 20px; margin-bottom: 30px; }
-            .header h1 { color: #003d2d; margin: 0; font-size: 28px; }
-            .trip-info { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-            .trip-info div { background: #f8f9fa; padding: 15px; border-radius: 12px; border-right: 5px solid #b08d40; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #dee2e6; padding: 12px; text-align: right; }
-            th { background-color: #003d2d; color: white; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>العوجان للسياحة والسفر</h1>
-            <p>كشف ركاب رسمي - رحلة دولية</p>
-          </div>
-          <div class="trip-info">
-            <div>
-              <strong>رقم الرحلة:</strong> ${viewingTrip.id}<br>
-              <strong>الحافلة:</strong> ${viewingTrip.busLabel}
-            </div>
-            <div>
-              <strong>المسار:</strong> ${viewingTrip.originName} ⬅ ${viewingTrip.destinationName}<br>
-              <strong>التاريخ:</strong> ${new Date(viewingTrip.departureTime).toLocaleDateString('ar-EG')}
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>اسم المسافر الكامل</th>
-                <th>رقم الجواز / الهوية</th>
-                <th>رقم المقعد</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${passengers.map((p, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>${p.fullName}</td>
-                  <td>${p.passportNumber}</td>
-                  <td>${p.seatNumber}</td>
-                  <td>${p.status === 'Cancelled' ? 'ملغي' : 'مؤكد'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(content);
-    printWindow.document.close();
-  };
-
-  const handlePrintTicket = (passenger: any, trip: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const content = `
-      <html dir="rtl">
-        <head>
-          <title>تذكرة سفر - ${passenger.fullName}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap');
-            body { font-family: 'Noto Sans Arabic', sans-serif; display: flex; justify-content: center; padding: 40px; }
-            .ticket { width: 500px; border: 3px solid #003d2d; border-radius: 25px; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
-            .ticket-header { background: #003d2d; color: white; padding: 25px; text-align: center; }
-            .ticket-body { padding: 30px; position: relative; background: #fff; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 25px; }
-            .label { color: #888; font-size: 11px; margin-bottom: 5px; font-weight: bold; }
-            .value { font-weight: bold; font-size: 17px; color: #003d2d; }
-            .seat-badge { background: #b08d40; color: white; padding: 12px 25px; border-radius: 12px; font-size: 26px; font-weight: 900; }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            <div class="ticket-header">
-              <h2 style="margin:0">العوجان للسياحة والسفر</h2>
-            </div>
-            <div class="ticket-body">
-              <div class="row">
-                <div>
-                  <div class="label">اسم المسافر</div>
-                  <div class="value">${passenger.fullName}</div>
-                </div>
-                <div class="seat-badge">${passenger.seatNumber}</div>
-              </div>
-              <div class="row">
-                <div>
-                  <div class="label">من</div>
-                  <div class="value">${trip.originName}</div>
-                </div>
-                <div>
-                  <div class="label">إلى</div>
-                  <div class="value">${trip.destinationName}</div>
-                </div>
-              </div>
-              <div class="row">
-                <div>
-                  <div class="label">رقم الجواز</div>
-                  <div class="value">${passenger.passportNumber}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(content);
-    printWindow.document.close();
-  };
-
-  const copyTripId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    toast({ title: "تم نسخ الكود", description: id });
+    setIntermediateStops([]);
   };
 
   const handleDeleteTrip = (id: string) => {
@@ -307,16 +170,6 @@ export default function AdminTrips() {
         </Button>
       </header>
 
-      <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input 
-          placeholder="ابحث بالوجهة أو الحافلة أو الكود..." 
-          className="rounded-xl pr-10 h-12" 
-          value={mainSearchQuery} 
-          onChange={(e) => setMainSearchQuery(e.target.value)} 
-        />
-      </div>
-
       {isAdding && (
         <Card className="p-6 border-primary/20 shadow-lg animate-in slide-in-from-top-4 duration-300">
           <form onSubmit={handleAddTrip} className="space-y-6">
@@ -331,7 +184,7 @@ export default function AdminTrips() {
                 </Select>
               </div>
               <div className="space-y-2 text-right">
-                <Label>مدينة الوصول</Label>
+                <Label>مدينة الوصول النهائي</Label>
                 <Select onValueChange={setDestinationId}>
                   <SelectTrigger className="rounded-xl h-11"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
                   <SelectContent>
@@ -343,30 +196,34 @@ export default function AdminTrips() {
 
             <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border border-dashed">
               <Label className="font-bold flex items-center gap-2 justify-end">
-                <span>نقاط التوقف (المدن التي يمر بها الباص)</span>
+                <span>محطات التوقف وأسعارها (من الانطلاق)</span>
                 <MapPin className="h-4 w-4 text-primary" />
               </Label>
               <div className="flex gap-2">
-                <Select onValueChange={handleAddStop}>
-                  <SelectTrigger className="rounded-xl h-10 bg-white"><SelectValue placeholder="اختر مدينة توقف" /></SelectTrigger>
+                <Select value={tempStopId} onValueChange={setTempStopId}>
+                  <SelectTrigger className="rounded-xl h-10 bg-white flex-1"><SelectValue placeholder="اختر المحطة" /></SelectTrigger>
                   <SelectContent>
                     {locations?.filter(l => l.id !== originId && l.id !== destinationId).map(loc => (
                       <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <Input 
+                  type="number" 
+                  placeholder="السعر ر.س" 
+                  value={tempStopPrice} 
+                  onChange={e => setTempStopPrice(e.target.value)} 
+                  className="w-24 h-10 rounded-xl bg-white"
+                />
+                <Button type="button" onClick={handleAddStop} size="sm" className="h-10 px-4 rounded-xl">إضافة</Button>
               </div>
               <div className="flex flex-wrap gap-2 mt-2">
-                {intermediateStopIds.map(id => {
-                  const name = locations?.find(l => l.id === id)?.name;
-                  return (
-                    <Badge key={id} className="bg-primary/10 text-primary border-none py-1.5 px-3 rounded-full flex items-center gap-2">
-                      {name}
-                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeStop(id)} />
-                    </Badge>
-                  );
-                })}
-                {intermediateStopIds.length === 0 && <p className="text-[10px] text-muted-foreground w-full">لا توجد محطات توقف مضافة</p>}
+                {intermediateStops.map(stop => (
+                  <Badge key={stop.id} className="bg-primary/10 text-primary border-none py-1.5 px-3 rounded-full flex items-center gap-2">
+                    {stop.name} ({stop.price} ر.س)
+                    <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeStop(stop.id)} />
+                  </Badge>
+                ))}
               </div>
             </div>
             
@@ -382,7 +239,7 @@ export default function AdminTrips() {
               </div>
               <div className="space-y-2 text-right">
                 <Label className="flex items-center gap-1 justify-end">
-                  سعر التذكرة (ريال) <Banknote className="h-3 w-3 text-primary" />
+                  سعر الوصول النهائي (ريال) <Banknote className="h-3 w-3 text-primary" />
                 </Label>
                 <Input 
                   type="number" 
@@ -441,70 +298,14 @@ export default function AdminTrips() {
                       <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{trip.id}</Badge>
                     </div>
                     {trip.intermediateStops && trip.intermediateStops.length > 0 && (
-                      <p className="text-[10px] text-muted-foreground">يمر بـ: {trip.intermediateStops.map((s: any) => s.name).join('، ')}</p>
+                      <p className="text-[10px] text-muted-foreground">يمر بـ: {trip.intermediateStops.map((s: any) => `${s.name} (${s.price}ر.س)`).join('، ')}</p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats} | السعر: {trip.pricePerSeat} ريال</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats} | الأساسي: {trip.pricePerSeat} ريال</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                   <Dialog onOpenChange={(open) => { if (open) { setViewingManifestId(trip.id); } else { setViewingManifestId(null); } }}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="rounded-xl text-xs h-9 px-4 gap-2">
-                          <Users className="h-3.5 w-3.5" /> الركاب
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
-                         <div className="bg-primary p-6 text-white text-right flex justify-between items-center">
-                            <div>
-                               <DialogTitle className="text-xl font-bold">بيان الركاب (المانيفست) - {trip.id}</DialogTitle>
-                               <p className="text-xs opacity-70 mt-1">{trip.originName} ⬅ {trip.destinationName}</p>
-                            </div>
-                            <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary gap-2" onClick={handlePrintManifest}>
-                               <Printer className="h-4 w-4" /> طباعة البيان
-                            </Button>
-                         </div>
-                         <div className="p-6">
-                           {isManifestLoading ? (
-                             <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
-                           ) : manifestBookings?.length === 0 ? (
-                             <div className="text-center py-12 text-muted-foreground">لا يوجد ركاب مسجلون بعد</div>
-                           ) : (
-                             <div className="overflow-x-auto">
-                               <Table dir="rtl">
-                                 <TableHeader>
-                                   <TableRow className="bg-muted/50">
-                                     <TableHead className="text-right font-bold">المسافر</TableHead>
-                                     <TableHead className="text-right font-bold">الجواز</TableHead>
-                                     <TableHead className="text-right font-bold">المقعد</TableHead>
-                                     <TableHead className="text-center font-bold">إجراءات</TableHead>
-                                   </TableRow>
-                                 </TableHeader>
-                                 <TableBody>
-                                   {manifestBookings?.map(b => b.passengers?.map((p: any, i: number) => (
-                                     <TableRow key={`${b.id}-${i}`} className={cn(p.status === 'Cancelled' && "opacity-50 grayscale bg-red-50/10")}>
-                                       <TableCell className="font-bold text-xs">{p.fullName}</TableCell>
-                                       <TableCell className="text-xs font-mono">{p.passportNumber}</TableCell>
-                                       <TableCell><Badge variant="outline" className="font-bold">{p.seatNumber}</Badge></TableCell>
-                                       <TableCell className="text-center">
-                                         <div className="flex justify-center gap-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintTicket(p, trip)}>
-                                              <Ticket className="h-4 w-4" />
-                                            </Button>
-                                         </div>
-                                       </TableCell>
-                                     </TableRow>
-                                   )))}
-                                 </TableBody>
-                               </Table>
-                             </div>
-                           )}
-                         </div>
-                      </DialogContent>
-                   </Dialog>
-                   <Button variant="ghost" size="icon" onClick={() => handleDeleteTrip(trip.id)} className="text-red-500 hover:bg-red-50 rounded-xl h-9 w-9">
-                      <Trash2 className="h-4 w-4" />
-                   </Button>
-                </div>
+                <Button variant="ghost" size="icon" onClick={() => handleDeleteTrip(trip.id)} className="text-red-500 hover:bg-red-50 rounded-xl h-9 w-9">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </Card>
           ))
@@ -513,4 +314,3 @@ export default function AdminTrips() {
     </div>
   );
 }
-

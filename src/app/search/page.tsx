@@ -30,33 +30,42 @@ function SearchContent() {
 
   const { data: trips, isLoading } = useCollection(tripsQuery);
 
+  const filteredTrips = useMemo(() => {
+    if (!trips || !from || !to) return [];
+    
+    return trips.map((trip: any) => {
+      // بناء مصفوفة كاملة للنقاط بأسعارها التراكمية
+      const allPoints = [
+        { id: trip.originId, name: trip.originName, price: 0 },
+        ...(trip.intermediateStops || []),
+        { id: trip.destinationId, name: trip.destinationName, price: trip.pricePerSeat }
+      ];
+
+      const fromIndex = allPoints.findIndex(p => p.name === from);
+      const toIndex = allPoints.findIndex(p => p.name === to);
+
+      if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
+        // حساب السعر للجزء المختار من المسار
+        const segmentPrice = allPoints[toIndex].price - allPoints[fromIndex].price;
+        return {
+          ...trip,
+          calculatedPrice: segmentPrice > 0 ? segmentPrice : trip.pricePerSeat,
+          fromLabel: from,
+          toLabel: to
+        };
+      }
+      return null;
+    }).filter(Boolean);
+  }, [trips, from, to]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-muted-foreground animate-pulse">جاري البحث عن أفضل الرحلات...</p>
+        <p className="text-muted-foreground animate-pulse">جاري البحث عن أفضل الأسعار...</p>
       </div>
     );
   }
-
-  const filteredTrips = useMemo(() => {
-    if (!trips || !from || !to) return [];
-    
-    return trips.filter((trip: any) => {
-      // بناء المسار الكامل للرحلة: نقطة الانطلاق + محطات التوقف + نقطة الوصول
-      const allPoints = [
-        trip.originName,
-        ...(trip.intermediateStops || []).map((s: any) => s.name),
-        trip.destinationName
-      ];
-
-      const fromIndex = allPoints.indexOf(from);
-      const toIndex = allPoints.indexOf(to);
-
-      // الرحلة مطابقة إذا كانت مدينتا "من" و "إلى" موجودتين في المسار وبترتيب منطقي
-      return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
-    });
-  }, [trips, from, to]);
 
   return (
     <div className="space-y-6">
@@ -74,7 +83,7 @@ function SearchContent() {
 
       <div className="space-y-4">
         <p className="text-sm font-medium text-muted-foreground px-1">
-          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات متاحة للمسار المختار` : "لا توجد رحلات مجدولة حالياً لهذا المسار"}
+          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات تمر بمدينتك` : "لا توجد رحلات مجدولة حالياً لهذا المسار"}
         </p>
         
         {filteredTrips.map((trip: any) => (
@@ -88,7 +97,7 @@ function SearchContent() {
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-primary">{trip.departureTime ? new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "08:00 صباحاً"}</p>
+                        <p className="text-lg font-bold text-primary">{new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                         <p className="text-xs text-muted-foreground">{from}</p>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-2">
@@ -96,27 +105,20 @@ function SearchContent() {
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-primary bg-background" />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">مسار مباشر</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">مسار مخصص</p>
                       </div>
                       <div className="text-left">
-                        <p className="text-lg font-bold text-primary">وصل</p>
+                        <p className="text-lg font-bold text-primary">وصول</p>
                         <p className="text-xs text-muted-foreground">{to}</p>
                       </div>
                     </div>
-                    {/* عرض تنبيه إذا كان المسار يمر بمحطات متوسطة */}
-                    {trip.intermediateStops && trip.intermediateStops.length > 0 && (
-                      <div className="flex items-center gap-1 mt-2 text-[9px] text-muted-foreground bg-primary/5 p-1 px-2 rounded-md w-fit">
-                        <MapPin className="h-2.5 w-2.5" />
-                        <span>تمر بـ: {trip.intermediateStops.map((s: any) => s.name).join('، ')}</span>
-                      </div>
-                    )}
                   </div>
                   <div className="text-left pr-4">
                     <div className="flex items-baseline gap-1 justify-end">
                       <span className="text-xs font-bold text-primary">ريال</span>
-                      <span className="text-2xl font-black text-primary font-headline">{trip.pricePerSeat || "350"}</span>
+                      <span className="text-2xl font-black text-primary font-headline">{trip.calculatedPrice}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground">للفرد (ذهاب فقط)</p>
+                    <p className="text-[10px] text-muted-foreground">سعر المقعد لهذا المسار</p>
                   </div>
                 </div>
 
@@ -128,13 +130,11 @@ function SearchContent() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4 text-primary/60" />
-                      <span className={(trip.availableSeats || 0) < 10 ? "text-accent font-bold" : ""}>
-                        متبقي {trip.availableSeats || 0} مقاعد
-                      </span>
+                      <span>{trip.availableSeats} مقعد متاح</span>
                     </div>
                   </div>
                   <Button asChild className="bg-primary hover:bg-primary/95 rounded-full px-8 shadow-lg group-hover:scale-105 transition-transform">
-                    <Link href={`/book?id=${trip.id}`}>احجز مقعدك</Link>
+                    <Link href={`/book?id=${trip.id}&price=${trip.calculatedPrice}`}>احجز الآن</Link>
                   </Button>
                 </div>
               </div>
@@ -148,12 +148,7 @@ function SearchContent() {
 
 export default function SearchResults() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="text-muted-foreground">جاري تحميل النتائج...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}>
       <SearchContent />
     </Suspense>
   );

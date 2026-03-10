@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, Suspense, useRef, useEffect } from "react";
@@ -24,6 +25,7 @@ function BookTripContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tripId = searchParams.get("id") || "";
+  const customPrice = searchParams.get("price"); // السعر المخصص للمسار
   const firestore = useFirestore();
   const auth = useAuth();
   
@@ -54,14 +56,14 @@ function BookTripContent() {
   const [countryCode, setCountryCode] = useState("+966");
   const [email, setEmail] = useState("");
   
-  // OTP States
   const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
 
-  const TICKET_PRICE = trip?.pricePerSeat || 350;
+  // استخدام السعر المخصص من الرابط أو السعر الأساسي للرحلة
+  const TICKET_PRICE = customPrice ? Number(customPrice) : (trip?.pricePerSeat || 350);
   const BAG_PRICE = 100;
 
   const seats = useMemo(() => {
@@ -104,26 +106,13 @@ function BookTripContent() {
 
   const handleSendOtp = async () => {
     if (!phone || isSendingCode) return;
-    
-    let digitsOnly = phone.replace(/\D/g, '').replace(/^0+/, '');
-    const currentCodeDigits = countryCode.replace(/\D/g, '');
-    if (digitsOnly.startsWith(currentCodeDigits)) {
-      digitsOnly = digitsOnly.substring(currentCodeDigits.length);
-    }
-    
-    if (digitsOnly.length < 7) {
-      toast({ variant: "destructive", title: "رقم ناقص", description: "يرجى إدخال رقم هاتف صحيح." });
-      return;
-    }
-
-    const fullPhoneNumber = `${countryCode}${digitsOnly}`;
     setIsSendingCode(true);
     try {
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
-      const result = await sendOtpToPhone(auth, fullPhoneNumber, verifier);
+      const result = await sendOtpToPhone(auth, `${countryCode}${phone}`, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      // handled in helper
+      // toast in helper
     } finally {
       setIsSendingCode(false);
     }
@@ -135,9 +124,9 @@ function BookTripContent() {
     try {
       await confirmationResult.confirm(otpCode);
       setIsOtpVerified(true);
-      toast({ title: "تم التحقق بنجاح", description: "يمكنك الآن إكمال عملية الدفع" });
+      toast({ title: "تم التحقق", description: "يمكنك المتابعة" });
     } catch (error) {
-      toast({ variant: "destructive", title: "رمز خاطئ", description: "يرجى التأكد من الرمز" });
+      toast({ variant: "destructive", title: "خطأ", description: "الرمز غير صحيح" });
     } finally {
       setIsVerifyingCode(false);
     }
@@ -146,22 +135,18 @@ function BookTripContent() {
   const handlePayment = () => {
     if (!isOtpVerified || !email || !isPassengerInfoComplete) return;
     const finalTotal = (selectedSeats.length * TICKET_PRICE) + (extraBags * BAG_PRICE);
-    const digitsOnly = phone.replace(/\D/g, '').replace(/^0+/, '');
-    const fullPhoneNumber = `${countryCode}${digitsOnly}`;
-    
     const queryParams = new URLSearchParams({ 
       tripId, 
       seats: selectedSeats.join(","), 
       total: finalTotal.toString(), 
       email,
-      phone: fullPhoneNumber,
+      phone: `${countryCode}${phone}`,
       extraBags: extraBags.toString(),
       passengers: JSON.stringify(passengers)
     });
     router.push(`/checkout?${queryParams.toString()}`);
   };
 
-  if (!tripId) return <div className="text-center p-20">لم يتم تحديد رحلة</div>;
   if (isTripLoading || isBookingsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
   return (
@@ -175,7 +160,7 @@ function BookTripContent() {
         </h1>
       </header>
 
-      <div id="recaptcha-container" className="fixed bottom-0 left-0 z-0 opacity-0 pointer-events-none"></div>
+      <div id="recaptcha-container"></div>
 
       {step === 1 && (
         <div className="space-y-8 animate-in fade-in">
@@ -201,7 +186,7 @@ function BookTripContent() {
             <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full bg-muted" /> محجوز</div>
           </div>
           <Button onClick={handleNextStepSelection} disabled={selectedSeats.length === 0} className="w-full h-16 text-lg font-bold rounded-2xl shadow-xl">
-            تأكيد {selectedSeats.length} مقاعد
+            تأكيد {selectedSeats.length} مقاعد (بـ {TICKET_PRICE} ر.س للمقعد)
           </Button>
         </div>
       )}
