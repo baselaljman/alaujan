@@ -41,7 +41,6 @@ function CheckoutContent() {
   }));
 
   useEffect(() => {
-    // التأكد من وجود جلسة دخول نشطة (حتى لو كانت مجهولة) لمعالجة القواعد الأمنية
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
     }
@@ -58,7 +57,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // تحديث ملف تعريف المستخدم ليشمل البريد المدخل لضمان ربطه لاحقاً
+    // 1. تحديث/إنشاء بروفايل المستخدم لربط البريد
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -70,13 +69,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // حفظ الحجز في المسار الخاص بالمستخدم الحالي
+    // 2. حفظ الحجز في مسار المستخدم
     const bookingsRef = collection(firestore, "users", user.uid, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email.toLowerCase(), // البريد الإلكتروني هو المعرّف الأساسي للربط المستقبلي
+      userEmail: email.toLowerCase(),
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -92,10 +91,9 @@ function CheckoutContent() {
       status: "Confirmed",
       createdAt: serverTimestamp()
     };
-
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // تحديث المقاعد المتاحة في الرحلة
+    // 3. تقليل المقاعد المتاحة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -103,12 +101,36 @@ function CheckoutContent() {
       });
     }
 
+    // 4. إرسال الإيميل (عبر مجموعة mail المتوافقة مع إضافة Trigger Email)
+    const mailRef = collection(firestore, "mail");
+    addDocumentNonBlocking(mailRef, {
+      to: email.toLowerCase(),
+      message: {
+        subject: `تأكيد حجزك في العوجان للسفر - ${trackingNumber}`,
+        html: `
+          <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; border: 1px solid #e2e8f0; border-radius: 15px; padding: 20px; color: #003d2d;">
+            <h1 style="color: #003d2d; border-bottom: 2px solid #003d2d; padding-bottom: 10px;">العوجان للسياحة والسفر</h1>
+            <p>مرحباً بك، تم تأكيد حجزك الدولي بنجاح.</p>
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;">
+              <p><strong>رقم تتبع الرحلة (للتتبع المباشر):</strong> <span style="color: #d97706; font-family: monospace;">${tripId}</span></p>
+              <p><strong>رقم الحجز:</strong> ${trackingNumber}</p>
+              <p><strong>المسار:</strong> ${boardingPoint} ⬅ ${droppingPoint}</p>
+              <p><strong>عدد المقاعد:</strong> ${seats.length} (${seats.join(", ")})</p>
+              <p><strong>المبلغ الإجمالي:</strong> ${totalAmount} ريال سعودي</p>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">يمكنك دائماً الدخول إلى حسابك في التطبيق لتحميل التذكرة كصورة وإبرازها عند الركوب.</p>
+            <p style="text-align: center; margin-top: 30px;">نتمنى لك رحلة سعيدة!</p>
+          </div>
+        `
+      }
+    });
+
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `رقم الرحلة للتتبع: ${tripId}`,
+        description: `تم إرسال التذكرة إلى بريدك الإلكتروني: ${email}`,
       });
     }, 2000);
   };
