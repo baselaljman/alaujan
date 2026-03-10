@@ -49,6 +49,7 @@ function CheckoutContent() {
     if (!user) return;
     setIsProcessing(true);
 
+    // تحديث ملف المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -60,7 +61,8 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    const bookingsRef = collection(firestore, "bookings");
+    // حفظ الحجز في المسار الخاص بالمستخدم لضمان الخصوصية التامة
+    const bookingsRef = collection(firestore, "users", user.uid, "bookings");
     const bookingData = {
       busTripId: tripId,
       userId: user.uid,
@@ -83,6 +85,7 @@ function CheckoutContent() {
 
     addDocumentNonBlocking(bookingsRef, bookingData);
 
+    // تحديث عدد المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {

@@ -20,7 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
 
 export default function AdminDashboard() {
@@ -33,7 +33,8 @@ export default function AdminDashboard() {
   const parcelsRef = useMemoFirebase(() => collection(firestore, "parcels"), [firestore]);
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
-  const bookingsRef = useMemoFirebase(() => collection(firestore, "bookings"), [firestore]);
+  // استخدام collectionGroup لجلب جميع الحجوزات من كافة مجموعات المستخدمين الفرعية لإحصائيات المدير
+  const bookingsRef = useMemoFirebase(() => collectionGroup(firestore, "bookings"), [firestore]);
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {

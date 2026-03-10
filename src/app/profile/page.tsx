@@ -58,7 +58,6 @@ export default function ProfilePage() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
-  // مراجع لتصدير الصور
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const isAdmin = useMemo(() => {
@@ -85,14 +84,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  const bookingsQuery = useMemoFirebase(() => {
+  // جلب التذاكر من المجموعات الفرعية الخاصة بالمستخدم الحالي فقط لضمان الخصوصية
+  const bookingsRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
-    return query(
-      collection(firestore, "bookings"), 
-      where("userId", "==", user.uid)
-    );
-  }, [firestore, user]);
-  const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
+    return collection(firestore, "users", user.uid, "bookings");
+  }, [firestore, user?.uid]);
+  
+  const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -127,11 +125,9 @@ export default function ProfilePage() {
 
     setIsDownloading(bookingId);
     try {
-      // استخدام إعدادات أكثر أماناً لتجنب خطأ SecurityError المرتبط بملفات CSS الخارجية (Google Fonts)
       const dataUrl = await toPng(element, { 
         cacheBust: true,
         backgroundColor: '#ffffff',
-        // تجاوز محاولة قراءة ملفات CSS الخارجية التي تسبب خطأ CORS
         fontEmbedCSS: '',
         style: {
           transform: 'scale(1)',
@@ -145,7 +141,7 @@ export default function ProfilePage() {
       toast({ title: "تم التحميل", description: "تم حفظ التذكرة كصورة في جهازك" });
     } catch (err) {
       console.error("Download Error:", err);
-      toast({ variant: "destructive", title: "خطأ في التحميل", description: "تعذر تحويل التذكرة لصورة بسبب قيود الأمان في المتصفح." });
+      toast({ variant: "destructive", title: "خطأ في التحميل", description: "تعذر تحويل التذكرة لصورة بسبب قيود الأمان." });
     } finally {
       setIsDownloading(null);
     }
@@ -296,7 +292,6 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 gap-6">
                 {bookings.map((booking) => (
                   <div key={booking.id} className="relative group">
-                    {/* التذكرة التي سيتم تصويرها */}
                     <div 
                       ref={el => { ticketRefs.current[booking.id] = el; }}
                       className="bg-white border-none shadow-sm ring-1 ring-primary/5 rounded-[2rem] overflow-hidden"
@@ -362,7 +357,6 @@ export default function ProfilePage() {
                       <div className="bg-primary h-2 w-full" />
                     </div>
 
-                    {/* زر التحميل يظهر فوق التذكرة */}
                     <Button 
                       onClick={() => downloadTicket(booking.id)} 
                       disabled={isDownloading === booking.id}
@@ -418,4 +412,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
