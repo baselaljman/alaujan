@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo, useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,20 +13,16 @@ import {
   Ticket, 
   ChevronLeft, 
   Bus, 
-  ShieldAlert, 
   Loader2, 
   Mail, 
   User as UserIcon,
   KeyRound,
-  LogIn,
-  UserPlus,
-  RefreshCcw,
   Settings,
-  LayoutDashboard,
   ShieldCheck,
   MapPin,
-  Truck,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  QrCode
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +41,7 @@ import {
 import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
+import { toPng } from 'html-to-image';
 
 const ADMIN_EMAIL = "atlob.co@gmail.com";
 
@@ -59,6 +56,10 @@ export default function ProfilePage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [isDownloading, setIsDownloading] = useState<string | null>(null);
+
+  // مراجع لتصدير الصور
+  const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const isAdmin = useMemo(() => {
     return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
@@ -117,6 +118,33 @@ export default function ProfilePage() {
       initiateUpdatePassword(user, newPassword);
       setNewPassword("");
       setShowPasswordChange(false);
+    }
+  };
+
+  const downloadTicket = async (bookingId: string) => {
+    const element = ticketRefs.current[bookingId];
+    if (!element) return;
+
+    setIsDownloading(bookingId);
+    try {
+      const dataUrl = await toPng(element, { 
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top right'
+        }
+      });
+      const link = document.createElement('a');
+      link.download = `ticket-${bookingId.slice(-6)}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast({ title: "تم التحميل", description: "تم حفظ التذكرة كصورة في جهازك" });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "خطأ", description: "فشل تحميل الصورة" });
+    } finally {
+      setIsDownloading(null);
     }
   };
 
@@ -262,47 +290,88 @@ export default function ProfilePage() {
             {isBookingsLoading ? (
               <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary opacity-20" /></div>
             ) : bookings && bookings.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-6">
                 {bookings.map((booking) => (
-                  <Card key={booking.id} className="border-none shadow-sm ring-1 ring-primary/5 rounded-2xl overflow-hidden group hover:shadow-md transition-all">
-                    <CardContent className="p-0">
-                      <div className="p-5 flex items-center justify-between border-b border-dashed">
+                  <div key={booking.id} className="relative group">
+                    {/* التذكرة التي سيتم تصويرها */}
+                    <div 
+                      ref={el => { ticketRefs.current[booking.id] = el; }}
+                      className="bg-white border-none shadow-sm ring-1 ring-primary/5 rounded-[2rem] overflow-hidden"
+                    >
+                      <div className="p-6 flex items-center justify-between border-b border-dashed border-primary/20 bg-primary/5">
                         <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center">
-                            <Bus className="h-6 w-6 text-primary" />
+                          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+                            <Bus className="h-7 w-7 text-white" />
                           </div>
-                          <div>
-                            <p className="font-black text-base text-primary">تذكرة سفر ({booking.id.slice(-4).toUpperCase()})</p>
-                            <p className="text-xs text-muted-foreground">تاريخ الحجز: {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}</p>
+                          <div className="text-right">
+                            <p className="font-black text-lg text-primary">تذكرة سفر إلكترونية</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">AL-AWAJAN TRAVEL</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-bold">مؤكد</Badge>
+                        <div className="text-left">
+                          <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-black px-4 h-8">مؤكد</Badge>
+                          <p className="text-[9px] text-muted-foreground mt-1 font-mono">ID: {booking.id.slice(-8).toUpperCase()}</p>
+                        </div>
                       </div>
-                      <div className="p-5 bg-muted/20 space-y-3">
-                         <div className="flex items-center justify-between text-sm">
-                           <div className="text-right">
-                             <p className="text-[10px] text-muted-foreground font-bold">من (محطة الركوب)</p>
-                             <p className="font-bold text-primary">{booking.boardingPoint || "غير محدد"}</p>
+
+                      <div className="p-8 space-y-8">
+                         <div className="flex items-center justify-between">
+                           <div className="text-right flex-1">
+                             <p className="text-[10px] text-muted-foreground font-black mb-1">من (محطة الركوب)</p>
+                             <p className="font-black text-xl text-primary">{booking.boardingPoint || "غير محدد"}</p>
                            </div>
-                           <ArrowLeft className="h-4 w-4 text-muted-foreground mx-4" />
-                           <div className="text-left">
-                             <p className="text-[10px] text-muted-foreground font-bold">إلى (محطة النزول)</p>
-                             <p className="font-bold text-primary">{booking.droppingPoint || "غير محدد"}</p>
+                           <div className="flex flex-col items-center px-6">
+                             <ArrowLeft className="h-5 w-5 text-primary/30" />
+                             <div className="w-12 h-[1px] bg-primary/20 my-1" />
+                           </div>
+                           <div className="text-left flex-1">
+                             <p className="text-[10px] text-muted-foreground font-black mb-1">إلى (محطة النزول)</p>
+                             <p className="font-black text-xl text-primary">{booking.droppingPoint || "غير محدد"}</p>
                            </div>
                          </div>
-                         <div className="flex items-center justify-between pt-2 border-t border-white">
+
+                         <div className="grid grid-cols-2 gap-8 pt-6 border-t border-primary/5">
                            <div className="text-right">
-                             <p className="text-[10px] text-muted-foreground font-bold">المقاعد المحجوزة</p>
-                             <p className="font-black text-primary">{booking.seatNumbers?.join(", ")}</p>
+                             <p className="text-[10px] text-muted-foreground font-black mb-1">أرقام المقاعد</p>
+                             <div className="flex flex-wrap gap-1 justify-end">
+                               {booking.seatNumbers?.map((s: string) => (
+                                 <Badge key={s} className="bg-primary/10 text-primary border-none font-black h-7 w-7 p-0 flex items-center justify-center">{s}</Badge>
+                               ))}
+                             </div>
                            </div>
                            <div className="text-left">
-                             <p className="text-[10px] text-muted-foreground font-bold">عدد المسافرين</p>
-                             <p className="font-black text-primary">{booking.numberOfSeats}</p>
+                             <p className="text-[10px] text-muted-foreground font-black mb-1">عدد المسافرين</p>
+                             <p className="font-black text-xl text-primary">{booking.numberOfSeats}</p>
                            </div>
                          </div>
+
+                         <div className="flex items-center justify-between pt-6 border-t border-dashed border-primary/20">
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground font-black mb-1">تاريخ الحجز</p>
+                              <p className="font-bold text-sm">{new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</p>
+                            </div>
+                            <div className="h-16 w-16 bg-muted/30 rounded-xl flex items-center justify-center">
+                              <QrCode className="h-10 w-10 text-primary/20" />
+                            </div>
+                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      
+                      <div className="bg-primary h-2 w-full" />
+                    </div>
+
+                    {/* زر التحميل يظهر فوق التذكرة */}
+                    <Button 
+                      onClick={() => downloadTicket(booking.id)} 
+                      disabled={isDownloading === booking.id}
+                      className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full h-12 px-8 bg-accent hover:bg-accent/90 shadow-xl border-4 border-white gap-2 font-bold transition-transform active:scale-95"
+                    >
+                      {isDownloading === booking.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <><Download className="h-4 w-4" /> حفظ كصورة</>
+                      )}
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -313,7 +382,7 @@ export default function ProfilePage() {
             )}
           </section>
 
-          <section className="space-y-4 pt-4">
+          <section className="space-y-4 pt-12">
             <h3 className="font-bold text-xl text-primary px-2 flex items-center gap-2">
               <Settings className="h-6 w-6" /> الأمان والحساب
             </h3>
