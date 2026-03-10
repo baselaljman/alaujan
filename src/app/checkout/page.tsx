@@ -41,22 +41,28 @@ function CheckoutContent() {
   }));
 
   useEffect(() => {
+    // التأكد من وجود جلسة دخول نشطة (حتى لو كانت مجهولة) لمعالجة القواعد الأمنية
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
     }
   }, [user, isUserLoading, auth]);
 
   const handlePay = () => {
-    if (!user) return;
+    if (!user) {
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى الانتظار حتى تهيئة الجلسة" });
+      return;
+    }
+    
     setIsProcessing(true);
 
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
+    // تحديث ملف تعريف المستخدم ليشمل البريد المدخل لضمان ربطه لاحقاً
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
-      email: email,
+      email: email.toLowerCase(),
       phoneNumber: phone,
       firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
       lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
@@ -64,12 +70,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
+    // حفظ الحجز في المسار الخاص بالمستخدم الحالي
     const bookingsRef = collection(firestore, "users", user.uid, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email.toLowerCase(),
+      userEmail: email.toLowerCase(), // البريد الإلكتروني هو المعرّف الأساسي للربط المستقبلي
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -88,6 +95,7 @@ function CheckoutContent() {
 
     addDocumentNonBlocking(bookingsRef, bookingData);
 
+    // تحديث المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -153,7 +161,7 @@ function CheckoutContent() {
             <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
               <span className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" /> {boardingPoint} ⬅ {droppingPoint}</span>
-              <span className="flex items-center gap-1 justify-end font-bold text-accent"><Navigation className="h-3 w-3" /> رقم الرحلة: {tripId}</span>
+              <span className="flex items-center gap-1 justify-end font-bold text-accent"><Navigation className="h-3 w-3" /> رقم الرحلة للتتبع: {tripId}</span>
               <span>عدد المسافرين: {passengers.length}</span>
               <span>المقاعد: {seats.join(", ")}</span>
               <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
