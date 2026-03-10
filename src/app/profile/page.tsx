@@ -23,7 +23,8 @@ import {
   ArrowLeft,
   Download,
   QrCode,
-  Hash
+  Hash,
+  Navigation
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,7 +86,6 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // جلب التذاكر من المجموعات الفرعية الخاصة بالمستخدم الحالي فقط لضمان الخصوصية
   const bookingsRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return collection(firestore, "users", user.uid, "bookings");
@@ -309,9 +309,9 @@ export default function ProfilePage() {
                         </div>
                         <div className="text-left">
                           <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-black px-4 h-8">مؤكد</Badge>
-                          <div className="mt-1 flex items-center gap-1 justify-end text-primary font-bold">
-                            <Hash className="h-3 w-3" />
-                            <p className="text-[10px] font-mono">{booking.trackingNumber || booking.id.slice(-8).toUpperCase()}</p>
+                          <div className="mt-1 flex flex-col items-end gap-0.5">
+                             <p className="text-[9px] text-muted-foreground font-bold">رقم التتبع للرحلة</p>
+                             <p className="text-sm font-black text-accent font-mono">{booking.busTripId}</p>
                           </div>
                         </div>
                       </div>
@@ -349,12 +349,16 @@ export default function ProfilePage() {
 
                          <div className="flex items-center justify-between pt-6 border-t border-dashed border-primary/20">
                             <div className="text-right">
-                              <p className="text-[10px] text-muted-foreground font-black mb-1">رقم التتبع</p>
-                              <p className="font-black text-sm text-primary font-mono">{booking.trackingNumber || "N/A"}</p>
+                              <p className="text-[10px] text-muted-foreground font-black mb-1 flex items-center gap-1 justify-end"><Navigation className="h-2 w-2" /> استخدم هذا الرقم للتتبع</p>
+                              <p className="font-black text-lg text-primary font-mono">{booking.busTripId}</p>
                               <p className="text-[10px] text-muted-foreground mt-1">{new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'long' })}</p>
                             </div>
-                            <div className="h-16 w-16 bg-muted/30 rounded-xl flex items-center justify-center">
-                              <QrCode className="h-10 w-10 text-primary/20" />
+                            <div className="text-left">
+                               <p className="text-[10px] text-muted-foreground font-black mb-1">رقم الحجز</p>
+                               <p className="font-mono text-xs opacity-50">{booking.trackingNumber || booking.id.slice(0, 8)}</p>
+                               <div className="h-12 w-12 mt-1 bg-muted/30 rounded-xl flex items-center justify-center">
+                                 <QrCode className="h-8 w-8 text-primary/20" />
+                               </div>
                             </div>
                          </div>
                       </div>
@@ -407,7 +411,7 @@ export default function ProfilePage() {
                 </Card>
               )}
 
-              <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-destructive border-destructive/20 font-black gap-2">
+              <Button variant="outline" handleLogout={handleLogout} className="w-full h-16 rounded-2xl text-destructive border-destructive/20 font-black gap-2">
                 <LogOut className="h-5 w-5" /> تسجيل الخروج
               </Button>
             </div>

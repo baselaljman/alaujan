@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, MapPin } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, MapPin, Navigation } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
@@ -24,7 +24,7 @@ function CheckoutContent() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedTicketId, setGeneratedTicketId] = useState("");
 
-  const tripId = searchParams.get("tripId");
+  const tripId = searchParams.get("tripId") || "";
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
   const email = searchParams.get("email") || "";
@@ -50,11 +50,9 @@ function CheckoutContent() {
     if (!user) return;
     setIsProcessing(true);
 
-    // توليد رقم تتبع فريد للتذكرة
-    const trackingNumber = `AWJ-TKT-${Math.floor(100000 + Math.random() * 900000)}`;
+    const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // تحديث ملف المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -66,7 +64,6 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // حفظ الحجز في المسار الخاص بالمستخدم لضمان الخصوصية التامة
     const bookingsRef = collection(firestore, "users", user.uid, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -91,7 +88,6 @@ function CheckoutContent() {
 
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // تحديث عدد المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -104,7 +100,7 @@ function CheckoutContent() {
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `رقم التتبع الخاص بك هو: ${trackingNumber}`,
+        description: `رقم الرحلة للتتبع: ${tripId}`,
       });
     }, 2000);
   };
@@ -115,20 +111,30 @@ function CheckoutContent() {
         <div className="h-24 w-24 rounded-full bg-green-100 flex items-center justify-center mb-2">
           <CheckCircle2 className="h-16 w-16 text-green-600" />
         </div>
-        <h1 className="text-3xl font-bold font-headline">تم الحجز بنجاح!</h1>
-        <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex flex-col gap-3 max-w-xs mx-auto">
-          <div className="flex items-center gap-3 justify-center text-primary">
-            <Mail className="h-5 w-5" />
-            <p className="text-xs font-medium text-right">تم إرسال التذاكر إلى {email}</p>
+        <h1 className="text-3xl font-bold font-headline text-primary">تم الحجز بنجاح!</h1>
+        
+        <Card className="max-w-xs mx-auto border-none shadow-2xl rounded-3xl overflow-hidden">
+          <div className="bg-primary p-4 text-white">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">رقم تتبع الرحلة (للخريطة)</p>
+            <p className="text-3xl font-black font-mono">{tripId}</p>
           </div>
-          <div className="bg-white p-2 rounded-lg border border-dashed border-primary/30">
-            <p className="text-[10px] text-muted-foreground">رقم التتبع الخاص بالحجز:</p>
-            <p className="text-lg font-black text-primary font-mono">{generatedTicketId}</p>
-          </div>
-        </div>
+          <CardContent className="p-6 bg-white space-y-4">
+            <div className="flex items-center gap-3 justify-center text-muted-foreground">
+              <Mail className="h-4 w-4" />
+              <p className="text-[10px] font-medium">تم إرسال التذكرة إلى {email}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-muted/30 border border-dashed flex justify-between items-center">
+              <span className="text-[10px] font-bold">رقم الحجز:</span>
+              <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="space-y-3 w-full max-w-xs pt-4">
-          <Button className="w-full h-12 rounded-xl" onClick={() => router.push("/profile")}>عرض التذاكر في حسابي</Button>
-          <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
+          <Button className="w-full h-14 rounded-2xl font-bold gap-2" onClick={() => router.push("/profile")}>
+             عرض التذكرة <ArrowRight className="h-4 w-4 rotate-180" />
+          </Button>
+          <Button variant="ghost" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
       </div>
     );
@@ -147,6 +153,7 @@ function CheckoutContent() {
             <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
               <span className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" /> {boardingPoint} ⬅ {droppingPoint}</span>
+              <span className="flex items-center gap-1 justify-end font-bold text-accent"><Navigation className="h-3 w-3" /> رقم الرحلة: {tripId}</span>
               <span>عدد المسافرين: {passengers.length}</span>
               <span>المقاعد: {seats.join(", ")}</span>
               <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>

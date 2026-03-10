@@ -43,28 +43,22 @@ export default function AdminParcelEntry() {
     collectedAmount: ""
   });
 
-  // جلب المدن (المحافظات) من قاعدة البيانات
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations, isLoading: isLocsLoading } = useCollection(locationsRef);
 
-  // جلب الرحلات النشطة لربط الطرد بها
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // جلب كافة الطرود لعرض بيان الشحنات
   const parcelsRef = useMemoFirebase(() => collection(firestore, "parcels"), [firestore]);
   const { data: allParcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
-  // تصفية الرحلات بناءً على الوجهة المختارة في النموذج
   const filteredTrips = useMemo(() => {
     if (!trips || !formData.destinationLocationId) return [];
     return trips.filter(t => 
-      t.status !== "Arrived" && 
-      t.destinationId === formData.destinationLocationId
+      t.status !== "Arrived"
     );
   }, [trips, formData.destinationLocationId]);
 
-  // تجميع الطرود حسب الحافلة/الرحلة
   const tripsWithParcels = useMemo(() => {
     if (!trips || !allParcels) return [];
     
@@ -83,9 +77,13 @@ export default function AdminParcelEntry() {
     }).filter(Boolean);
   }, [trips, allParcels]);
 
-  const trackingNumber = useMemo(() => {
-    return `AWJ-PRC-${Math.floor(100000 + Math.random() * 900000)}`;
-  }, [isSaving]); // يتغير بعد كل حفظ ناجح
+  // توليد رقم تتبع طرد يتبع النسق المنظم PRC-001
+  const generateTrackingNumber = () => {
+    const randomNum = Math.floor(100 + Math.random() * 899);
+    return `PRC-${randomNum}`;
+  };
+
+  const [currentTrackingNumber, setCurrentTrackingNumber] = useState(generateTrackingNumber());
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +111,7 @@ export default function AdminParcelEntry() {
     const selectedTrip = trips?.find(t => t.id === formData.busTripId);
 
     addDocumentNonBlocking(collection(firestore, "parcels"), {
-      trackingNumber,
+      trackingNumber: currentTrackingNumber,
       senderName: formData.senderName,
       recipientName: formData.recipientName,
       recipientPhoneNumber: formData.recipientPhone,
@@ -134,7 +132,7 @@ export default function AdminParcelEntry() {
       setIsSaving(false);
       toast({
         title: "تم تسجيل الطرد بنجاح",
-        description: `رقم التتبع: ${trackingNumber} - القيمة: ${formData.collectedAmount} ريال`,
+        description: `رقم التتبع: ${currentTrackingNumber} - على الرحلة: ${formData.busTripId}`,
       });
       setFormData({
         senderName: "",
@@ -146,6 +144,7 @@ export default function AdminParcelEntry() {
         notes: "",
         collectedAmount: ""
       });
+      setCurrentTrackingNumber(generateTrackingNumber());
     }, 1000);
   };
 
@@ -160,7 +159,6 @@ export default function AdminParcelEntry() {
         </div>
       </header>
 
-      {/* قسم تسجيل طرد جديد */}
       <Card className="border-primary/10 shadow-lg">
         <CardHeader className="bg-primary/5 border-b">
           <CardTitle className="text-lg flex items-center gap-2 text-primary">
@@ -173,14 +171,14 @@ export default function AdminParcelEntry() {
           <form onSubmit={handleSave} className="space-y-6 text-right">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold opacity-70">رقم الشحنة (تلقائي)</Label>
-                <Input value={trackingNumber} className="bg-muted font-mono h-12" readOnly />
+                <Label className="text-xs font-bold opacity-70">رقم تتبع الطرد</Label>
+                <Input value={currentTrackingNumber} className="bg-muted font-mono h-12 text-primary font-bold" readOnly />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold">المحافظة المستهدفة</Label>
                 <Select 
                   onValueChange={(val) => {
-                    setFormData({...formData, destinationLocationId: val, busTripId: ""});
+                    setFormData({...formData, destinationLocationId: val});
                   }}
                   value={formData.destinationLocationId}
                 >
@@ -264,27 +262,26 @@ export default function AdminParcelEntry() {
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center gap-2 text-accent font-bold text-sm mb-2">
                   <Truck className="h-4 w-4" />
-                  ربط بالحافلة المتجهة للوجهة المختارة
+                  ربط برحلة حافلة نشطة
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Select 
                       onValueChange={(val) => setFormData({...formData, busTripId: val})}
                       value={formData.busTripId}
-                      disabled={!formData.destinationLocationId || filteredTrips.length === 0}
+                      disabled={isTripsLoading || filteredTrips.length === 0}
                     >
                       <SelectTrigger className="rounded-xl h-12 bg-white">
                         <SelectValue placeholder={
-                          !formData.destinationLocationId ? "اختر الوجهة أولاً" : 
                           isTripsLoading ? "جاري التحميل..." : 
-                          filteredTrips.length === 0 ? "لا توجد رحلات نشطة لهذه الوجهة" : 
-                          "اختر الحافلة والرحلة"
+                          filteredTrips.length === 0 ? "لا توجد رحلات نشطة" : 
+                          "اختر الرحلة للربط"
                         } />
                       </SelectTrigger>
                       <SelectContent>
                         {filteredTrips.map(t => (
                           <SelectItem key={t.id} value={t.id}>
-                            {t.originName} ⬅ {t.destinationName} ({t.busLabel})
+                            {t.id} | {t.originName} ⬅ {t.destinationName} ({t.busLabel})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -305,7 +302,6 @@ export default function AdminParcelEntry() {
         </CardContent>
       </Card>
 
-      {/* قسم بيان شحنات الحافلات */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-xl font-bold text-primary flex items-center gap-2">
@@ -335,7 +331,7 @@ export default function AdminParcelEntry() {
                         <BusIcon className="h-5 w-5 text-white" />
                       </div>
                       <div className="text-right">
-                        <CardTitle className="text-sm font-bold">{trip.busLabel}</CardTitle>
+                        <CardTitle className="text-sm font-bold">رحلة: {trip.id} ({trip.busLabel})</CardTitle>
                         <CardDescription className="text-[10px] flex items-center gap-1">
                           <MapPin className="h-3 w-3" /> {trip.originName} ⬅ {trip.destinationName}
                         </CardDescription>
@@ -400,7 +396,6 @@ export default function AdminParcelEntry() {
   );
 }
 
-// أيقونات إضافية غير موجودة في lucide-react (محاكاة)
 function BusIcon({ className }: { className?: string }) {
   return (
     <svg 
