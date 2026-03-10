@@ -31,10 +31,15 @@ function SearchContent() {
   const { data: trips, isLoading } = useCollection(tripsQuery);
 
   const filteredTrips = useMemo(() => {
-    if (!trips || !from || !to) return [];
+    if (!trips || !from || !to || !date) return [];
     
     return trips.map((trip: any) => {
+      // التحقق من تاريخ الرحلة (تجاهل الوقت)
+      const tripDate = new Date(trip.departureTime).toISOString().split('T')[0];
+      if (tripDate !== date) return null;
+
       // بناء مصفوفة كاملة للنقاط بأسعارها التراكمية
+      // السعر في النقاط الوسيطة والوصول هو السعر من نقطة الانطلاق لتلك النقطة
       const allPoints = [
         { id: trip.originId, name: trip.originName, price: 0 },
         ...(trip.intermediateStops || []),
@@ -46,7 +51,10 @@ function SearchContent() {
 
       if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
         // حساب السعر للجزء المختار من المسار
+        // إذا كان الشخص يركب من نقطة وسيطة (بسرع X) وينزل في نقطة وسيطة أخرى (بسعر Y)
+        // فإن السعر هو الفرق بينهما Y - X
         const segmentPrice = allPoints[toIndex].price - allPoints[fromIndex].price;
+        
         return {
           ...trip,
           calculatedPrice: segmentPrice > 0 ? segmentPrice : trip.pricePerSeat,
@@ -56,12 +64,12 @@ function SearchContent() {
       }
       return null;
     }).filter(Boolean);
-  }, [trips, from, to]);
+  }, [trips, from, to, date]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Loader2 className="animate-spin h-12 w-12 text-primary" />
         <p className="text-muted-foreground animate-pulse">جاري البحث عن أفضل الأسعار...</p>
       </div>
     );
@@ -83,7 +91,7 @@ function SearchContent() {
 
       <div className="space-y-4">
         <p className="text-sm font-medium text-muted-foreground px-1">
-          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات تمر بمدينتك` : "لا توجد رحلات مجدولة حالياً لهذا المسار"}
+          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات تمر بمدينتك` : "لا توجد رحلات مجدولة حالياً لهذا المسار في هذا التاريخ"}
         </p>
         
         {filteredTrips.map((trip: any) => (

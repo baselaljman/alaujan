@@ -33,6 +33,15 @@ export default function HomePage() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
+  // وظيفة مساعدة للحصول على كافة النقاط التي تمر بها الرحلة بالترتيب
+  const getTripPath = (trip: any) => {
+    return [
+      trip.originName,
+      ...(trip.intermediateStops?.map((s: any) => s.name) || []),
+      trip.destinationName
+    ];
+  };
+
   const availableTripDates = useMemo(() => {
     if (!trips) return new Set<string>();
     
@@ -40,7 +49,11 @@ export default function HomePage() {
       trips
         .filter(trip => {
           if (from && to) {
-            return trip.originName === from && trip.destinationName === to;
+            const path = getTripPath(trip);
+            const fromIndex = path.indexOf(from);
+            const toIndex = path.indexOf(to);
+            // يجب أن تكون المدينة "من" موجودة وتسبق المدينة "إلى" في المسار
+            return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
           }
           return true;
         })
@@ -64,36 +77,24 @@ export default function HomePage() {
     }, { saudi: [], syria: [], others: [] });
   }, [locations]);
 
-  const isSaudi = (locationName: string) => {
-    return groupedLocations.saudi.some((l: any) => l.name === locationName);
-  };
-
-  const isSyrian = (locationName: string) => {
-    return groupedLocations.syria.some((l: any) => l.name === locationName);
-  };
-
+  // تحديد الوجهات المتاحة بناءً على الرحلات الفعلية الموجودة في النظام
   const availableDestinations = useMemo(() => {
-    if (!from) return locations || [];
+    if (!from || !trips || !locations) return locations || [];
     
-    if (isSaudi(from)) {
-      return [...groupedLocations.syria, ...groupedLocations.others];
-    } else if (isSyrian(from)) {
-      return [...groupedLocations.saudi, ...groupedLocations.others];
-    }
-    return locations || [];
-  }, [from, groupedLocations, locations]);
+    const possibleDestinations = new Set<string>();
+    trips.forEach(trip => {
+      const path = getTripPath(trip);
+      const fromIndex = path.indexOf(from);
+      if (fromIndex !== -1) {
+        // إضافة جميع المدن التي تلي مدينة الانطلاق في هذا المسار
+        path.slice(fromIndex + 1).forEach(city => possibleDestinations.add(city));
+      }
+    });
+
+    return locations.filter(loc => possibleDestinations.has(loc.name));
+  }, [from, trips, locations]);
 
   useEffect(() => {
-    if (from && to) {
-      const fromIsSaudi = isSaudi(from);
-      const toIsSaudi = isSaudi(to);
-      const fromIsSyria = isSyrian(from);
-      const toIsSyria = isSyrian(to);
-
-      if ((fromIsSaudi && toIsSaudi) || (fromIsSyria && toIsSyria)) {
-        setTo("");
-      }
-    }
     setDate(undefined);
   }, [from, to]);
 
@@ -148,11 +149,10 @@ export default function HomePage() {
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              {/* مدينة الانطلاق على اليمين */}
               <div className="space-y-2 text-right">
                 <Label htmlFor="from" className="text-sm font-bold pr-1">من مدينة الانطلاق</Label>
                 <Select onValueChange={setFrom} value={from} disabled={isLocationsLoading}>
-                  <SelectTrigger id="from" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
+                  <SelectTrigger id="from" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30 text-right">
                     <SelectValue placeholder={isLocationsLoading ? "جاري التحميل..." : "اختر مدينة الانطلاق"} />
                   </SelectTrigger>
                   <SelectContent>
@@ -184,11 +184,10 @@ export default function HomePage() {
                 </Select>
               </div>
 
-              {/* مدينة الوصول على اليسار */}
               <div className="space-y-2 text-right">
                 <Label htmlFor="to" className="text-sm font-bold pr-1">إلى الوجهة</Label>
                 <Select onValueChange={setTo} value={to} disabled={!from || isLocationsLoading}>
-                  <SelectTrigger id="to" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30">
+                  <SelectTrigger id="to" className="bg-background border-primary/10 h-14 rounded-2xl focus:ring-accent shadow-sm transition-all hover:border-primary/30 text-right">
                     <SelectValue placeholder={from ? "اختر مدينة الوصول" : "اختر مدينة الانطلاق أولاً"} />
                   </SelectTrigger>
                   <SelectContent>
