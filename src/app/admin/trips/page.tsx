@@ -28,7 +28,9 @@ import {
   Copy,
   FileText,
   ArrowLeft,
-  Banknote
+  Banknote,
+  MapPin,
+  X
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes } from "date-fns";
@@ -48,6 +50,7 @@ export default function AdminTrips() {
   const [pricePerSeat, setPricePerSeat] = useState<string>("350");
   const [departureDate, setDepartureDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
+  const [intermediateStopIds, setIntermediateStopIds] = useState<string[]>([]);
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -81,10 +84,20 @@ export default function AdminTrips() {
 
   const { data: manifestBookings, isLoading: isManifestLoading } = useCollection(bookingsQuery);
 
+  const handleAddStop = (stopId: string) => {
+    if (stopId && !intermediateStopIds.includes(stopId)) {
+      setIntermediateStopIds([...intermediateStopIds, stopId]);
+    }
+  };
+
+  const removeStop = (stopId: string) => {
+    setIntermediateStopIds(intermediateStopIds.filter(id => id !== stopId));
+  };
+
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!busId || !departureDate || !originId || !destinationId || !pricePerSeat) {
-      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى إكمال جميع الحقول المطلوبة بما في ذلك السعر" });
+      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى إكمال جميع الحقول المطلوبة" });
       return;
     }
 
@@ -106,6 +119,12 @@ export default function AdminTrips() {
     const originName = locations?.find(l => l.id === originId)?.name || "";
     const destinationName = locations?.find(l => l.id === destinationId)?.name || "";
     const selectedBus = buses?.find(b => b.id === busId);
+    
+    // تحويل معرفات المدن إلى أسماء لسهولة العرض والبحث
+    const intermediateStops = intermediateStopIds.map(id => {
+      const loc = locations?.find(l => l.id === id);
+      return { id: loc?.id, name: loc?.name };
+    });
 
     const tripDocRef = doc(firestore, "busTrips", nextId);
 
@@ -117,6 +136,7 @@ export default function AdminTrips() {
       originName,
       destinationId,
       destinationName,
+      intermediateStops, // تخزين مصفوفة المحطات
       status: "Scheduled",
       pricePerSeat: Number(pricePerSeat),
       availableSeats: selectedBus?.capacity || 40,
@@ -126,8 +146,9 @@ export default function AdminTrips() {
       createdAt: new Date().toISOString()
     }, { merge: true });
 
-    toast({ title: "تمت إضافة الرحلة", description: `تم إصدار كود الرحلة الجديد: ${nextId} بسعر ${pricePerSeat} ريال` });
+    toast({ title: "تمت إضافة الرحلة", description: `كود الرحلة: ${nextId}` });
     setIsAdding(false);
+    setIntermediateStopIds([]);
   };
 
   const handlePrintManifest = () => {
@@ -138,7 +159,7 @@ export default function AdminTrips() {
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بفتح النوافذ المنبثقة (Popups) للطباعة." });
+      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بفتح النوافذ المنبثقة." });
       return;
     }
 
@@ -159,7 +180,6 @@ export default function AdminTrips() {
             th, td { border: 1px solid #dee2e6; padding: 12px; text-align: right; }
             th { background-color: #003d2d; color: white; font-weight: bold; }
             tr:nth-child(even) { background-color: #f9f9f9; }
-            .footer { margin-top: 50px; text-align: left; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
           </style>
         </head>
         <body>
@@ -199,10 +219,6 @@ export default function AdminTrips() {
               `).join('')}
             </tbody>
           </table>
-          <div class="footer">
-            طبع بواسطة النظام: ${new Date().toLocaleString('ar-EG')} | شركة العوجان للسياحة والسفر
-          </div>
-          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `;
@@ -213,10 +229,7 @@ export default function AdminTrips() {
 
   const handlePrintTicket = (passenger: any, trip: any) => {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى السماح بالنوافذ المنبثقة للطباعة." });
-      return;
-    }
+    if (!printWindow) return;
 
     const content = `
       <html dir="rtl">
@@ -232,15 +245,12 @@ export default function AdminTrips() {
             .label { color: #888; font-size: 11px; margin-bottom: 5px; font-weight: bold; }
             .value { font-weight: bold; font-size: 17px; color: #003d2d; }
             .seat-badge { background: #b08d40; color: white; padding: 12px 25px; border-radius: 12px; font-size: 26px; font-weight: 900; }
-            .barcode { margin-top: 30px; text-align: center; border-top: 2px dashed #eee; padding-top: 20px; }
-            .barcode-line { height: 45px; background: repeating-linear-gradient(90deg, #333, #333 2px, transparent 2px, transparent 5px); width: 100%; margin-bottom: 10px; }
           </style>
         </head>
         <body>
           <div class="ticket">
             <div class="ticket-header">
               <h2 style="margin:0">العوجان للسياحة والسفر</h2>
-              <p style="margin:8px 0 0 0; opacity:0.8; font-size:13px">تذكرة سفر دولية - رحلة ${trip.id}</p>
             </div>
             <div class="ticket-body">
               <div class="row">
@@ -262,27 +272,12 @@ export default function AdminTrips() {
               </div>
               <div class="row">
                 <div>
-                  <div class="label">وقت المغادرة</div>
-                  <div class="value">${new Date(trip.departureTime).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-                </div>
-              </div>
-              <div class="row">
-                <div>
                   <div class="label">رقم الجواز</div>
                   <div class="value">${passenger.passportNumber}</div>
                 </div>
-                <div>
-                  <div class="label">حالة التذكرة</div>
-                  <div class="value" style="color: #059669">مؤكدة</div>
-                </div>
-              </div>
-              <div class="barcode">
-                <div class="barcode-line"></div>
-                <div style="font-family:monospace; font-size:11px; color: #666;">${trip.id}-${passenger.seatNumber}-${passenger.fullName.substring(0,2).toUpperCase()}</div>
               </div>
             </div>
           </div>
-          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `;
@@ -324,7 +319,7 @@ export default function AdminTrips() {
 
       {isAdding && (
         <Card className="p-6 border-primary/20 shadow-lg animate-in slide-in-from-top-4 duration-300">
-          <form onSubmit={handleAddTrip} className="space-y-4">
+          <form onSubmit={handleAddTrip} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 text-right">
                 <Label>مدينة الانطلاق</Label>
@@ -343,6 +338,35 @@ export default function AdminTrips() {
                     {locations?.map(loc => <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border border-dashed">
+              <Label className="font-bold flex items-center gap-2 justify-end">
+                <span>نقاط التوقف (المدن التي يمر بها الباص)</span>
+                <MapPin className="h-4 w-4 text-primary" />
+              </Label>
+              <div className="flex gap-2">
+                <Select onValueChange={handleAddStop}>
+                  <SelectTrigger className="rounded-xl h-10 bg-white"><SelectValue placeholder="اختر مدينة توقف" /></SelectTrigger>
+                  <SelectContent>
+                    {locations?.filter(l => l.id !== originId && l.id !== destinationId).map(loc => (
+                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {intermediateStopIds.map(id => {
+                  const name = locations?.find(l => l.id === id)?.name;
+                  return (
+                    <Badge key={id} className="bg-primary/10 text-primary border-none py-1.5 px-3 rounded-full flex items-center gap-2">
+                      {name}
+                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" onClick={() => removeStop(id)} />
+                    </Badge>
+                  );
+                })}
+                {intermediateStopIds.length === 0 && <p className="text-[10px] text-muted-foreground w-full">لا توجد محطات توقف مضافة</p>}
               </div>
             </div>
             
@@ -416,12 +440,10 @@ export default function AdminTrips() {
                       <p className="font-bold text-base">{trip.originName} <ArrowLeft className="inline h-3 w-3 mx-1 opacity-50" /> {trip.destinationName}</p>
                       <Badge variant="outline" className="text-[10px] font-black border-primary/20 text-primary">{trip.id}</Badge>
                     </div>
+                    {trip.intermediateStops && trip.intermediateStops.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground">يمر بـ: {trip.intermediateStops.map((s: any) => s.name).join('، ')}</p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">{trip.busLabel} | متاح: {trip.availableSeats} | السعر: {trip.pricePerSeat} ريال</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <button onClick={() => copyTripId(trip.id)} className="flex items-center gap-1 text-[9px] text-primary font-bold hover:underline">
-                        <Copy className="h-2.5 w-2.5" /> نسخ الكود
-                      </button>
-                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -438,7 +460,7 @@ export default function AdminTrips() {
                                <p className="text-xs opacity-70 mt-1">{trip.originName} ⬅ {trip.destinationName}</p>
                             </div>
                             <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-primary gap-2" onClick={handlePrintManifest}>
-                               <Printer className="h-4 w-4" /> طباعة البيان الشامل
+                               <Printer className="h-4 w-4" /> طباعة البيان
                             </Button>
                          </div>
                          <div className="p-6">
@@ -468,18 +490,6 @@ export default function AdminTrips() {
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handlePrintTicket(p, trip)}>
                                               <Ticket className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className={cn("h-8 w-8", p.status === 'Cancelled' ? "text-emerald-500" : "text-red-500")}
-                                              onClick={() => {
-                                                const updated = [...b.passengers];
-                                                const isCancelling = p.status !== 'Cancelled';
-                                                updated[i].status = isCancelling ? 'Cancelled' : 'Confirmed';
-                                                updateDocumentNonBlocking(doc(firestore, "bookings", b.id), { passengers: updated });
-                                                updateDocumentNonBlocking(doc(firestore, "busTrips", trip.id), { availableSeats: increment(isCancelling ? 1 : -1) });
-                                                toast({ title: isCancelling ? "تم الإلغاء" : "تم التنشيط" });
-                                              }}
-                                            >
-                                              {p.status === 'Cancelled' ? <RotateCcw className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                                            </Button>
                                          </div>
                                        </TableCell>
                                      </TableRow>
@@ -503,3 +513,4 @@ export default function AdminTrips() {
     </div>
   );
 }
+

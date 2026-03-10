@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Bus, Clock, Info, AlertTriangle, Loader2, Navigation } from "lucide-react";
+import { Search, MapPin, Bus, Clock, Info, AlertTriangle, Loader2, Navigation, CircleDot, ArrowDown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
@@ -105,7 +105,7 @@ export default function TrackingPage() {
             <CardContent>
               <div className="flex gap-2">
                 <Input
-                  placeholder="مثلاً: AWJ-TRIP-TEST"
+                  placeholder="مثلاً: aw001"
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value)}
                   className="h-12 rounded-xl"
@@ -158,21 +158,47 @@ export default function TrackingPage() {
                   )}
                 </div>
 
-                <CardContent className="p-6 space-y-6 text-right">
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* الانطلاق على اليمين */}
-                    <div className="p-4 bg-muted/30 rounded-2xl border text-center order-first">
-                      <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">من</p>
-                      <p className="font-bold text-sm">{trip.originName}</p>
-                    </div>
-                    {/* الوصول على اليسار */}
-                    <div className="p-4 bg-muted/30 rounded-2xl border text-center order-last">
-                      <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">إلى</p>
-                      <p className="font-bold text-sm">{trip.destinationName}</p>
+                <CardContent className="p-6 space-y-8 text-right">
+                  {/* عرض المسار الكامل للرحلة */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-primary flex items-center gap-2 justify-end mb-4">
+                      <span>مسار الرحلة الكامل ومحطات التوقف</span>
+                      <Navigation className="h-3 w-3" />
+                    </h3>
+                    
+                    <div className="relative flex flex-col gap-4 pr-4 border-r-2 border-primary/10 mr-2">
+                      {/* نقطة الانطلاق */}
+                      <div className="relative">
+                        <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-primary border-4 border-white shadow-sm" />
+                        <div className="flex justify-between items-center">
+                          <p className="font-black text-sm text-primary">{trip.originName}</p>
+                          <Badge variant="outline" className="text-[9px]">نقطة الانطلاق</Badge>
+                        </div>
+                      </div>
+
+                      {/* محطات التوقف المتوسطة */}
+                      {trip.intermediateStops && trip.intermediateStops.map((stop: any, idx: number) => (
+                        <div key={idx} className="relative">
+                          <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-accent border-4 border-white shadow-sm" />
+                          <div className="flex justify-between items-center">
+                            <p className="font-bold text-sm text-muted-foreground">{stop.name}</p>
+                            <Badge variant="secondary" className="text-[9px] bg-accent/10 text-accent border-none">محطة توقف</Badge>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* نقطة الوصول */}
+                      <div className="relative">
+                        <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-emerald-600 border-4 border-white shadow-sm" />
+                        <div className="flex justify-between items-center">
+                          <p className="font-black text-sm text-emerald-700">{trip.destinationName}</p>
+                          <Badge className="text-[9px] bg-emerald-600">نقطة الوصول</Badge>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 pt-2">
+                  <div className="space-y-4 pt-4 border-t border-dashed">
                     <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                       <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
@@ -194,16 +220,14 @@ export default function TrackingPage() {
                     )}
                   </div>
 
-                  <div className="pt-4 border-t border-dashed">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <p className="text-[10px] text-muted-foreground font-bold">موعد الوصول التقديري</p>
-                        <p className="text-sm font-black text-primary">
-                          {trip.arrivalTime ? new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "غير محدد"}
-                        </p>
-                      </div>
-                      <Clock className="h-5 w-5 text-muted-foreground" />
+                  <div className="pt-4 border-t border-dashed flex items-center justify-between">
+                    <div className="text-right">
+                      <p className="text-[10px] text-muted-foreground font-bold">موعد الوصول التقديري</p>
+                      <p className="text-sm font-black text-primary">
+                        {trip.arrivalTime ? new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "غير محدد"}
+                      </p>
                     </div>
+                    <Clock className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -233,3 +257,4 @@ export default function TrackingPage() {
     </div>
   );
 }
+

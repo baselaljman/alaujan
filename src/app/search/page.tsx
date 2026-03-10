@@ -6,7 +6,7 @@ import { useState, useMemo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Clock, Users, ArrowLeft } from "lucide-react";
+import { ArrowRight, Clock, Users, ArrowLeft, MapPin } from "lucide-react";
 import Link from "next/link";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
@@ -39,11 +39,24 @@ function SearchContent() {
     );
   }
 
-  const filteredTrips = trips?.filter((t: any) => {
-    if (from && t.originName !== from) return false;
-    if (to && t.destinationName !== to) return false;
-    return true; 
-  }) || [];
+  const filteredTrips = useMemo(() => {
+    if (!trips || !from || !to) return [];
+    
+    return trips.filter((trip: any) => {
+      // بناء المسار الكامل للرحلة: نقطة الانطلاق + محطات التوقف + نقطة الوصول
+      const allPoints = [
+        trip.originName,
+        ...(trip.intermediateStops || []).map((s: any) => s.name),
+        trip.destinationName
+      ];
+
+      const fromIndex = allPoints.indexOf(from);
+      const toIndex = allPoints.indexOf(to);
+
+      // الرحلة مطابقة إذا كانت مدينتا "من" و "إلى" موجودتين في المسار وبترتيب منطقي
+      return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+    });
+  }, [trips, from, to]);
 
   return (
     <div className="space-y-6">
@@ -61,7 +74,7 @@ function SearchContent() {
 
       <div className="space-y-4">
         <p className="text-sm font-medium text-muted-foreground px-1">
-          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات VIP مباشرة` : "لا توجد رحلات مجدولة حالياً لهذا المسار"}
+          {filteredTrips.length > 0 ? `تم العثور على ${filteredTrips.length} رحلات متاحة للمسار المختار` : "لا توجد رحلات مجدولة حالياً لهذا المسار"}
         </p>
         
         {filteredTrips.map((trip: any) => (
@@ -74,7 +87,6 @@ function SearchContent() {
                       VIP
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
-                      {/* مدينة الانطلاق على اليمين */}
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary">{trip.departureTime ? new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "08:00 صباحاً"}</p>
                         <p className="text-xs text-muted-foreground">{from}</p>
@@ -84,18 +96,24 @@ function SearchContent() {
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-primary bg-background" />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">حوالي 18 ساعة</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">مسار مباشر</p>
                       </div>
-                      {/* مدينة الوصول على اليسار */}
                       <div className="text-left">
                         <p className="text-lg font-bold text-primary">وصل</p>
                         <p className="text-xs text-muted-foreground">{to}</p>
                       </div>
                     </div>
+                    {/* عرض تنبيه إذا كان المسار يمر بمحطات متوسطة */}
+                    {trip.intermediateStops && trip.intermediateStops.length > 0 && (
+                      <div className="flex items-center gap-1 mt-2 text-[9px] text-muted-foreground bg-primary/5 p-1 px-2 rounded-md w-fit">
+                        <MapPin className="h-2.5 w-2.5" />
+                        <span>تمر بـ: {trip.intermediateStops.map((s: any) => s.name).join('، ')}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="text-left pr-4">
                     <div className="flex items-baseline gap-1 justify-end">
-                      <span className="text-xs font-bold text-primary">$</span>
+                      <span className="text-xs font-bold text-primary">ريال</span>
                       <span className="text-2xl font-black text-primary font-headline">{trip.pricePerSeat || "350"}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground">للفرد (ذهاب فقط)</p>
@@ -106,7 +124,7 @@ function SearchContent() {
                   <div className="flex items-center gap-4 text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4 text-primary/60" />
-                      <span>مباشر</span>
+                      <span>{trip.id}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-4 w-4 text-primary/60" />
