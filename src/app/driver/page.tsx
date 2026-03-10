@@ -23,6 +23,8 @@ export default function DriverDashboard() {
   const [isTracking, setIsTracking] = useState(false);
   const watchId = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  // مرجع أمان لمنع التحديثات بعد إيقاف التتبع
+  const isTrackingRef = useRef(false);
 
   const busesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
@@ -47,6 +49,15 @@ export default function DriverDashboard() {
     }
   }, [myTrips]);
 
+  // تنظيف التتبع عند مغادرة الصفحة
+  useEffect(() => {
+    return () => {
+      if (watchId.current !== null) {
+        navigator.geolocation.clearWatch(watchId.current);
+      }
+    };
+  }, []);
+
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
       toast({ variant: "destructive", title: "خطأ", description: "GPS غير مدعوم في هذا الجهاز" });
@@ -56,10 +67,14 @@ export default function DriverDashboard() {
     if (!activeTripId) return;
 
     setIsTracking(true);
+    isTrackingRef.current = true;
     const tripRef = doc(firestore, "busTrips", activeTripId);
 
     watchId.current = navigator.geolocation.watchPosition(
       (position) => {
+        // التأكد من أن التتبع لا يزال مطلوباً قبل التحديث
+        if (!isTrackingRef.current) return;
+
         const now = Date.now();
         if (now - lastUpdateRef.current < 10000) return;
 
@@ -75,24 +90,28 @@ export default function DriverDashboard() {
         });
       },
       (error) => {
-        // Avoid console.error to prevent red screen overlay in studio
-        toast({ 
-          variant: "destructive", 
-          title: "تنبيه الـ GPS", 
-          description: "تعذر تحديث موقعك المباشر. يرجى تفعيل خدمة الموقع وإعادة المحاولة." 
-        });
-        setIsTracking(false);
+        if (isTrackingRef.current) {
+          toast({ 
+            variant: "destructive", 
+            title: "تنبيه الـ GPS", 
+            description: "تعذر تحديث موقعك المباشر. يرجى تفعيل خدمة الموقع وإعادة المحاولة." 
+          });
+          stopLocationTracking();
+        }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
     );
   };
 
   const stopLocationTracking = () => {
+    isTrackingRef.current = false;
+    setIsTracking(false);
+    
     if (watchId.current !== null) {
       navigator.geolocation.clearWatch(watchId.current);
       watchId.current = null;
     }
-    setIsTracking(false);
+    
     if (activeTripId) {
       const tripRef = doc(firestore, "busTrips", activeTripId);
       updateDocumentNonBlocking(tripRef, { isLive: false });
@@ -118,6 +137,12 @@ export default function DriverDashboard() {
 
   const handleStatusChange = (newStatus: TripStatus) => {
     if (!activeTripId) return;
+    
+    // إيقاف التتبع فوراً إذا كانت الحالة ليست انطلاق
+    if (newStatus !== "Departed") {
+      stopLocationTracking();
+    }
+
     setTripStatus(newStatus);
     const tripRef = doc(firestore, "busTrips", activeTripId);
     
@@ -130,8 +155,6 @@ export default function DriverDashboard() {
 
     if (newStatus === "Departed") {
       startLocationTracking();
-    } else if (newStatus === "Arrived") {
-      stopLocationTracking();
     }
 
     syncParcelsStatus(newStatus);
