@@ -52,8 +52,10 @@ export default function HomePage() {
             const path = getTripPath(trip);
             const fromIndex = path.indexOf(from);
             const toIndex = path.indexOf(to);
-            // يجب أن تكون المدينة "من" موجودة وتسبق المدينة "إلى" في المسار
             return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+          } else if (from) {
+            const path = getTripPath(trip);
+            return path.indexOf(from) !== -1;
           }
           return true;
         })
@@ -77,7 +79,7 @@ export default function HomePage() {
     }, { saudi: [], syria: [], others: [] });
   }, [locations]);
 
-  // تحديد الوجهات المتاحة بناءً على الرحلات الفعلية الموجودة في النظام
+  // تحديد الوجهات المتاحة بناءً على الرحلات الفعلية التي تمر بمدينة الانطلاق المختارة
   const availableDestinations = useMemo(() => {
     if (!from || !trips || !locations) return locations || [];
     

@@ -25,7 +25,8 @@ import {
   LayoutDashboard,
   ShieldCheck,
   MapPin,
-  Truck
+  Truck,
+  ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -59,12 +60,10 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
-  // 1. فحص هل المستخدم هو المالك الأساسي
   const isAdmin = useMemo(() => {
     return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   }, [user]);
 
-  // 2. فحص هل المستخدم موظف
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
@@ -72,7 +71,6 @@ export default function ProfilePage() {
   const { data: staffData, isLoading: isStaffLoading } = useCollection(staffQuery);
   const isStaff = staffData && staffData.length > 0;
   
-  // 3. فحص هل المستخدم سائق
   const driverQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "buses"), where("driverEmail", "==", user.email.toLowerCase()));
@@ -87,10 +85,10 @@ export default function ProfilePage() {
   const { data: profile } = useDoc(profileRef);
 
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
+    if (!firestore || !user?.uid) return null;
     return query(
       collection(firestore, "bookings"), 
-      where("userEmail", "==", user.email.toLowerCase())
+      where("userId", "==", user.uid)
     );
   }, [firestore, user]);
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
@@ -110,10 +108,6 @@ export default function ProfilePage() {
       initiateEmailSignUp(auth, email, password);
     } else {
       initiatePasswordReset(auth, email);
-      toast({ 
-        title: "طلب استعادة كلمة المرور", 
-        description: "تم إرسال الرابط برمجياً. في بيئة العمل الحالية لن تصل رسائل حقيقية ولكن النظام جاهز للعمل." 
-      });
     }
   };
 
@@ -254,7 +248,7 @@ export default function ProfilePage() {
                   <p className="text-sm font-medium">{user.email}</p>
                 </div>
                 <Badge variant="secondary" className="bg-accent/10 text-accent border-none font-black px-4 py-1 mt-2">
-                  {isAdmin ? "المالك والمدير العام" : isStaff ? "موظف معتمد" : isDriver ? "قائد حافلة" : "عضو مسجل"}
+                  {isAdmin ? "المدير العام" : isStaff ? "موظف معتمد" : isDriver ? "قائد حافلة" : "عضو مسجل"}
                 </Badge>
               </div>
             </div>
@@ -270,25 +264,51 @@ export default function ProfilePage() {
             ) : bookings && bookings.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
                 {bookings.map((booking) => (
-                  <Card key={booking.id} className="border-none shadow-sm ring-1 ring-primary/5 rounded-2xl overflow-hidden">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center">
-                          <Bus className="h-6 w-6 text-primary" />
+                  <Card key={booking.id} className="border-none shadow-sm ring-1 ring-primary/5 rounded-2xl overflow-hidden group hover:shadow-md transition-all">
+                    <CardContent className="p-0">
+                      <div className="p-5 flex items-center justify-between border-b border-dashed">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center">
+                            <Bus className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-black text-base text-primary">تذكرة سفر ({booking.id.slice(-4).toUpperCase()})</p>
+                            <p className="text-xs text-muted-foreground">تاريخ الحجز: {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-black text-base text-primary">حجز {booking.numberOfSeats} مقاعد</p>
-                          <p className="text-xs text-muted-foreground">التاريخ: {new Date(booking.bookingDate).toLocaleDateString('ar-EG')}</p>
-                        </div>
+                        <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-bold">مؤكد</Badge>
                       </div>
-                      <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-bold">مؤكد</Badge>
+                      <div className="p-5 bg-muted/20 space-y-3">
+                         <div className="flex items-center justify-between text-sm">
+                           <div className="text-right">
+                             <p className="text-[10px] text-muted-foreground font-bold">من (محطة الركوب)</p>
+                             <p className="font-bold text-primary">{booking.boardingPoint || "غير محدد"}</p>
+                           </div>
+                           <ArrowLeft className="h-4 w-4 text-muted-foreground mx-4" />
+                           <div className="text-left">
+                             <p className="text-[10px] text-muted-foreground font-bold">إلى (محطة النزول)</p>
+                             <p className="font-bold text-primary">{booking.droppingPoint || "غير محدد"}</p>
+                           </div>
+                         </div>
+                         <div className="flex items-center justify-between pt-2 border-t border-white">
+                           <div className="text-right">
+                             <p className="text-[10px] text-muted-foreground font-bold">المقاعد المحجوزة</p>
+                             <p className="font-black text-primary">{booking.seatNumbers?.join(", ")}</p>
+                           </div>
+                           <div className="text-left">
+                             <p className="text-[10px] text-muted-foreground font-bold">عدد المسافرين</p>
+                             <p className="font-black text-primary">{booking.numberOfSeats}</p>
+                           </div>
+                         </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : (
               <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
-                <p className="text-sm text-muted-foreground">لا توجد حجوزات مرتبطة بهذا البريد</p>
+                <Ticket className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground">لا توجد حجوزات نشطة حالياً</p>
               </div>
             )}
           </section>

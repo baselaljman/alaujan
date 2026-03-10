@@ -6,7 +6,7 @@ import { useState, useMemo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Clock, Users, ArrowLeft, MapPin, Loader2 } from "lucide-react";
+import { ArrowRight, Clock, Users, ArrowLeft, MapPin, Loader2, Star } from "lucide-react";
 import Link from "next/link";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
@@ -39,7 +39,6 @@ function SearchContent() {
       if (tripDate !== date) return null;
 
       // بناء مصفوفة كاملة للنقاط بأسعارها التراكمية
-      // السعر في النقاط الوسيطة والوصول هو السعر من نقطة الانطلاق لتلك النقطة
       const allPoints = [
         { id: trip.originId, name: trip.originName, price: 0 },
         ...(trip.intermediateStops || []),
@@ -51,13 +50,12 @@ function SearchContent() {
 
       if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
         // حساب السعر للجزء المختار من المسار
-        // إذا كان الشخص يركب من نقطة وسيطة (بسرع X) وينزل في نقطة وسيطة أخرى (بسعر Y)
-        // فإن السعر هو الفرق بينهما Y - X
+        // السعر هو الفرق بين السعر المخزن للمحطتين
         const segmentPrice = allPoints[toIndex].price - allPoints[fromIndex].price;
         
         return {
           ...trip,
-          calculatedPrice: segmentPrice > 0 ? segmentPrice : trip.pricePerSeat,
+          calculatedPrice: segmentPrice > 0 ? segmentPrice : (trip.pricePerSeat || 350),
           fromLabel: from,
           toLabel: to
         };
@@ -100,9 +98,14 @@ function SearchContent() {
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 flex-1">
-                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 font-bold">
-                      VIP
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20 border-none px-3 font-bold">
+                        VIP
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] border-accent/20 text-accent font-bold">
+                        <Star className="h-2 w-2 ml-1 inline" /> خدمة ممتازة
+                      </Badge>
+                    </div>
                     <div className="flex items-center gap-4 pt-3">
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary">{new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
@@ -113,7 +116,7 @@ function SearchContent() {
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-primary" />
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full border-2 border-primary bg-background" />
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">مسار مخصص</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">مسار مباشر</p>
                       </div>
                       <div className="text-left">
                         <p className="text-lg font-bold text-primary">وصول</p>
@@ -142,7 +145,7 @@ function SearchContent() {
                     </div>
                   </div>
                   <Button asChild className="bg-primary hover:bg-primary/95 rounded-full px-8 shadow-lg group-hover:scale-105 transition-transform">
-                    <Link href={`/book?id=${trip.id}&price=${trip.calculatedPrice}`}>احجز الآن</Link>
+                    <Link href={`/book?id=${trip.id}&price=${trip.calculatedPrice}&from=${from}&to=${to}`}>احجز الآن</Link>
                   </Button>
                 </div>
               </div>

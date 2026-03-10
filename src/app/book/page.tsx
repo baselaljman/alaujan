@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Send, Phone } from "lucide-react";
+import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Send, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
@@ -25,7 +25,10 @@ function BookTripContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tripId = searchParams.get("id") || "";
-  const customPrice = searchParams.get("price"); // السعر المخصص للمسار
+  const customPrice = searchParams.get("price");
+  const boardingPoint = searchParams.get("boarding") || searchParams.get("from") || "";
+  const droppingPoint = searchParams.get("dropping") || searchParams.get("to") || "";
+  
   const firestore = useFirestore();
   const auth = useAuth();
   
@@ -62,7 +65,6 @@ function BookTripContent() {
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
 
-  // استخدام السعر المخصص من الرابط أو السعر الأساسي للرحلة
   const TICKET_PRICE = customPrice ? Number(customPrice) : (trip?.pricePerSeat || 350);
   const BAG_PRICE = 100;
 
@@ -142,6 +144,8 @@ function BookTripContent() {
       email,
       phone: `${countryCode}${phone}`,
       extraBags: extraBags.toString(),
+      boardingPoint,
+      droppingPoint,
       passengers: JSON.stringify(passengers)
     });
     router.push(`/checkout?${queryParams.toString()}`);
@@ -153,11 +157,16 @@ function BookTripContent() {
     <div className="space-y-6 pb-32">
       <header className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => step === 1 ? router.back() : setStep(step - 1)}><ArrowRight className="h-6 w-6" /></Button>
-        <h1 className="text-xl font-bold">
-          {step === 1 && "اختيار المقاعد"}
-          {step === 2 && "بيانات المسافرين"}
-          {step === 3 && "الإضافات والتواصل"}
-        </h1>
+        <div className="text-right flex-1">
+          <h1 className="text-xl font-bold">
+            {step === 1 && "اختيار المقاعد"}
+            {step === 2 && "بيانات المسافرين"}
+            {step === 3 && "الإضافات والتواصل"}
+          </h1>
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end">
+            <MapPin className="h-2 w-2" /> {boardingPoint} ⬅ {droppingPoint}
+          </p>
+        </div>
       </header>
 
       <div id="recaptcha-container"></div>

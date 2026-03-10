@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2 } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
@@ -29,10 +29,11 @@ function CheckoutContent() {
   const email = searchParams.get("email") || "";
   const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
+  const boardingPoint = searchParams.get("boardingPoint") || "";
+  const droppingPoint = searchParams.get("droppingPoint") || "";
   const passengersJson = searchParams.get("passengers");
   const rawPassengers = passengersJson ? JSON.parse(passengersJson) : [];
   
-  // تأكيد حالة كل مسافر عند الحجز
   const passengers = rawPassengers.map((p: any) => ({
     ...p,
     status: 'Confirmed'
@@ -63,12 +64,14 @@ function CheckoutContent() {
     const bookingData = {
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email,
+      userEmail: email.toLowerCase(),
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
       extraBags: extraBags,
       passengers: passengers,
+      boardingPoint: boardingPoint,
+      droppingPoint: droppingPoint,
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -128,6 +131,7 @@ function CheckoutContent() {
           <CardHeader className="bg-primary/5 border-b py-4">
             <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
+              <span className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" /> {boardingPoint} ⬅ {droppingPoint}</span>
               <span>عدد المسافرين: {passengers.length}</span>
               <span>المقاعد: {seats.join(", ")}</span>
               <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
