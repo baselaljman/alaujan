@@ -6,7 +6,7 @@ import { useState, useMemo, Suspense } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Clock, Users, ArrowLeft, MapPin } from "lucide-react";
+import { ArrowRight, Clock, Users, ArrowLeft, MapPin, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
