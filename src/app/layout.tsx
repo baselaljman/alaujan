@@ -1,7 +1,9 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import BottomNav from "@/components/BottomNav";
+import Navbar from "@/components/Navbar";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const viewport: Viewport = {
@@ -58,7 +60,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen bg-background" style={{ fontFamily: "'Noto Sans Arabic', 'Inter', sans-serif" }}>
         <FirebaseClientProvider>
-          <main className="flex-1 pb-24 md:pb-0 max-w-md mx-auto w-full md:max-w-4xl px-4 py-6 mt-[env(safe-area-inset-top)]">
+          <Navbar />
+          <main className="flex-1 pb-24 md:pb-12 max-w-md mx-auto w-full md:max-w-5xl px-4 py-6 mt-[env(safe-area-inset-top)]">
             {children}
           </main>
           <BottomNav />
