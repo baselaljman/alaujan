@@ -127,9 +127,12 @@ export default function ProfilePage() {
 
     setIsDownloading(bookingId);
     try {
+      // استخدام إعدادات أكثر أماناً لتجنب خطأ SecurityError المرتبط بملفات CSS الخارجية (Google Fonts)
       const dataUrl = await toPng(element, { 
         cacheBust: true,
         backgroundColor: '#ffffff',
+        // تجاوز محاولة قراءة ملفات CSS الخارجية التي تسبب خطأ CORS
+        fontEmbedCSS: '',
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top right'
@@ -141,8 +144,8 @@ export default function ProfilePage() {
       link.click();
       toast({ title: "تم التحميل", description: "تم حفظ التذكرة كصورة في جهازك" });
     } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "خطأ", description: "فشل تحميل الصورة" });
+      console.error("Download Error:", err);
+      toast({ variant: "destructive", title: "خطأ في التحميل", description: "تعذر تحويل التذكرة لصورة بسبب قيود الأمان في المتصفح." });
     } finally {
       setIsDownloading(null);
     }
@@ -415,3 +418,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
