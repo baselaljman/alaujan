@@ -310,7 +310,7 @@ export default function ProfilePage() {
                         <div className="text-left">
                           <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 font-black px-4 h-8">مؤكد</Badge>
                           <div className="mt-1 flex flex-col items-end gap-0.5">
-                             <p className="text-[9px] text-muted-foreground font-bold">رقم التتبع للرحلة</p>
+                             <p className="text-[9px] text-muted-foreground font-bold">رقم تتبع الرحلة</p>
                              <p className="text-sm font-black text-accent font-mono">{booking.busTripId}</p>
                           </div>
                         </div>
@@ -411,7 +411,7 @@ export default function ProfilePage() {
                 </Card>
               )}
 
-              <Button variant="outline" handleLogout={handleLogout} className="w-full h-16 rounded-2xl text-destructive border-destructive/20 font-black gap-2">
+              <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-destructive border-destructive/20 font-black gap-2">
                 <LogOut className="h-5 w-5" /> تسجيل الخروج
               </Button>
             </div>
