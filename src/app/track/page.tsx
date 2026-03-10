@@ -48,7 +48,6 @@ export default function TrackingPage() {
           lng: trip.currentLng || 46.6753 
         };
 
-        // استخدام الرابط المحدث للأيقونة
         const busIcon = {
           url: "https://xn--ogbhrq.vip/wp-content/uploads/2026/03/bus-svgrepo-com-1.svg",
           scaledSize: new google.maps.Size(50, 50),
@@ -72,7 +71,6 @@ export default function TrackingPage() {
             animation: google.maps.Animation.DROP,
           });
         } else {
-          // تحديث الموقع بسلاسة عند تغيير الإحداثيات في Firestore
           googleMapRef.current.panTo(position);
           markerRef.current?.setPosition(position);
           markerRef.current?.setIcon(busIcon);
@@ -196,13 +194,13 @@ export default function TrackingPage() {
 
                   <div className="pt-4 border-t border-dashed">
                     <div className="flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-muted-foreground" />
                       <div className="flex-1">
                         <p className="text-[10px] text-muted-foreground font-bold">موعد الوصول التقديري</p>
                         <p className="text-sm font-black text-primary">
                           {trip.arrivalTime ? new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "غير محدد"}
                         </p>
                       </div>
+                      <Clock className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </div>
                 </CardContent>
