@@ -160,11 +160,13 @@ export default function TrackingPage() {
 
                 <CardContent className="p-6 space-y-6 text-right">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted/30 rounded-2xl border text-center">
+                    {/* الانطلاق على اليمين */}
+                    <div className="p-4 bg-muted/30 rounded-2xl border text-center order-first">
                       <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">من</p>
                       <p className="font-bold text-sm">{trip.originName}</p>
                     </div>
-                    <div className="p-4 bg-muted/30 rounded-2xl border text-center">
+                    {/* الوصول على اليسار */}
+                    <div className="p-4 bg-muted/30 rounded-2xl border text-center order-last">
                       <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">إلى</p>
                       <p className="font-bold text-sm">{trip.destinationName}</p>
                     </div>

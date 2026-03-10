@@ -74,6 +74,7 @@ function SearchContent() {
                       VIP
                     </Badge>
                     <div className="flex items-center gap-4 pt-3">
+                      {/* مدينة الانطلاق على اليمين */}
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary">{trip.departureTime ? new Date(trip.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : "08:00 صباحاً"}</p>
                         <p className="text-xs text-muted-foreground">{from}</p>
@@ -85,6 +86,7 @@ function SearchContent() {
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-1 font-medium italic">حوالي 18 ساعة</p>
                       </div>
+                      {/* مدينة الوصول على اليسار */}
                       <div className="text-left">
                         <p className="text-lg font-bold text-primary">وصل</p>
                         <p className="text-xs text-muted-foreground">{to}</p>

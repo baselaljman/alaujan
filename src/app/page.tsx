@@ -148,6 +148,7 @@ export default function HomePage() {
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
+              {/* مدينة الانطلاق على اليمين */}
               <div className="space-y-2 text-right">
                 <Label htmlFor="from" className="text-sm font-bold pr-1">من مدينة الانطلاق</Label>
                 <Select onValueChange={setFrom} value={from} disabled={isLocationsLoading}>
@@ -183,6 +184,7 @@ export default function HomePage() {
                 </Select>
               </div>
 
+              {/* مدينة الوصول على اليسار */}
               <div className="space-y-2 text-right">
                 <Label htmlFor="to" className="text-sm font-bold pr-1">إلى الوجهة</Label>
                 <Select onValueChange={setTo} value={to} disabled={!from || isLocationsLoading}>
