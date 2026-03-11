@@ -3,51 +3,55 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القاعدة العامة لكافة المستندات
-     * تسمح بالقراءة والكتابة لأي مستخدم مسجل (بما في ذلك الحسابات المجهولة لضمان عمل التطبيق).
+     * 1. القواعد العامة (Global Rules)
+     * تسمح بالقراءة والكتابة لأي مستخدم مسجل.
+     * هذا يغطي كافة المسارات المباشرة.
      */
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
     /**
-     * 2. تصاريح صريحة لاستعلامات المجموعات (Collection Group Rules)
-     * ضرورية جداً لعمليات البحث التي تتم عبر collectionGroup() مثل الحجوزات والطرود.
-     * نستخدم البنية {path=**} للسماح بالاستعلام عن المجموعات أياً كان موقعها في التسلسل الهرمي.
+     * 2. تصاريح استعلامات المجموعات (Collection Group Rules)
+     * ضرورية جداً للبحث في الحجوزات والطرود والرحلات عبر كامل قاعدة البيانات.
+     * نستخدم {path=**} لضمان شمولية الاستعلام أياً كان موقع المجموعة.
      */
     
     match /{path=**}/bookings/{bookingId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
     match /{path=**}/parcels/{parcelId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
     match /{path=**}/busTrips/{tripId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     match /{path=**}/users/{userId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     match /{path=**}/locations/{locationId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     match /{path=**}/staff_permissions/{staffId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     match /{path=**}/buses/{busId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
+    }
+
+    match /{path=**}/mail/{mailId} {
+      allow read, write: if request.auth != null;
     }
 
     /**
-     * إجبار النظام على تحديث القواعد فوراً وضمان تفعيل استعلامات المجموعات.
-     * تفعيل الوصول الكامل لمدير النظام (atlob.co@gmail.com) والموظفين المعتمدين.
-     * Timestamp: 2025-05-22T16:00:00Z (Force Update)
+     * إجبار النظام على تحديث القواعد فوراً.
+     * Timestamp: 2025-05-22T20:00:00Z (Force Redeploy)
      */
   }
 }

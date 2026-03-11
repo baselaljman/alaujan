@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, collectionGroup, query, where } from "firebase/firestore";
+import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
 
 const ADMIN_EMAIL = "atlob.co@gmail.com";
@@ -29,7 +29,7 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isAuthVerified, setIsAuthVerified] = useState(false);
 
-  // التحقق من الصلاحيات بشكل صارم
+  // التحقق من الصلاحيات بشكل صارم ومستقر
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user || !user.email) return false;
     
@@ -43,11 +43,13 @@ export default function AdminDashboard() {
   // تحديث حالة التحقق بعد استقرار المستخدم
   useEffect(() => {
     if (!isUserLoading) {
-      setIsAuthVerified(true);
+      // تأخير طفيف لضمان استقرار سياق Auth في Firebase قبل بدء الاستعلامات
+      const timer = setTimeout(() => setIsAuthVerified(true), 500);
+      return () => clearTimeout(timer);
     }
   }, [isUserLoading]);
 
-  // استعلامات البيانات (تعمل فقط للمصرح لهم وبعد استقرار الجلسة)
+  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات واستقرار الجلسة
   const tripsRef = useMemoFirebase(() => 
     (isAuthorized && isAuthVerified && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isAuthVerified]
@@ -141,7 +143,7 @@ export default function AdminDashboard() {
     }
   ];
 
-  if (!isAuthVerified) {
+  if (!isAuthVerified || isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
