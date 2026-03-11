@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -27,9 +27,8 @@ export default function AdminDashboard() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
-  const [isAuthVerified, setIsAuthVerified] = useState(false);
 
-  // التحقق من الصلاحيات بشكل صارم ومستقر
+  // التحقق من الصلاحيات بناءً على البريد الإلكتروني
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user || !user.email) return false;
     
@@ -40,31 +39,22 @@ export default function AdminDashboard() {
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تحديث حالة التحقق بعد استقرار المستخدم
-  useEffect(() => {
-    if (!isUserLoading) {
-      // تأخير طفيف لضمان استقرار سياق Auth في Firebase قبل بدء الاستعلامات
-      const timer = setTimeout(() => setIsAuthVerified(true), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isUserLoading]);
-
-  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات واستقرار الجلسة
+  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات
   const tripsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthVerified && db) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized, isAuthVerified]
+    (isAuthorized && db) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthVerified && db) ? collection(db, "parcels") : null, 
-    [db, isAuthorized, isAuthVerified]
+    (isAuthorized && db) ? collection(db, "parcels") : null, 
+    [db, isAuthorized]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthVerified && db) ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized, isAuthVerified]
+    (isAuthorized && db) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
@@ -143,11 +133,11 @@ export default function AdminDashboard() {
     }
   ];
 
-  if (!isAuthVerified || isUserLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الصلاحيات...</p>
+        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الهوية...</p>
       </div>
     );
   }
@@ -159,7 +149,7 @@ export default function AdminDashboard() {
           <ShieldAlert className="h-10 w-10 text-red-500" />
         </div>
         <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
-        <p className="text-muted-foreground text-sm max-w-xs">عذراً، هذه المنطقة مخصصة لإدارة الشركة فقط. يرجى تسجيل الدخول بحساب معتمد.</p>
+        <p className="text-muted-foreground text-sm max-w-xs">عذراً، هذه المنطقة مخصصة لإدارة الشركة فقط. يرجى تسجيل الدخول بحساب المدير: {ADMIN_EMAIL}</p>
         <Button onClick={() => router.push("/")} className="rounded-xl h-12 px-8">العودة للرئيسية</Button>
       </div>
     );

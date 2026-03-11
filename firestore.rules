@@ -4,8 +4,7 @@ service cloud.firestore {
     
     /**
      * 1. القواعد العامة (Global Rules)
-     * تسمح بالقراءة والكتابة لأي مستخدم مسجل.
-     * هذا يغطي كافة المسارات المباشرة.
+     * تسمح بالقراءة والكتابة لأي مستخدم مسجل في كافة المسارات المباشرة.
      */
     match /{document=**} {
       allow read, write: if request.auth != null;
@@ -14,44 +13,52 @@ service cloud.firestore {
     /**
      * 2. تصاريح استعلامات المجموعات (Collection Group Rules)
      * ضرورية جداً للبحث في الحجوزات والطرود والرحلات عبر كامل قاعدة البيانات.
-     * نستخدم {path=**} لضمان شمولية الاستعلام أياً كان موقع المجموعة.
+     * Firebase يتطلب هذا التنسيق {path=**}/collectionID/{docID} بشكل صريح للاستعلامات المجمعة.
      */
     
-    match /{path=**}/bookings/{bookingId} {
+    // تصريح للحجوزات (المستخدم في لوحة الإدارة والبروفايل)
+    match /{path=**}/bookings/{id} {
       allow read, write: if request.auth != null;
     }
     
-    match /{path=**}/parcels/{parcelId} {
+    // تصريح للطرود
+    match /{path=**}/parcels/{id} {
       allow read, write: if request.auth != null;
     }
     
-    match /{path=**}/busTrips/{tripId} {
+    // تصريح للرحلات
+    match /{path=**}/busTrips/{id} {
       allow read, write: if request.auth != null;
     }
 
-    match /{path=**}/users/{userId} {
+    // تصريح لبيانات المستخدمين
+    match /{path=**}/users/{id} {
       allow read, write: if request.auth != null;
     }
 
-    match /{path=**}/locations/{locationId} {
+    // تصريح للمواقع والمدن
+    match /{path=**}/locations/{id} {
       allow read, write: if request.auth != null;
     }
 
-    match /{path=**}/staff_permissions/{staffId} {
+    // تصريح لصلاحيات الموظفين
+    match /{path=**}/staff_permissions/{id} {
       allow read, write: if request.auth != null;
     }
 
-    match /{path=**}/buses/{busId} {
+    // تصريح للحافلات والأسطول
+    match /{path=**}/buses/{id} {
       allow read, write: if request.auth != null;
     }
 
-    match /{path=**}/mail/{mailId} {
+    // تصريح لنظام البريد الإلكتروني
+    match /{path=**}/mail/{id} {
       allow read, write: if request.auth != null;
     }
 
     /**
-     * إجبار النظام على تحديث القواعد فوراً.
-     * Timestamp: 2025-05-22T20:00:00Z (Force Redeploy)
+     * إجبار النظام على تحديث القواعد فوراً لضمان حل مشكلة "Missing or insufficient permissions".
+     * Force Deploy Timestamp: 2025-05-23T10:00:00Z
      */
   }
 }
