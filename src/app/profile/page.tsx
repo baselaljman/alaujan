@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
-  Ticket, 
+  Ticket as TicketIcon, 
   ChevronLeft, 
   Bus, 
   Loader2, 
@@ -43,6 +43,7 @@ import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
 
@@ -55,8 +56,6 @@ export default function ProfilePage() {
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -80,7 +79,6 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات من المجموعة الموحدة العلوية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || user.isAnonymous) return null;
     return query(collection(firestore, "bookings"), where("userId", "==", user.uid));
