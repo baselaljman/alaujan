@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -156,7 +157,6 @@ export default function AdminTrips() {
                         onSelect={setDepartureDate}
                         locale={ar}
                         initialFocus
-                        className="rounded-2xl"
                       />
                     </PopoverContent>
                   </Popover>
