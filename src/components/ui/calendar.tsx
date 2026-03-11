@@ -19,6 +19,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      dir="rtl" // تفعيل الاتجاه من اليمين لليسار برمجياً
       className={cn("p-3 bg-white rounded-2xl", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -33,13 +34,13 @@ function Calendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
-        head_row: "grid grid-cols-7 mb-2",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-bold text-[0.75rem] text-center flex items-center justify-center",
-        row: "grid grid-cols-7 mt-1",
+        // فرض توزيع شبكي من 7 أعمدة لضمان المحاذاة الكاملة
+        head_row: "grid grid-cols-7 mb-2 w-full",
+        head_cell: "text-muted-foreground rounded-md w-full font-bold text-[0.7rem] text-center flex items-center justify-center h-9",
+        row: "grid grid-cols-7 mt-1 w-full",
         cell: cn(
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent/50",
-          "h-9 w-9 flex items-center justify-center rounded-lg mx-auto"
+          "h-9 w-full flex items-center justify-center rounded-lg mx-auto"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
