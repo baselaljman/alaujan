@@ -17,15 +17,17 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { 
   useFirestore, 
   useCollection, 
   useMemoFirebase, 
   setDocumentNonBlocking,
-  deleteDocumentNonBlocking 
+  deleteDocumentNonBlocking,
+  updateDocumentNonBlocking
 } from "@/firebase";
-import { collection, doc, query, where } from "firebase/firestore";
+import { collection, doc, query, where, getDoc } from "firebase/firestore";
 import { 
   Plus, 
   Trash2, 
@@ -43,7 +45,10 @@ import {
   MapPin,
   ChevronLeft,
   QrCode,
-  Ticket as TicketIcon
+  Edit,
+  UserX,
+  UserCheck,
+  Save
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
@@ -57,6 +62,11 @@ export default function AdminTrips() {
   const [selectedTripForManifest, setSelectedTripForManifest] = useState<any>(null);
   const [selectedPassengerForTicket, setSelectedPassengerForTicket] = useState<any>(null);
   
+  // State for Editing Passenger
+  const [isEditingPassenger, setIsEditingPassenger] = useState(false);
+  const [editingPassengerData, setEditingPassengerData] = useState<any>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
   // State for Trip Form
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
@@ -74,7 +84,6 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام الحجوزات من المجموعة الموحدة العلوية
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
@@ -85,8 +94,9 @@ export default function AdminTrips() {
   const passengersList = useMemo(() => {
     if (!bookings) return [];
     return bookings.flatMap((booking: any) => 
-      (booking.passengers || []).map((p: any) => ({
+      (booking.passengers || []).map((p: any, index: number) => ({
         ...p,
+        passengerIndex: index,
         phone: booking.userPhone,
         paymentStatus: booking.paymentStatus,
         trackingNumber: booking.trackingNumber,
@@ -141,6 +151,73 @@ export default function AdminTrips() {
       setDestinationId("");
       setDepartureDate(undefined);
     }, 500);
+  };
+
+  const handleUpdatePassenger = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPassengerData) return;
+    
+    setIsSavingEdit(true);
+    try {
+      const bookingRef = doc(firestore, "bookings", editingPassengerData.bookingId);
+      const bookingSnap = await getDoc(bookingRef);
+      
+      if (bookingSnap.exists()) {
+        const booking = bookingSnap.data();
+        const updatedPassengers = [...(booking.passengers || [])];
+        
+        updatedPassengers[editingPassengerData.passengerIndex] = {
+          ...updatedPassengers[editingPassengerData.passengerIndex],
+          fullName: editingPassengerData.fullName,
+          passportNumber: editingPassengerData.passportNumber,
+          status: editingPassengerData.status || 'Confirmed'
+        };
+        
+        updateDocumentNonBlocking(bookingRef, {
+          passengers: updatedPassengers
+        });
+        
+        toast({ title: "تم التحديث", description: "تم تعديل بيانات المسافر بنجاح" });
+        setIsEditingPassenger(false);
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "خطأ", description: "تعذر تحديث البيانات" });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleTogglePassengerStatus = async (p: any) => {
+    const newStatus = p.status === 'Cancelled' ? 'Confirmed' : 'Cancelled';
+    const confirmMsg = newStatus === 'Cancelled' ? "هل أنت متأكد من إلغاء هذه التذكرة؟" : "هل تريد إعادة تفعيل التذكرة؟";
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const bookingRef = doc(firestore, "bookings", p.bookingId);
+      const bookingSnap = await getDoc(bookingRef);
+      
+      if (bookingSnap.exists()) {
+        const booking = bookingSnap.data();
+        const updatedPassengers = [...(booking.passengers || [])];
+        
+        updatedPassengers[p.passengerIndex] = {
+          ...updatedPassengers[p.passengerIndex],
+          status: newStatus
+        };
+        
+        updateDocumentNonBlocking(bookingRef, {
+          passengers: updatedPassengers
+        });
+        
+        toast({ 
+          title: newStatus === 'Cancelled' ? "تم الإلغاء" : "تم التفعيل", 
+          description: `تذكرة المسافر ${p.fullName} الآن ${newStatus === 'Cancelled' ? 'ملغاة' : 'مؤكدة'}` 
+        });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "خطأ", description: "حدث خطأ أثناء تغيير الحالة" });
+    }
   };
 
   const handlePrint = () => {
@@ -332,89 +409,122 @@ export default function AdminTrips() {
                                   <th className="px-6 py-5 text-center border-l">مقعد</th>
                                   <th className="px-6 py-5">اسم المسافر الثلاثي</th>
                                   <th className="px-6 py-5">رقم الجواز / الهوية</th>
-                                  <th className="px-6 py-5">رقم الجوال</th>
+                                  <th className="px-6 py-5">الحالة</th>
                                   <th className="px-6 py-5 text-center no-print">الإجراءات</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {passengersList.map((p: any, idx: number) => (
-                                  <tr key={idx} className="hover:bg-primary/5 transition-colors">
+                                  <tr key={idx} className={cn("hover:bg-primary/5 transition-colors", p.status === 'Cancelled' && "bg-red-50/50 opacity-60")}>
                                     <td className="px-6 py-4 text-center border-l bg-primary/5">
                                       <span className="font-black text-primary text-lg">{p.seatNumber}</span>
                                     </td>
-                                    <td className="px-6 py-4 font-black text-slate-900">{p.fullName}</td>
+                                    <td className="px-6 py-4 font-black text-slate-900">
+                                      <div className="space-y-0.5">
+                                        <p className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</p>
+                                        <p className="text-[10px] text-muted-foreground font-normal">{p.phone}</p>
+                                      </div>
+                                    </td>
                                     <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
-                                    <td className="px-6 py-4 font-bold text-xs">
-                                      <Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {p.phone}
+                                    <td className="px-6 py-4">
+                                      <Badge className={cn(
+                                        "text-[9px] font-bold px-3 py-0.5 rounded-full border-none",
+                                        p.status === 'Cancelled' ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                                      )}>
+                                        {p.status === 'Cancelled' ? 'ملغاة' : 'مؤكدة'}
+                                      </Badge>
                                     </td>
                                     <td className="px-6 py-4 text-center no-print">
-                                      <Dialog onOpenChange={(open) => { if (open) setSelectedPassengerForTicket({ ...p, trip }); }}>
-                                        <DialogTrigger asChild>
-                                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:bg-primary/10">
-                                            <Printer className="h-3 w-3" /> تذكرة
-                                          </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden">
-                                          <div className="p-10 space-y-8 text-right bg-white print-area">
-                                            <DialogHeader className="border-b pb-6 no-print">
-                                              <DialogTitle className="font-black text-primary text-2xl text-center">تذكرة سفر إلكترونية</DialogTitle>
-                                              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center mt-1">International Travel Ticket</DialogDescription>
-                                            </DialogHeader>
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                          onClick={() => {
+                                            setEditingPassengerData(p);
+                                            setIsEditingPassenger(true);
+                                          }}
+                                        >
+                                          <Edit className="h-3.5 w-3.5" />
+                                        </Button>
+                                        
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className={cn("h-8 w-8", p.status === 'Cancelled' ? "text-emerald-600 hover:bg-emerald-50" : "text-red-500 hover:bg-red-50")}
+                                          onClick={() => handleTogglePassengerStatus(p)}
+                                        >
+                                          {p.status === 'Cancelled' ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
+                                        </Button>
 
-                                            <div className="ticket-body space-y-8 pt-4">
-                                              <div className="flex justify-between items-center text-center px-4">
-                                                <div className="flex-1">
-                                                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">من (Origin)</p>
-                                                  <p className="font-black text-2xl text-black">{p.boardingPoint}</p>
+                                        <Dialog onOpenChange={(open) => { if (open) setSelectedPassengerForTicket({ ...p, trip }); }}>
+                                          <DialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10">
+                                              <Printer className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DialogTrigger>
+                                          <DialogContent className="max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden">
+                                            <div className="p-10 space-y-8 text-right bg-white print-area">
+                                              <DialogHeader className="border-b pb-6 no-print">
+                                                <DialogTitle className="font-black text-primary text-2xl text-center">تذكرة سفر إلكترونية</DialogTitle>
+                                                <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center mt-1">International Travel Ticket</DialogDescription>
+                                              </DialogHeader>
+
+                                              <div className="ticket-body space-y-8 pt-4">
+                                                <div className="flex justify-between items-center text-center px-4">
+                                                  <div className="flex-1">
+                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">من (Origin)</p>
+                                                    <p className="font-black text-2xl text-black">{p.boardingPoint}</p>
+                                                  </div>
+                                                  <div className="px-4 opacity-20 flex flex-col items-center">
+                                                    <Bus className="h-6 w-6" />
+                                                    <ArrowLeft className="h-4 w-4" />
+                                                  </div>
+                                                  <div className="flex-1">
+                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">إلى (Destination)</p>
+                                                    <p className="font-black text-2xl text-black">{p.droppingPoint}</p>
+                                                  </div>
                                                 </div>
-                                                <div className="px-4 opacity-20 flex flex-col items-center">
-                                                  <Bus className="h-6 w-6" />
-                                                  <ArrowLeft className="h-4 w-4" />
+
+                                                <div className="grid grid-cols-2 gap-x-8 gap-y-6 bg-slate-50/80 p-6 rounded-[2rem] border border-dashed border-slate-200">
+                                                  <div>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">اسم المسافر</p>
+                                                    <p className="font-black text-base text-black">{p.fullName}</p>
+                                                  </div>
+                                                  <div className="text-left">
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم المقعد</p>
+                                                    <p className="font-black text-primary text-2xl">{p.seatNumber}</p>
+                                                  </div>
+                                                  <div>
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم الرحلة</p>
+                                                    <p className="font-mono font-black text-base text-black">{p.tripId}</p>
+                                                  </div>
+                                                  <div className="text-left">
+                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">تاريخ السفر</p>
+                                                    <p className="font-black text-sm text-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
+                                                  </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">إلى (Destination)</p>
-                                                  <p className="font-black text-2xl text-black">{p.droppingPoint}</p>
+
+                                                <div className="flex items-center justify-between pt-8 border-t border-dashed border-slate-200">
+                                                  <div className="space-y-1">
+                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Official Receipt</p>
+                                                    <p className="text-xs font-mono font-bold text-slate-400 uppercase">REF: {p.trackingNumber}</p>
+                                                  </div>
+                                                  <div className="p-2 bg-white rounded-xl border shadow-sm">
+                                                    <QrCode className="h-16 w-16 text-black" />
+                                                  </div>
                                                 </div>
                                               </div>
-
-                                              <div className="grid grid-cols-2 gap-x-8 gap-y-6 bg-slate-50/80 p-6 rounded-[2rem] border border-dashed border-slate-200">
-                                                <div>
-                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">اسم المسافر</p>
-                                                  <p className="font-black text-base text-black">{p.fullName}</p>
-                                                </div>
-                                                <div className="text-left">
-                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم المقعد</p>
-                                                  <p className="font-black text-primary text-2xl">{p.seatNumber}</p>
-                                                </div>
-                                                <div>
-                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم الرحلة</p>
-                                                  <p className="font-mono font-black text-base text-black">{p.tripId}</p>
-                                                </div>
-                                                <div className="text-left">
-                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">تاريخ السفر</p>
-                                                  <p className="font-black text-sm text-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
-                                                </div>
-                                              </div>
-
-                                              <div className="flex items-center justify-between pt-8 border-t border-dashed border-slate-200">
-                                                <div className="space-y-1">
-                                                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Official Receipt</p>
-                                                  <p className="text-xs font-mono font-bold text-slate-400 uppercase">REF: {p.trackingNumber}</p>
-                                                </div>
-                                                <div className="p-2 bg-white rounded-xl border shadow-sm">
-                                                  <QrCode className="h-16 w-16 text-black" />
-                                                </div>
+                                              
+                                              <div className="pt-6 no-print">
+                                                <Button className="w-full h-14 rounded-2xl gap-2 font-black shadow-lg" onClick={handlePrint}>
+                                                  <Printer className="h-5 w-5" /> طباعة هذه التذكرة الآن
+                                                </Button>
                                               </div>
                                             </div>
-                                            
-                                            <div className="pt-6 no-print">
-                                              <Button className="w-full h-14 rounded-2xl gap-2 font-black shadow-lg" onClick={handlePrint}>
-                                                <Printer className="h-5 w-5" /> طباعة هذه التذكرة الآن
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        </DialogContent>
-                                      </Dialog>
+                                          </DialogContent>
+                                        </Dialog>
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
@@ -452,6 +562,45 @@ export default function AdminTrips() {
           </Card>
         ))}
       </div>
+
+      {/* Dialog for Editing Passenger */}
+      <Dialog open={isEditingPassenger} onOpenChange={setIsEditingPassenger}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8 text-right">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-primary flex items-center gap-2 justify-end">
+              <span>تعديل بيانات المسافر</span>
+              <Edit className="h-5 w-5" />
+            </DialogTitle>
+            <DialogDescription className="text-xs">قم بتصحيح بيانات المسافر المختار في النظام</DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdatePassenger} className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <Label>اسم المسافر الثلاثي</Label>
+              <Input 
+                value={editingPassengerData?.fullName || ""} 
+                onChange={e => setEditingPassengerData({...editingPassengerData, fullName: e.target.value})}
+                className="h-12 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>رقم الجواز / الهوية</Label>
+              <Input 
+                value={editingPassengerData?.passportNumber || ""} 
+                onChange={e => setEditingPassengerData({...editingPassengerData, passportNumber: e.target.value})}
+                className="h-12 rounded-xl font-mono"
+              />
+            </div>
+            
+            <div className="pt-4 flex gap-3">
+              <Button type="submit" disabled={isSavingEdit} className="flex-1 h-12 rounded-xl gap-2 font-bold">
+                {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4" /> حفظ التعديلات</>}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditingPassenger(false)} className="h-12 rounded-xl font-bold">إلغاء</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
