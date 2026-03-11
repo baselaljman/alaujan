@@ -43,7 +43,7 @@
 
         </activity>
 
-        <!-- Configuration for Background Service Location -->
+        <!-- Configuration for Background Geolocation Service -->
         <service
             android:name="com.capacitorjs.plugins.geolocation.GeolocationService"
             android:foregroundServiceType="location"

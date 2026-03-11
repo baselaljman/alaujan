@@ -11,6 +11,7 @@ import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMem
 import { doc, collection, query, where } from "firebase/firestore";
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
+// استخدام الإضافة لتمكين تتبع الموقع في الخلفية على أندرويد
 const BackgroundGeolocation = registerPlugin<any>("BackgroundGeolocation");
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
@@ -50,6 +51,7 @@ export default function DriverDashboard() {
   const updateFirebaseLocation = (lat: number, lng: number) => {
     if (!activeTripId) return;
     const now = Date.now();
+    // إرسال التحديث كل 15 ثانية لتوفير البيانات والبطارية
     if (now - lastUpdateRef.current < 15000) return;
 
     lastUpdateRef.current = now;
@@ -60,7 +62,8 @@ export default function DriverDashboard() {
       currentLng: lng,
       lastLocationUpdate: new Date().toISOString(),
       isLive: true,
-      status: "Departed"
+      status: "Departed",
+      currentLocationDescription: "على الطريق"
     });
   };
 
@@ -69,13 +72,14 @@ export default function DriverDashboard() {
     
     try {
       if (Capacitor.isNativePlatform()) {
+        // تفعيل محرك تتبع المواقع بالخلفية للأندرويد
         const id = await BackgroundGeolocation.addWatcher(
           {
             backgroundMessage: "العوجان للسفر: جاري إرسال موقع الحافلة للركاب...",
             backgroundTitle: "بث موقع الرحلة نشط",
             requestPermissions: true,
             stale: false,
-            distanceFilter: 10
+            distanceFilter: 10 // تحديث الموقع عند التحرك لمسافة 10 أمتار
           },
           (location: any, error: any) => {
             if (error) {
@@ -89,7 +93,9 @@ export default function DriverDashboard() {
         );
         watchIdRef.current = id;
         setIsTracking(true);
+        toast({ title: "بدأ البث", description: "جاري مشاركة موقعك المباشر في الخلفية" });
       } else {
+        // المتصفح العادي (Web)
         if (navigator.geolocation) {
           const id = navigator.geolocation.watchPosition(
             (pos) => updateFirebaseLocation(pos.coords.latitude, pos.coords.longitude),
@@ -104,7 +110,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "تأكد من اختيار 'Allow all the time' في إعدادات الموقع" 
+        description: "تأكد من اختيار 'Allow all the time' في إعدادات الموقع بهاتفك" 
       });
       setIsTracking(false);
     }
@@ -170,8 +176,8 @@ export default function DriverDashboard() {
           <h1 className="text-2xl font-bold font-headline text-primary">لوحة القائد</h1>
           <p className="text-xs text-muted-foreground">حافلة: {myBus.licensePlate} | الكابتن: {user?.displayName || user?.email}</p>
         </div>
-        <Badge variant={tripStatus === "Departed" ? "default" : "secondary"} className={cn(tripStatus === "Departed" && "bg-green-600 animate-pulse")}>
-          {tripStatus === "Departed" ? "بث مباشر نشط" : "انتظار"}
+        <Badge variant={isTracking ? "default" : "secondary"} className={cn(isTracking && "bg-green-600 animate-pulse")}>
+          {isTracking ? "بث مباشر نشط" : "انتظار"}
         </Badge>
       </header>
 

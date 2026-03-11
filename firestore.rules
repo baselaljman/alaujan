@@ -29,6 +29,7 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
+    // السماح للجميع بقراءة الرحلات، والمدن، والحافلات لتشغيل التطبيق على أي جهاز جديد
     match /busTrips/{id} { 
       allow read: if true; 
       allow update: if isAuthenticated() && (
@@ -48,11 +49,11 @@ service cloud.firestore {
       allow read: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
           resource.data.userId == request.auth.uid || 
-          (hasEmail() && resource.data.userEmail == getEmail()) ||
-          resource.data.userUid == request.auth.uid
+          (hasEmail() && resource.data.userEmail == getEmail())
         )
       ) || (
         // السماح بالاطلاع على المقاعد المحجوزة فقط عند البحث برقم الرحلة لغرض الحجز
+        // يتم السماح فقط بالقراءات المفلترة لضمان الخصوصية ومنع جلب كافة التذاكر
         request.query.limit <= 100 && 'busTripId' in request.query.filters
       );
       allow update, delete: if isAdmin() || isStaffMember();

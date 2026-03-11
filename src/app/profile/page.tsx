@@ -1,12 +1,11 @@
-
 "use client"
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
@@ -35,7 +34,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, or } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -70,13 +69,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام تذاكر المستخدم فقط لضمان الخصوصية التامة
+  // استعلام التذاكر: يتم البحث فقط عن التذاكر التابعة للمستخدم الحالي لضمان الخصوصية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // إذا كان المستخدم ضيفاً، نبحث بـ UID الجلسة. إذا كان مسجلاً، نبحث ببريده أو UID
+    // إذا كان المستخدم مسجلاً ببريد إلكتروني، نبحث ببريده
     if (user.email && !user.isAnonymous) {
       return query(
         bookingsRef, 
@@ -84,7 +83,7 @@ export default function ProfilePage() {
       );
     }
     
-    // للضيوف (Anonymous)
+    // للضيوف (Anonymous): نبحث برقم الجلسة UID لضمان رؤية التذاكر المحجوزة في الجلسة الحالية
     return query(
       bookingsRef,
       where("userId", "==", user.uid)
@@ -126,10 +125,6 @@ export default function ProfilePage() {
     } finally {
       setIsDownloading(null);
     }
-  };
-
-  const handlePrintTicket = () => {
-    window.print();
   };
 
   if (isUserLoading) return (
@@ -238,7 +233,9 @@ export default function ProfilePage() {
                           </div>
                           <div className="text-left">
                              <p className="text-[10px] font-bold text-muted-foreground">تاريخ الحجز</p>
-                             <p className="font-bold text-slate-700 text-xs">{booking.createdAt?.toDate ? format(booking.createdAt.toDate(), "PPP", { locale: ar }) : booking.bookingDate}</p>
+                             <p className="font-bold text-slate-700 text-xs">
+                               {booking.createdAt?.toDate ? format(booking.createdAt.toDate(), "PPP", { locale: ar }) : booking.bookingDate}
+                             </p>
                           </div>
                        </div>
 
@@ -255,7 +252,7 @@ export default function ProfilePage() {
                   <div className="flex gap-2 justify-center mt-6 no-print">
                     <Button 
                       variant="outline"
-                      onClick={() => handlePrintTicket()} 
+                      onClick={() => window.print()} 
                       className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2 hover:bg-primary/5"
                     >
                       <Printer className="h-4 w-4" /> طباعة
