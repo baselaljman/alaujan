@@ -1,17 +1,19 @@
 
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where, getDocs } from "firebase/firestore";
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+// تسجيل مكتبة الخلفية بشكل مرن للعمل على المتصفح والأندرويد
+const BackgroundGeolocation = registerPlugin<any>("BackgroundGeolocation");
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
@@ -21,14 +23,12 @@ export default function DriverDashboard() {
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
-  const watchId = useRef<number | null>(null);
+  const watchIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
-  // مرجع أمان لمنع التحديثات بعد إيقاف التتبع
-  const isTrackingRef = useRef(false);
 
   const busesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
-    return query(collection(firestore, "buses"), where("driverEmail", "==", user.email));
+    return query(collection(firestore, "buses"), where("driverEmail", "==", user.email.toLowerCase()));
   }, [firestore, user?.email]);
 
   const { data: assignedBuses, isLoading: isBusesLoading } = useCollection(busesQuery);
@@ -49,67 +49,77 @@ export default function DriverDashboard() {
     }
   }, [myTrips]);
 
-  // تنظيف التتبع عند مغادرة الصفحة
-  useEffect(() => {
-    return () => {
-      if (watchId.current !== null) {
-        navigator.geolocation.clearWatch(watchId.current);
-      }
-    };
-  }, []);
-
-  const startLocationTracking = () => {
-    if (!navigator.geolocation) {
-      toast({ variant: "destructive", title: "خطأ", description: "GPS غير مدعوم في هذا الجهاز" });
-      return;
-    }
-
+  // وظيفة تحديث الموقع في Firestore
+  const updateFirebaseLocation = (lat: number, lng: number) => {
     if (!activeTripId) return;
+    const now = Date.now();
+    // تقليل التحديثات لتوفير البطارية (كل 15 ثانية على الأقل)
+    if (now - lastUpdateRef.current < 15000) return;
 
-    setIsTracking(true);
-    isTrackingRef.current = true;
+    lastUpdateRef.current = now;
     const tripRef = doc(firestore, "busTrips", activeTripId);
-
-    watchId.current = navigator.geolocation.watchPosition(
-      (position) => {
-        // التأكد من أن التتبع لا يزال مطلوباً قبل التحديث
-        if (!isTrackingRef.current) return;
-
-        const now = Date.now();
-        if (now - lastUpdateRef.current < 10000) return;
-
-        const { latitude, longitude } = position.coords;
-        lastUpdateRef.current = now;
-        
-        updateDocumentNonBlocking(tripRef, {
-          currentLat: latitude,
-          currentLng: longitude,
-          lastLocationUpdate: new Date().toISOString(),
-          isLive: true,
-          status: "Departed"
-        });
-      },
-      (error) => {
-        if (isTrackingRef.current) {
-          toast({ 
-            variant: "destructive", 
-            title: "تنبيه الـ GPS", 
-            description: "تعذر تحديث موقعك المباشر. يرجى تفعيل خدمة الموقع وإعادة المحاولة." 
-          });
-          stopLocationTracking();
-        }
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
-    );
+    
+    updateDocumentNonBlocking(tripRef, {
+      currentLat: lat,
+      currentLng: lng,
+      lastLocationUpdate: new Date().toISOString(),
+      isLive: true,
+      status: "Departed"
+    });
   };
 
-  const stopLocationTracking = () => {
-    isTrackingRef.current = false;
+  const startTracking = async () => {
+    if (!activeTripId) return;
+    setIsTracking(true);
+
+    if (Capacitor.isNativePlatform()) {
+      // إعداد تتبع الخلفية لنظام أندرويد/iOS
+      try {
+        const id = await BackgroundGeolocation.addWatcher(
+          {
+            backgroundMessage: "العوجان للسفر: جاري إرسال موقع الحافلة للركاب...",
+            backgroundTitle: "تتبع الرحلة نشط",
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: 10 // تحديث كل 10 أمتار
+          },
+          (location: any, error: any) => {
+            if (error) {
+              console.error(error);
+              return;
+            }
+            if (location) {
+              updateFirebaseLocation(location.latitude, location.longitude);
+            }
+          }
+        );
+        watchIdRef.current = id;
+      } catch (e) {
+        toast({ variant: "destructive", title: "خطأ في التتبع", description: "يرجى منح صلاحيات الموقع الدائم للتطبيق" });
+        setIsTracking(false);
+      }
+    } else {
+      // التتبع العادي للمتصفح
+      if (navigator.geolocation) {
+        const id = navigator.geolocation.watchPosition(
+          (pos) => updateFirebaseLocation(pos.coords.latitude, pos.coords.longitude),
+          () => toast({ variant: "destructive", title: "خطأ GPS" }),
+          { enableHighAccuracy: true }
+        );
+        watchIdRef.current = id.toString();
+      }
+    }
+  };
+
+  const stopTracking = async () => {
     setIsTracking(false);
-    
-    if (watchId.current !== null) {
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
+    if (watchIdRef.current) {
+      if (Capacitor.isNativePlatform()) {
+        await BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
+      } else {
+        navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
+      }
+      watchIdRef.current = null;
     }
     
     if (activeTripId) {
@@ -118,29 +128,11 @@ export default function DriverDashboard() {
     }
   };
 
-  const syncParcelsStatus = async (newTripStatus: TripStatus) => {
-    if (!activeTripId) return;
-    try {
-      const q = query(collection(firestore, "parcels"), where("busTripId", "==", activeTripId));
-      const snapshot = await getDocs(q);
-      snapshot.forEach((parcelDoc) => {
-        let status = "Pending Pickup";
-        if (newTripStatus === "Departed") status = "In Transit";
-        if (newTripStatus === "Arrived") status = "Arrived at Station";
-        updateDocumentNonBlocking(doc(firestore, "parcels", parcelDoc.id), {
-          status,
-          lastUpdatedAt: new Date().toISOString()
-        });
-      });
-    } catch (e) {}
-  };
-
   const handleStatusChange = (newStatus: TripStatus) => {
     if (!activeTripId) return;
     
-    // إيقاف التتبع فوراً إذا كانت الحالة ليست انطلاق
     if (newStatus !== "Departed") {
-      stopLocationTracking();
+      stopTracking();
     }
 
     setTripStatus(newStatus);
@@ -154,10 +146,9 @@ export default function DriverDashboard() {
     });
 
     if (newStatus === "Departed") {
-      startLocationTracking();
+      startTracking();
     }
 
-    syncParcelsStatus(newStatus);
     toast({ title: "تم تحديث الحالة", description: `حالة الرحلة الآن: ${newStatus}` });
   };
 
@@ -181,7 +172,7 @@ export default function DriverDashboard() {
           <p className="text-xs text-muted-foreground">حافلة: {myBus.licensePlate} | الكابتن: {user?.displayName || user?.email}</p>
         </div>
         <Badge variant={tripStatus === "Departed" ? "default" : "secondary"} className={cn(tripStatus === "Departed" && "bg-green-600 animate-pulse")}>
-          {tripStatus === "Departed" ? "بث مباشر" : "انتظار"}
+          {tripStatus === "Departed" ? "بث مباشر (خلفية)" : "انتظار"}
         </Badge>
       </header>
 
@@ -202,14 +193,14 @@ export default function DriverDashboard() {
             <div className="grid grid-cols-1 gap-4">
               {tripStatus !== "Departed" ? (
                 <Button onClick={() => handleStatusChange("Departed")} className="w-full h-16 text-lg font-bold gap-2 rounded-2xl bg-primary shadow-xl">
-                  <Play className="h-6 w-6" /> بدء الرحلة وتفعيل GPS
+                  <Play className="h-6 w-6" /> بدء الرحلة (التتبع بالخلفية)
                 </Button>
               ) : (
                 <div className="space-y-4">
                   <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-                      <span className="text-sm font-bold text-emerald-800">جاري إرسال موقعك الآن...</span>
+                      <span className="text-sm font-bold text-emerald-800">التتبع يعمل الآن في الخلفية...</span>
                     </div>
                     <Badge className="bg-emerald-600">LIVE</Badge>
                   </div>
@@ -225,8 +216,10 @@ export default function DriverDashboard() {
       )}
 
       <div className="p-4 bg-accent/5 rounded-2xl border border-accent/20 text-right">
-        <h4 className="text-xs font-bold text-accent mb-1 flex items-center gap-2 justify-end">تنبيه فني <Info className="h-3 w-3" /></h4>
-        <p className="text-[10px] text-muted-foreground leading-relaxed">تأكد من بقاء هذه الصفحة مفتوحة في المتصفح أثناء القيادة لضمان استمرار ظهور موقع الحافلة للركاب ولأصحاب الطرود.</p>
+        <h4 className="text-xs font-bold text-accent mb-1 flex items-center gap-2 justify-end">تنبيه تقني <Info className="h-3 w-3" /></h4>
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          تم تفعيل ميزة "تتبع الخلفية". يمكنك الآن تصغير التطبيق أو قفل الشاشة، وسيستمر النظام في إرسال موقعك للركاب. يرجى التأكد من اختيار "Allow all the time" في إعدادات الموقع عند طلب النظام.
+        </p>
       </div>
     </div>
   );

@@ -29,30 +29,37 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail()));
     }
 
-    // 1. الرحلات والبيانات العامة: قراءة للجميع، تحديث المقاعد للمسافرين، تحكم كامل للمدير
+    // التحقق من صلاحيات السائق
+    function isDriver() {
+      return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
+    }
+
+    // 1. الرحلات والبيانات العامة
     match /busTrips/{id} { 
       allow read: if true; 
+      // يسمح للسائق بتحديث موقعه وحالة الرحلة، ويسمح للعملاء بتحديث المقاعد عند الحجز
       allow update: if isAuthenticated() && (
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt'])) ||
-        isAdmin() || isStaffMember()
+        isAdmin() || isStaffMember() || isDriver() ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription', 'lastUpdatedAt']))
       );
       allow create, delete: if isAdmin() || isStaffMember();
     }
     
     match /locations/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /buses/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
-    match /drivers/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
+    match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // 2. نظام الحجوزات: خصوصية تامة
+    // 2. نظام الحجوزات
     match /bookings/{bookingId} {
       allow create: if true;
-      // السماح بالقراءة فقط إذا كان مديراً أو صاحب التذكرة (بالبريد أو الـ UID)
       allow read: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
           resource.data.userId == request.auth.uid || 
           (hasEmail() && resource.data.userEmail == getEmail())
-        )
+        ) ||
+        // السماح بالاطلاع على المقاعد المحجوزة فقط للرحلة المختارة
+        (request.query.limit <= 100 && 'busTripId' in resource.data)
       );
       allow update, delete: if isAdmin() || isStaffMember();
     }
@@ -61,12 +68,12 @@ service cloud.firestore {
     match /parcels/{id} {
       allow read: if true;
       allow create: if true;
-      allow update: if isAdmin() || isStaffMember() || isAuthenticated();
+      allow update: if isAdmin() || isStaffMember() || isDriver() || isAuthenticated();
     }
 
     // 4. ملفات المستخدمين
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId || isAdmin();
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isStaffMember());
     }
 
     // القاعدة العامة للأمان

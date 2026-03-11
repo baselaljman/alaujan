@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
 import { Plus, Trash2, Users, Mail, Phone, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -30,10 +30,15 @@ export default function AdminDrivers() {
       return;
     }
 
-    addDocumentNonBlocking(driversRef, {
+    const emailKey = formData.email.toLowerCase().trim();
+    const driverDocRef = doc(firestore, "drivers", emailKey);
+
+    setDocumentNonBlocking(driverDocRef, {
       ...formData,
-      createdAt: new Date().toISOString()
-    });
+      email: emailKey,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
 
     toast({ title: "تمت الإضافة", description: "تم تسجيل السائق بنجاح في النظام" });
     setFormData({ fullName: "", email: "", phoneNumber: "" });
