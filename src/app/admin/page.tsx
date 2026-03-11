@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState } from "react";
@@ -44,7 +45,7 @@ export default function AdminDashboard() {
   // تأخير بدء الاستعلامات لضمان استقرار القواعد والتحقق وتجنب أخطاء Permissions المبكرة
   useEffect(() => {
     if (!isUserLoading && isAuthorized) {
-      const timer = setTimeout(() => setIsReady(true), 2000);
+      const timer = setTimeout(() => setIsReady(true), 1500);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isAuthorized]);
@@ -57,7 +58,7 @@ export default function AdminDashboard() {
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collection(db, "parcels") : null, 
+    (isReady && isAuthorized && db) ? collectionGroup(db, "parcels") : null, 
     [db, isAuthorized, isReady]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
@@ -79,7 +80,7 @@ export default function AdminDashboard() {
   }, [trips, parcels, bookings]);
 
   // واجهة التحميل المنظمة
-  if (isUserLoading || (!isReady && isAuthorized)) {
+  if (isUserLoading || (isAuthorized && !isReady)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
         <div className="h-20 w-20 rounded-3xl bg-primary/5 flex items-center justify-center relative">

@@ -43,7 +43,7 @@ import {
   initiatePasswordReset,
   initiateUpdatePassword
 } from "@/firebase";
-import { collection, query, where, doc, collectionGroup } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -87,10 +87,10 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // جلب الحجوزات الخاصة بالمستخدم فقط لضمان الخصوصية
+  // جلب الحجوزات الخاصة بالمستخدم فقط لضمان الخصوصية والسرعة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
-    // العودة للمسار الخاص بالمستخدم لضمان عدم تداخل التذاكر
+    // الحجوزات مخزنة في مسار العميل الخاص لضمان الخصوصية القصوى
     return collection(firestore, "users", user.uid, "bookings");
   }, [firestore, user?.uid]);
   
@@ -342,7 +342,7 @@ export default function ProfilePage() {
                             <div className="text-right">
                               <p className="text-[10px] text-slate-400 font-black mb-1 uppercase tracking-widest">كود الرحلة</p>
                               <p className="font-black text-lg text-accent font-mono">{booking.busTripId}</p>
-                              <p className="text-[10px] text-slate-500 font-bold mt-1">{new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'medium' })}</p>
+                              <p className="text-[10px] text-slate-500 font-bold mt-1">{booking.bookingDate ? new Date(booking.bookingDate).toLocaleDateString('ar-EG', { dateStyle: 'medium' }) : "---"}</p>
                             </div>
                             <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center ring-1 ring-slate-100">
                                <QrCode className="h-10 w-10 text-slate-200" />

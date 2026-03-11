@@ -3,7 +3,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // قواعد خاصة بالمستخدمين: لا يمكن للمستخدم قراءة بيانات غيره إلا إذا كان مديراً
+    // وظيفة مساعدة للتحقق من هوية المدير العام
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
+        request.auth.token.email.matches(".*@alawajan\\.com")
+      );
+    }
+
+    // قواعد ملفات المستخدمين: الخصوصية التامة
     match /users/{userId} {
       allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       
@@ -16,33 +24,33 @@ service cloud.firestore {
       }
     }
     
-    // السماح للمدراء بالقراءة والكتابة في كافة المجموعات
+    // السماح بقراءة صلاحيات الموظفين (للتحقق عند الدخول)
+    match /staff_permissions/{id} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // السماح باستعلامات المجموعات (Collection Group Queries) للحجوزات والطرود
     match /{path=**}/bookings/{id} {
-      allow read, write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
     }
     
     match /{path=**}/parcels/{id} {
       allow read, write: if request.auth != null && (resource == null || resource.data.senderUserId == request.auth.uid || isAdmin());
     }
 
-    // السماح للجميع (المسجلين) بقراءة البيانات العامة
+    // البيانات العامة (رحلات، مدن، حافلات)
     match /locations/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     match /buses/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     match /busRoutes/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     match /busTrips/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     
-    // المجموعة البريدية (Trigger Email)
+    // خدمة إرسال الإيميلات
     match /mail/{id} { allow create: if request.auth != null; }
 
-    // وظيفة مساعدة للتحقق من هوية المدير
-    function isAdmin() {
-      return request.auth.token.email in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
-             request.auth.token.email.matches(".*@alawajan\\.com");
-    }
-
     /**
-     * بصمة التحديث القسري لضمان النشر الفوري وتجاوز التخزين المؤقت:
-     * DEPLOY_HASH: PRIVACY-FIX-V600-SECURE-SYNC
+     * تحديث أمان شامل: تصحيح صلاحيات الموظفين والمدراء
+     * DEPLOY_HASH: SECURE-FINAL-V900
      */
   }
 }
