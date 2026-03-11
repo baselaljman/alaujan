@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { 
   useFirestore, 
@@ -355,13 +356,13 @@ export default function AdminTrips() {
                                         </DialogTrigger>
                                         <DialogContent className="max-w-md rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden print-area">
                                           <div className="p-8 space-y-6 text-right">
-                                            <div className="flex justify-between items-center border-b pb-6">
+                                            <DialogHeader className="flex justify-between items-center border-b pb-6 no-print">
                                               <div>
-                                                <h3 className="font-black text-primary text-xl">تذكرة سفر إلكترونية</h3>
-                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">E-Ticket Passenger Copy</p>
+                                                <DialogTitle className="font-black text-primary text-xl">تذكرة سفر إلكترونية</DialogTitle>
+                                                <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">E-Ticket Passenger Copy</DialogDescription>
                                               </div>
                                               <Bus className="h-10 w-10 text-primary opacity-20" />
-                                            </div>
+                                            </DialogHeader>
 
                                             <div className="space-y-4 pt-4">
                                               <div className="flex justify-between items-center text-center">
