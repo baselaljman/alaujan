@@ -46,7 +46,7 @@ import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
 
-const ADMIN_EMAIL = "atlob.co@gmail.com";
+const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -72,7 +72,8 @@ export default function ProfilePage() {
   const isStaff = staffData && staffData.length > 0;
   
   const isAdmin = useMemo(() => {
-    return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    if (!user || !user.email) return false;
+    return ADMIN_EMAILS.some(e => e.toLowerCase() === user.email?.toLowerCase());
   }, [user]);
 
   const profileRef = useMemoFirebase(() => {

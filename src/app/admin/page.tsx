@@ -22,7 +22,7 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebas
 import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
 
-const ADMIN_EMAIL = "atlob.co@gmail.com";
+const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -30,25 +30,25 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // منطق التحقق من الصلاحية - مستقر جداً
+  // منطق التحقق من الصلاحية - يدعم عدة مدراء
   const isAuthorized = useMemo(() => {
     if (isUserLoading) return false;
     if (!user || !user.email) return false;
     
     const email = user.email.toLowerCase();
-    // السماح للمدير أو أي بريد رسمي للشركة
-    return email === ADMIN_EMAIL.toLowerCase() || email.endsWith("@alawajan.com");
+    // السماح للمدراء أو أي بريد رسمي للشركة
+    return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير بدء الاستعلامات لضمان استقرار القواعد في الـ backend
+  // تأخير بدء الاستعلامات لضمان استقرار القواعد والتحقق
   useEffect(() => {
-    if (!isUserLoading) {
+    if (!isUserLoading && isAuthorized) {
       const timer = setTimeout(() => setIsReady(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [isUserLoading]);
+  }, [isUserLoading, isAuthorized]);
 
-  // استعلامات البيانات - لا تبدأ إلا إذا كان المستخدم مخولاً والصفحة جاهزة 100%
+  // استعلامات البيانات - لا تبدأ إلا إذا كان المستخدم مخولاً والصفحة جاهزة
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]
@@ -77,8 +77,8 @@ export default function AdminDashboard() {
     };
   }, [trips, parcels, bookings]);
 
-  // واجهة التحميل الأولية المنظمة
-  if (isUserLoading || !isReady) {
+  // واجهة التحميل المنظمة
+  if (isUserLoading || (!isReady && isAuthorized)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
         <div className="h-20 w-20 rounded-3xl bg-primary/5 flex items-center justify-center relative">
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // واجهة المنع
+  // واجهة المنع في حال لم يكن مديراً
   if (!isAuthorized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-6 animate-in fade-in duration-700">
@@ -103,7 +103,7 @@ export default function AdminDashboard() {
         <div className="space-y-2">
           <h1 className="text-2xl font-black text-slate-900">دخول محظور</h1>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mx-auto">
-            عذراً، يتطلب الوصول لهذه المنطقة صلاحيات "المدير العام". الحساب الحالي ({user?.email}) غير مدرج في قائمة المسؤولين المعتمدين.
+            عذراً، يتطلب الوصول لهذه المنطقة صلاحيات "المدير العام". الحساب الحالي ({user?.email || "غير مسجل"}) غير مدرج في قائمة المسؤولين المعتمدين.
           </p>
         </div>
         <div className="flex flex-col w-full max-w-xs gap-3">
@@ -142,23 +142,25 @@ export default function AdminDashboard() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {adminModules.map((module) => (
-          <Link key={module.href} href={module.href}>
-            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-[2.5rem] border-primary/5 bg-white shadow-sm hover:shadow-2xl">
-              <CardContent className="p-6 md:p-8 flex items-center gap-6">
-                <div className={`h-16 w-16 md:h-20 md:w-20 rounded-[1.75rem] ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white`}>
-                  <module.icon className={`h-8 w-8 md:h-10 md:w-10 ${module.color}`} />
-                </div>
-                <div className="flex-1 text-right">
-                  <h3 className="font-black text-lg md:text-xl text-slate-900 leading-tight">{module.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1.5 font-medium">{module.description}</p>
-                </div>
-                <ChevronLeft className="h-5 w-5 text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <div className="grid grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {adminModules.map((module) => (
+            <Link key={module.href} href={module.href}>
+              <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-[2.5rem] border-primary/5 bg-white shadow-sm hover:shadow-2xl">
+                <CardContent className="p-6 md:p-8 flex items-center gap-6">
+                  <div className={`h-16 w-16 md:h-20 md:w-20 rounded-[1.75rem] ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white`}>
+                    <module.icon className={`h-8 w-8 md:h-10 md:w-10 ${module.color}`} />
+                  </div>
+                  <div className="flex-1 text-right">
+                    <h3 className="font-black text-lg md:text-xl text-slate-900 leading-tight">{module.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1.5 font-medium">{module.description}</p>
+                  </div>
+                  <ChevronLeft className="h-5 w-5 text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <Card className="border-none bg-slate-900 text-white rounded-[3rem] overflow-hidden shadow-2xl relative">
