@@ -74,19 +74,21 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // تحسين استخراج المسار للبلاغات والأخطاء
+        // تحسين استخراج المسار للبلاغات والأخطاء ليكون أكثر دقة مع استعلامات المجموعات
         let path: string = "unknown-collection-path";
         try {
-          const queryAny = memoizedTargetRefOrQuery as any;
-          if (queryAny.path) {
-            path = queryAny.path;
-          } else if (queryAny._query && queryAny._query.path) {
-            path = queryAny._query.path.canonicalString();
-          } else if (queryAny.type === 'collection' && queryAny.path) {
-             path = queryAny.path;
+          const q = memoizedTargetRefOrQuery as any;
+          if (q.path) {
+            path = q.path;
+          } else if (q._query && q._query.path) {
+            path = typeof q._query.path.canonicalString === 'function' 
+              ? q._query.path.canonicalString() 
+              : q._query.path.toString();
+          } else if (q.type === 'collection' && q.path) {
+             path = q.path;
           }
         } catch (e) {
-          path = "collection-group-query";
+          path = "collection-group-query-error";
         }
 
         const contextualError = new FirestorePermissionError({

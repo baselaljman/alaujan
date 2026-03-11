@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isReady, setIsReady] = useState(false);
 
   // التحقق من الصلاحيات بشكل صارم ومستقر
   const isAuthorized = useMemo(() => {
@@ -40,22 +41,30 @@ export default function AdminDashboard() {
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // استعلامات البيانات - يتم تفعيلها فقط بعد الاستقرار التام للجلسة والصلاحيات
+  // تأخير تفعيل الاستعلامات لضمان استقرار الهوية
+  useEffect(() => {
+    if (!isUserLoading && isAuthorized) {
+      const timer = setTimeout(() => setIsReady(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isUserLoading, isAuthorized]);
+
+  // استعلامات البيانات - يتم تفعيلها فقط بعد الاستقرار التام للجلسة والصلاحيات والجاهزية
   const tripsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized, isUserLoading]
+    (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized, isReady]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db) ? collection(db, "parcels") : null, 
-    [db, isAuthorized, isUserLoading]
+    (isReady && isAuthorized && db) ? collection(db, "parcels") : null, 
+    [db, isAuthorized, isReady]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db) ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized, isUserLoading]
+    (isReady && isAuthorized && db) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized, isReady]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
@@ -106,7 +115,7 @@ export default function AdminDashboard() {
       icon: Bus,
       href: "/admin/buses",
       color: "text-amber-600",
-      bgColor: "bg-amber-50"
+      bgColor: "bg-emerald-50"
     },
     {
       title: "إدارة السائقين",
@@ -134,11 +143,11 @@ export default function AdminDashboard() {
     }
   ];
 
-  if (isUserLoading) {
+  if (isUserLoading || (!isReady && isAuthorized)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الهوية...</p>
+        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الهوية والصلاحيات...</p>
       </div>
     );
   }

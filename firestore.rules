@@ -2,49 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    /**
-     * 1. القواعد العامة الشاملة
-     * تسمح بالقراءة والكتابة لأي مستخدم مسجل دخول (Authenticated User).
-     * النمط {document=**} يغطي كافة المستندات في المسارات المباشرة.
-     */
+    // القاعدة الأساسية: السماح بالقراءة والكتابة لكافة المسارات المباشرة للمستخدمين المسجلين
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    /**
-     * 2. تصاريح استعلامات المجموعات (Collection Group Rules) - هامة جداً
-     * يجب التصريح عنها باستخدام النمط {path=**} للسماح بالاستعلام عبر كامل قاعدة البيانات (مثل collectionGroup).
-     */
+    // تصاريح استعلامات المجموعات (Collection Group Queries) - ضرورية جداً للوحة الإدارة
+    // هذه القواعد تسمح بالبحث في المجموعات بغض النظر عن موقعها في الهيكل الشجري
     
-    // تصريح شامل لمجموعة الحجوزات (تستخدم في الإدارة والبروفايل)
     match /{path=**}/bookings/{bookingId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح شامل لمجموعة الطرود (تستخدم في التتبع والبحث)
     match /{path=**}/parcels/{parcelId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح شامل لمجموعة الرحلات
     match /{path=**}/busTrips/{tripId} {
       allow read, write: if request.auth != null;
     }
 
-    // تصريح لبيانات المستخدمين
     match /{path=**}/users/{userId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح لصلاحيات الموظفين
     match /{path=**}/staff_permissions/{staffId} {
       allow read, write: if request.auth != null;
     }
 
     /**
-     * Force Deployment Token: RE-DEPLOY-CG-RULES-STABLE-v5
-     * Last Updated: 2025-05-23T20:45:00Z
-     * هذا الملف يحل مشكلة "Missing or insufficient permissions" لاستعلامات المجموعات بشكل نهائي.
+     * بصمة التحديث لضمان إعادة النشر الفوري: DEPLOY-STABLE-GROUP-RULES-V10
+     * تم تبسيط القواعد لضمان أعلى مستوى من التوافق مع استعلامات المجموعات.
      */
   }
 }
