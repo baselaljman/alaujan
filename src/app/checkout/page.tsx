@@ -27,7 +27,7 @@ function CheckoutContent() {
   const tripId = searchParams.get("tripId") || "";
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
-  const email = searchParams.get("email")?.toLowerCase() || "";
+  const email = searchParams.get("email")?.toLowerCase().trim() || "";
   const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
   const boardingPoint = searchParams.get("boardingPoint") || "";
@@ -57,7 +57,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث/إنشاء بروفايل المستخدم (يرتبط بالـ UID الحالي)
+    // 1. تحديث بروفايل المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -69,13 +69,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز في مجموعة علوية موحدة - الربط الأساسي بالبريد الإلكتروني
+    // 2. حفظ الحجز - الربط الأساسي بالبريد الإلكتروني هو "الهوية المطلقة"
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email, // الحقل الأهم لاستعادة الحجز لاحقاً
+      userEmail: email, // المعرف الأساسي لاستعادة التذاكر لاحقاً
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -129,13 +129,13 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold">يرجى تسجيل الدخول بنفس البريد ({email}) لإدارة تذاكرك في أي وقت.</p>
+            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({email}). يمكنك الوصول إليها في أي وقت.</p>
           </CardContent>
         </Card>
 
         <div className="space-y-3 w-full max-w-xs pt-4">
           <Button className="w-full h-14 rounded-2xl font-bold gap-2" onClick={() => router.push("/profile")}>
-             عرض التذكرة <ArrowRight className="h-4 w-4 rotate-180" />
+             عرض تذاكري <ArrowRight className="h-4 w-4 rotate-180" />
           </Button>
           <Button variant="ghost" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>

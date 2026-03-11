@@ -70,11 +70,12 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: البحث بالبريد الإلكتروني أولاً لضمان ربط التذاكر بالهوية
+  // استعلام الحجوزات: البحث بالبريد الإلكتروني هو "الهوية المطلقة"
+  // هذا يضمن استعادة كافة التذاكر حتى لو تغير الـ UID
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
-    // إذا كان للمستخدم بريد إلكتروني، نعتمد عليه كهوية مطلقة
+    // الأولوية القصوى للبريد الإلكتروني الموثق
     if (user.email) {
       return query(
         collection(firestore, "bookings"), 
@@ -82,7 +83,7 @@ export default function ProfilePage() {
       );
     }
     
-    // في حال الحجز كضيف (Anonymous)، نعتمد على UID مؤقتاً
+    // في حال عدم وجود بريد (ضيف)، نعتمد على الـ UID بشكل مؤقت
     return query(
       collection(firestore, "bookings"), 
       where("userId", "==", user.uid)
@@ -100,11 +101,11 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!email) return;
     if (authMode === 'login') {
-      initiateEmailSignIn(auth, email, password);
+      initiateEmailSignIn(auth, email.toLowerCase().trim(), password);
     } else if (authMode === 'register') {
-      initiateEmailSignUp(auth, email, password);
+      initiateEmailSignUp(auth, email.toLowerCase().trim(), password);
     } else {
-      initiatePasswordReset(auth, email);
+      initiatePasswordReset(auth, email.toLowerCase().trim());
     }
   };
 
@@ -142,10 +143,10 @@ export default function ProfilePage() {
     <div className="space-y-8 pb-24 text-right">
       {isGuest ? (
         <div className="max-w-md mx-auto pt-4 space-y-8 no-print">
-          <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl">
+          <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/5">
             <CardContent className="p-8">
               <h1 className="text-2xl font-black text-center mb-8 text-primary">بوابة العوجان للسفر</h1>
-              <p className="text-center text-xs text-muted-foreground mb-6">سجل دخولك ببريدك الإلكتروني المستخدم في الحجز لاستعادة تذاكرك دائماً.</p>
+              <p className="text-center text-xs text-muted-foreground mb-6">سجل دخولك ببريدك الإلكتروني لاستعادة كافة تذاكرك السابقة دائماً.</p>
               <form onSubmit={handleAuthAction} className="space-y-6">
                 <div className="space-y-2">
                   <Label>البريد الإلكتروني</Label>

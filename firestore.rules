@@ -36,19 +36,18 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // نظام الحجوزات الموحد - مرتبط بالهوية البريدية
+    // نظام الحجوزات الموحد - مرتبط بالهوية البريدية (Email Based Identity)
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // المدير والموظف يرون الكل، والمسافر يرى تذاكره فقط (عبر UID أو البريد)
+      // المدير والموظف يرون الكل، والمسافر يرى تذاكره بناءً على البريد الإلكتروني الموثق
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
-                   (isAuthenticated() && (
-                     resource.data.userId == request.auth.uid || 
-                     (hasEmail() && resource.data.userEmail == getEmail())
-                   ));
+                   (hasEmail() && resource.data.userEmail == getEmail()) ||
+                   (isAuthenticated() && resource.data.userId == request.auth.uid);
       
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || hasStaffPermission('canManageTrips');
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
@@ -61,13 +60,10 @@ service cloud.firestore {
     match /buses/{id} { allow read: if true; }
     
     match /parcels/{id} {
-      allow read: if isAuthenticated() && (
-        isAdmin() || 
-        hasStaffPermission('canManageParcels') || 
-        resource.data.senderUserId == request.auth.uid ||
-        resource.data.userId == request.auth.uid ||
-        (hasEmail() && resource.data.senderEmail == getEmail())
-      );
+      allow read: if isAdmin() || 
+                   hasStaffPermission('canManageParcels') || 
+                   (hasEmail() && resource.data.senderEmail == getEmail()) ||
+                   (isAuthenticated() && resource.data.senderUserId == request.auth.uid);
       allow create: if isAuthenticated();
       allow update: if isAdmin() || hasStaffPermission('canManageParcels');
     }
