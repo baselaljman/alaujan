@@ -2,11 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // تحديث القواعد لضمان الوصول الكامل للمجموعات واستعلامات المجموعات
-    // التاريخ: 2024-03-21T11:00:00Z
-    
     /**
      * 1. القاعدة العامة لكافة المستندات (Recursive Match)
+     * تسمح بالقراءة والكتابة لكافة المسارات لضمان عمل التطبيق في مرحلة التطوير.
      */
     match /{document=**} {
       allow read, write: if true;
@@ -42,20 +40,7 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    match /{path=**}/busTrips/{id} {
-      allow read, write: if true;
-    }
-
-    match /{path=**}/buses/{id} {
-      allow read, write: if true;
-    }
-
-    match /{path=**}/locations/{id} {
-      allow read, write: if true;
-    }
-
-    match /{path=**}/users/{id} {
-      allow read, write: if true;
-    }
+    // إضافة بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase
+    // Last Updated: 2024-03-21T12:30:00Z
   }
 }
