@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -19,7 +18,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      dir="rtl" // تفعيل الاتجاه من اليمين لليسار برمجياً
+      dir="ltr" // تغيير للغة الإنجليزية لمنع الانعكاس المزدوج وضمان اصطفاف الأرقام تحت الأيام بدقة
       className={cn("p-3 bg-white rounded-2xl", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
@@ -34,7 +33,7 @@ function Calendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
-        // فرض توزيع شبكي من 7 أعمدة لضمان المحاذاة الكاملة
+        // فرض توزيع شبكي صارم بـ 7 أعمدة
         head_row: "grid grid-cols-7 mb-2 w-full",
         head_cell: "text-muted-foreground rounded-md w-full font-bold text-[0.7rem] text-center flex items-center justify-center h-9",
         row: "grid grid-cols-7 mt-1 w-full",
