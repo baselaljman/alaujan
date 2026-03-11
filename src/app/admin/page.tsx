@@ -25,7 +25,7 @@ const ADMIN_EMAIL = "atlob.co@gmail.com";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const firestore = firestoreInstance(); // استخدام الدالة من الفايربيس
+  const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
   // التحقق مما إذا كان المستخدم مديراً أو موظفاً
@@ -33,9 +33,6 @@ export default function AdminDashboard() {
     if (!user) return false;
     return user.email === ADMIN_EMAIL || user.email?.endsWith("@alawajan.com");
   }, [user]);
-
-  // استخدام فايرستور من الهوك بشكل صحيح
-  const db = useFirestore();
 
   const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
@@ -208,15 +205,4 @@ export default function AdminDashboard() {
       </Card>
     </div>
   );
-}
-
-function firestoreInstance() {
-  // دالة مساعدة لتجنب أخطاء التهيئة المبكرة
-  try {
-    const { getFirestore } = require('firebase/firestore');
-    const { getApp } = require('firebase/app');
-    return getFirestore(getApp());
-  } catch (e) {
-    return null as any;
-  }
 }

@@ -2,10 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // التوقيت الحالي لإعادة النشر: 2024-03-20T12:00:00Z
+    // تحديث القواعد لضمان الوصول الكامل للمجموعات واستعلامات المجموعات
+    // التاريخ: 2024-03-21T11:00:00Z
     
     /**
-     * 1. القواعد العامة للمجموعات العادية
+     * 1. القاعدة العامة لكافة المستندات (Recursive Match)
      */
     match /{document=**} {
       allow read, write: if true;
@@ -14,30 +15,46 @@ service cloud.firestore {
     /**
      * 2. قواعد استعلامات المجموعات (Collection Group Rules)
      * ضرورية لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
-     * يجب تعريفها بشكل منفصل لتعمل مع استعلامات collectionGroup.
+     * في إصدار rules_version = '2' يجب تعريفها بشكل منفصل لتغطية المسارات العميقة.
      */
     
-    match /{path=**}/bookings/{bookingId} {
+    match /{path=**}/bookings/{id} {
       allow read, write: if true;
     }
     
-    match /{path=**}/parcels/{parcelId} {
+    match /{path=**}/parcels/{id} {
       allow read, write: if true;
     }
     
-    match /{path=**}/notifications/{notificationId} {
+    match /{path=**}/staff_permissions/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/staff_permissions/{staffId} {
+    match /{path=**}/notifications/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/drivers/{driverId} {
+    match /{path=**}/drivers/{id} {
       allow read, write: if true;
     }
     
-    match /{path=**}/mail/{mailId} {
+    match /{path=**}/mail/{id} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/busTrips/{id} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/buses/{id} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/locations/{id} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/users/{id} {
       allow read, write: if true;
     }
   }
