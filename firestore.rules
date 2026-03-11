@@ -31,20 +31,15 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // السماح بكل شيء للمديرين الجذريين
-    match /{path=**} {
-      allow read, write: if isAdmin();
-    }
-
-    // نظام الحجوزات الموحد - مرتبط بالهوية البريدية (Email Based Identity)
+    // نظام الحجوزات الموحد - مرتبط حصرياً بالهوية البريدية (Email Based Identity)
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // المدير والموظف يرون الكل، والمسافر يرى تذاكره بناءً على البريد الإلكتروني الموثق
+      // المدير والموظف يرون الكل، والمسافر يرى تذاكره بناءً على البريد الإلكتروني الموثق فقط
+      // تم فك الارتباط بالـ UID لضمان ثبات البيانات واستعادة التذاكر دائماً
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
-                   (hasEmail() && resource.data.userEmail == getEmail()) ||
-                   (isAuthenticated() && resource.data.userId == request.auth.uid);
+                   (hasEmail() && resource.data.userEmail == getEmail());
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
       allow delete: if isAdmin();
@@ -62,8 +57,7 @@ service cloud.firestore {
     match /parcels/{id} {
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageParcels') || 
-                   (hasEmail() && resource.data.senderEmail == getEmail()) ||
-                   (isAuthenticated() && resource.data.senderUserId == request.auth.uid);
+                   (hasEmail() && resource.data.senderEmail == getEmail());
       allow create: if isAuthenticated();
       allow update: if isAdmin() || hasStaffPermission('canManageParcels');
     }
@@ -76,6 +70,11 @@ service cloud.firestore {
     match /drivers/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // السماح بكل شيء للمديرين الجذريين (يجب أن يكون لديهم بريد إداري موثق)
+    match /{path=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

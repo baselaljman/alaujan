@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق الموحد من الصلاحيات (جذري أو موظف)
+  // التحقق الموحد من الصلاحيات (حصرياً بالبريد الإلكتروني المعتمد)
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user?.email) return false;
     const email = user.email.toLowerCase();
@@ -51,14 +51,15 @@ export default function AdminDashboard() {
   const canAccess = isAuthorized || isStaff;
 
   useEffect(() => {
+    // ننتظر حتى استقرار الجلسة والتأكد من وجود البريد الإلكتروني
     if (!isUserLoading && !isStaffLoading && canAccess) {
-      const timer = setTimeout(() => setIsReady(true), 500);
+      const timer = setTimeout(() => setIsReady(true), 800);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isStaffLoading, canAccess]);
 
   // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح
-  // هذا يمنع حدوث أخطاء Missing Permissions عند تغير حالة تسجيل الدخول
+  // تم تحصين هذه الاستعلامات لمنع حدوث أخطاء Permissions للمستخدمين المجهولين
   const tripsRef = useMemoFirebase(() => 
     (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
     [db, canAccess, isReady]
@@ -95,7 +96,7 @@ export default function AdminDashboard() {
           <ShieldAlert className="absolute inset-0 m-auto h-5 w-5 text-primary animate-pulse" />
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">جاري تأمين الجلسة</h2>
+          <h2 className="text-xl font-bold text-slate-900">جاري تأمين الجلسة الإدارية</h2>
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Verifying Identity...</p>
         </div>
       </div>
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
         <div className="space-y-2">
           <h1 className="text-2xl font-black text-slate-900">دخول غير مصرح</h1>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            عذراً، لا تملك الصلاحيات الكافية لدخول لوحة الإدارة. يرجى تسجيل الدخول بحساب مسؤول.
+            عذراً، لا تملك الصلاحيات الكافية لدخول لوحة الإدارة. يرجى تسجيل الدخول بحساب مسؤول معتمد.
           </p>
         </div>
         <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl px-10 font-bold shadow-lg">تبديل الحساب</Button>

@@ -70,25 +70,16 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: البحث بالبريد الإلكتروني هو "الهوية المطلقة"
-  // هذا يضمن استعادة كافة التذاكر حتى لو تغير الـ UID
+  // استعلام الحجوزات: فك الارتباط بالـ UID والاعتماد حصرياً على البريد الإلكتروني
+  // هذا يمنع ظهور أخطاء الصلاحيات للمستخدمين المجهولين ويضمن ثبات البيانات
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user?.email) return null;
     
-    // الأولوية القصوى للبريد الإلكتروني الموثق
-    if (user.email) {
-      return query(
-        collection(firestore, "bookings"), 
-        where("userEmail", "==", user.email.toLowerCase())
-      );
-    }
-    
-    // في حال عدم وجود بريد (ضيف)، نعتمد على الـ UID بشكل مؤقت
     return query(
       collection(firestore, "bookings"), 
-      where("userId", "==", user.uid)
+      where("userEmail", "==", user.email.toLowerCase())
     );
-  }, [firestore, user?.uid, user?.email]);
+  }, [firestore, user?.email]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 

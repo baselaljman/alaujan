@@ -18,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isReady, setIsReady] = useState(false);
   const isRootAdmin = pathname === "/admin";
 
-  // التحقق من الصلاحيات الإدارية المطلقة
+  // التحقق من الصلاحيات الإدارية المطلقة (حصرياً بالبريد الإلكتروني الموثق)
   const isAdmin = useMemo(() => {
     if (isUserLoading || !user?.email) return false;
     const email = user.email.toLowerCase();
@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isStaff = staffData && staffData.length > 0;
 
   useEffect(() => {
-    // ننتظر حتى ينتهي التحميل تماماً وتستقر الجلسة
+    // ننتظر حتى ينتهي التحميل تماماً وتستقر الجلسة وتظهر الهوية البريدية
     if (!isUserLoading && !isStaffLoading) {
       const timer = setTimeout(() => setIsReady(true), 800);
       return () => clearTimeout(timer);
@@ -58,7 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // واجهة حظر الدخول لغير المخولين
+  // واجهة حظر الدخول لغير المخولين (تعتمد على البريد الإلكتروني حصرياً)
   if (!isAdmin && !isStaff) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-6">
@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="space-y-2">
           <h1 className="text-2xl font-black text-slate-900">دخول محظور</h1>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto text-right">
-            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي لا يملك الصلاحيات الكافية. يرجى تسجيل الدخول ببريد إداري معتمد.
+            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي لا يملك صلاحيات إدارية مرتبطة ببريدك الإلكتروني. يرجى تسجيل الدخول ببريد إداري معتمد.
           </p>
         </div>
         <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl px-10 font-bold shadow-lg bg-primary">تبديل الحساب</Button>
