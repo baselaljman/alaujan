@@ -38,7 +38,7 @@ export default function AdminDashboard() {
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير الاستعلامات لضمان استقرار الجلسة وتجنب أخطاء Permissions
+  // تأخير الاستعلامات لضمان استقرار الجلسة وتجنب أخطاء Permissions أثناء التحميل الأولي
   useEffect(() => {
     if (!isUserLoading && isAuthorized) {
       const timer = setTimeout(() => setIsReady(true), 1500);
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
     }
   }, [isUserLoading, isAuthorized]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية والصلاحية
+  // استعلامات البيانات - مشروطة بالجاهزية والصلاحية والمسار الصحيح
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]

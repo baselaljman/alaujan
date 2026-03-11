@@ -65,19 +65,23 @@ export function useCollection<T = any>(
       },
       (serverError: FirestoreError) => {
         // Extract a safe path for reporting
-        let path: string = "collection-group-query";
+        let detectedPath: string = "collection-group-query";
         try {
           const q = memoizedTargetRefOrQuery as any;
-          if (q.path) path = q.path;
-          else if (q._query?.path) path = q._query.path.toString();
-          else if (q._query?.collectionGroup) path = `group:${q._query.collectionGroup}`;
+          if (q.path) {
+            detectedPath = q.path;
+          } else if (q._query?.path) {
+            detectedPath = q._query.path.toString();
+          } else if (q._query?.collectionGroup) {
+            detectedPath = `group:${q._query.collectionGroup}`;
+          }
         } catch (e) {
           // ignore
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: path,
+          path: detectedPath || "unknown-collection",
         });
 
         setError(contextualError);
