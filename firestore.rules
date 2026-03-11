@@ -16,7 +16,6 @@ service cloud.firestore {
       return isAuthenticated() && 'email' in request.auth.token && getEmail() != null;
     }
 
-    // التحقق من الهوية الإدارية (بناءً على البريد الإلكتروني حصراً)
     function isAdmin() {
       return hasEmail() && (
         getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
@@ -32,20 +31,23 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات الموحد - الاعتماد الكلي على البريد الإلكتروني لفك الارتباط بالـ UID
+    // نظام الحجوزات - ربط مزدوج (UID للجلسة والبريد للهوية الدائمة)
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
       // السماح بـ list في الحالات التالية:
       // 1. المسؤولين والموظفين (قراءة الكل)
-      // 2. المسافرين المسجلين ببريدهم (قراءة تذاكرهم فقط)
-      // 3. أي مستخدم مسجل (حتى مجهول أو بالهاتف) للاستعلام عن المقاعد المحجوزة في رحلة محددة
+      // 2. صاحب الجلسة الحالية (UID) - يتيح للضيوف رؤية تذاكرهم فورياً
+      // 3. صاحب البريد الإلكتروني الموثق - يتيح للمسجلين استعادة تاريخهم
       allow list: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
-                   (hasEmail() && resource.data.userEmail == getEmail()) ||
-                   isAuthenticated(); 
+                   (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+                   (hasEmail() && resource.data.userEmail == getEmail());
       
-      allow get: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
+      allow get: if isAdmin() || 
+                  hasStaffPermission('canManageTrips') || 
+                  (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+                  (hasEmail() && resource.data.userEmail == getEmail());
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
       allow delete: if isAdmin();
@@ -60,7 +62,7 @@ service cloud.firestore {
     
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (حتى الضيوف بـ UID مؤقت)
+      // السماح بتحديث عدد المقاعد لكافة المسجلين لضمان نجاح عملية الخصم أثناء الحجز
       allow update: if isAuthenticated();
     }
     
@@ -85,7 +87,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // صلاحيات المدير العام على كافة الوثائق
     match /{path=**} {
       allow read, write: if isAdmin();
     }

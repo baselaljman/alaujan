@@ -25,7 +25,8 @@ function CheckoutContent() {
   const [generatedTicketId, setGeneratedTicketId] = useState("");
 
   const tripId = searchParams.get("tripId") || "";
-  const seats = searchParams.get("seats")?.split(",") || [];
+  const seatsParam = searchParams.get("seats") || "";
+  const seats = seatsParam.split(",").filter(s => s !== "");
   const totalAmount = Number(searchParams.get("total") || 0);
   const emailInput = searchParams.get("email")?.toLowerCase().trim() || "";
   const phone = searchParams.get("phone") || "";
@@ -41,7 +42,6 @@ function CheckoutContent() {
   }));
 
   useEffect(() => {
-    // التأكد من وجود جلسة (مجهولة) لحفظ البيانات قبل الدفع
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
     }
@@ -53,13 +53,17 @@ function CheckoutContent() {
       return;
     }
     
+    if (seats.length === 0) {
+      toast({ variant: "destructive", title: "خطأ", description: "لم يتم تحديد مقاعد صحيحة" });
+      return;
+    }
+
     setIsProcessing(true);
 
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. إنشاء/تحديث بروفايل المستخدم بناءً على UID الجلسة الحالية
-    // يتم استخدام البريد المدخل كمعرف أساسي للربط المستقبلي
+    // 1. إنشاء/تحديث بروفايل المستخدم بناءً على UID الجلسة (سواء ضيف أو مسجل)
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -71,13 +75,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز - الربط الأساسي بالبريد الإلكتروني هو "الهوية المطلقة"
+    // 2. حفظ الحجز مع ربطه المزدوج (البريد للدوام، والـ UID للوصول الفوري)
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: emailInput, // هذا هو الحقل الأهم لاستعادة التذاكر لاحقاً
+      userEmail: emailInput,
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -95,7 +99,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. تقليل المقاعد المتاحة في الرحلة
+    // 3. خصم المقاعد المتاحة في الرحلة فورياً
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -111,7 +115,7 @@ function CheckoutContent() {
         title: "تم تأكيد الحجز الدولي بنجاح",
         description: `رقم تتبع الرحلة: ${tripId}`,
       });
-    }, 2000);
+    }, 1500);
   };
 
   if (isSuccess) {
@@ -132,13 +136,13 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({emailInput}). يمكنك الوصول إليها في أي وقت عبر تسجيل الدخول بنفس البريد.</p>
+            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({emailInput}). يمكنك الوصول إليها فوراً عبر الضغط على الزر أدناه.</p>
           </CardContent>
         </Card>
 
         <div className="space-y-3 w-full max-w-xs pt-4">
           <Button className="w-full h-14 rounded-2xl font-bold gap-2" onClick={() => router.push("/profile")}>
-             عرض تذاكري <ArrowRight className="h-4 w-4 rotate-180" />
+             عرض تذاكري الآن <ArrowRight className="h-4 w-4 rotate-180" />
           </Button>
           <Button variant="ghost" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
@@ -159,7 +163,7 @@ function CheckoutContent() {
             <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
               <span className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" /> {boardingPoint} ⬅ {droppingPoint}</span>
-              <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
+              <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال ({seats.length} مقاعد)</span>
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -192,7 +196,7 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}>
       <CheckoutContent />
     </Suspense>
   );

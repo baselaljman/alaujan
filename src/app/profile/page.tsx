@@ -20,7 +20,8 @@ import {
   QrCode,
   ArrowLeft,
   Printer,
-  Mail
+  Mail,
+  UserCheck
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,7 +36,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, or } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -58,7 +59,6 @@ export default function ProfilePage() {
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // التحقق من الهوية الإدارية (حصرياً بالبريد الإلكتروني)
   const isAdmin = useMemo(() => {
     if (!user?.email || user.isAnonymous) return false;
     const email = user.email.toLowerCase();
@@ -71,17 +71,24 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعادة التذاكر بناءً على البريد الإلكتروني حصراً - فك الارتباط التام بـ UID
-  // لا يتم الاستعلام إلا إذا كان المستخدم مسجلاً (غير مجهول) ويملك بريداً إلكترونياً
-  // هذا يمنع ظهور أخطاء Permissions للمستخدمين الضيوف
+  // استعلام ذكي: جلب التذاكر بناءً على البريد الإلكتروني (للمسجلين) أو الـ UID (للضيوف الجدد)
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.email || user.isAnonymous) return null;
+    if (!firestore || !user) return null;
     
+    // إذا كان المستخدم مسجلاً ببريده، نبحث بالبريد لضمان استرجاع كل تاريخه
+    if (user.email && !user.isAnonymous) {
+      return query(
+        collection(firestore, "bookings"), 
+        where("userEmail", "==", user.email.toLowerCase().trim())
+      );
+    }
+    
+    // إذا كان ضيفاً، نبحث بـ UID الجلسة الحالية ليتمكن من رؤية تذكرته التي اشتراها للتو
     return query(
-      collection(firestore, "bookings"), 
-      where("userEmail", "==", user.email.toLowerCase().trim())
+      collection(firestore, "bookings"),
+      where("userId", "==", user.uid)
     );
-  }, [firestore, user?.email, user?.isAnonymous]);
+  }, [firestore, user?.uid, user?.email, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
@@ -132,45 +139,13 @@ export default function ProfilePage() {
   );
 
   const isGuest = !user || user.isAnonymous;
+  const hasBookings = bookings && bookings.length > 0;
 
   return (
     <div className="space-y-8 pb-24 text-right">
-      {isGuest ? (
-        <div className="max-w-md mx-auto pt-4 space-y-8 no-print">
-          <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/5">
-            <CardContent className="p-8">
-              <h1 className="text-2xl font-black text-center mb-8 text-primary">بوابة العوجان للسفر</h1>
-              <p className="text-center text-xs text-muted-foreground mb-6">سجل دخولك ببريدك الإلكتروني لاستعادة كافة تذاكرك السابقة دائماً.</p>
-              <form onSubmit={handleAuthAction} className="space-y-6">
-                <div className="space-y-2">
-                  <Label>البريد الإلكتروني</Label>
-                  <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(e.target.value)} className="rounded-2xl h-14" required />
-                </div>
-                {authMode !== 'forgot' && (
-                  <div className="space-y-2">
-                    <Label>كلمة المرور</Label>
-                    <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="rounded-2xl h-14" required />
-                  </div>
-                )}
-                <Button type="submit" className="w-full h-16 rounded-2xl text-lg font-black shadow-xl">
-                  {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'إنشاء حساب جديد' : 'استعادة كلمة المرور'}
-                </Button>
-              </form>
-              <div className="mt-8 text-center flex flex-col gap-3">
-                {authMode === 'login' ? (
-                  <>
-                    <button onClick={() => setAuthMode('register')} className="text-primary text-sm font-black underline">ليس لديك حساب؟ اشترك الآن</button>
-                    <button onClick={() => setAuthMode('forgot')} className="text-muted-foreground text-xs">نسيت كلمة المرور؟</button>
-                  </>
-                ) : (
-                  <button onClick={() => setAuthMode('login')} className="text-primary text-sm font-black underline">لديك حساب؟ سجل دخولك</button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="max-w-4xl mx-auto space-y-10">
+      {/* عرض التذاكر للجميع (ضيوف ومسجلين) */}
+      <div className="max-w-4xl mx-auto space-y-10">
+        {!isGuest && (
           <section className="bg-white rounded-[3rem] p-8 shadow-sm border border-primary/5 no-print">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <Avatar className="h-32 w-32 border-4 border-white shadow-2xl">
@@ -187,135 +162,175 @@ export default function ProfilePage() {
               </div>
             </div>
           </section>
+        )}
 
-          {isAdmin && (
-            <Card className="bg-primary text-primary-foreground shadow-2xl rounded-[3rem] no-print">
-              <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="flex items-center gap-6">
-                  <ShieldCheck className="h-12 w-12" />
-                  <div className="text-right">
-                    <h2 className="text-2xl font-black">لوحة الإدارة المركزية</h2>
-                    <p className="text-xs opacity-70">إدارة الرحلات والكشوفات والطلبات</p>
-                  </div>
+        {isAdmin && (
+          <Card className="bg-primary text-primary-foreground shadow-2xl rounded-[3rem] no-print">
+            <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-6">
+                <ShieldCheck className="h-12 w-12" />
+                <div className="text-right">
+                  <h2 className="text-2xl font-black">لوحة الإدارة المركزية</h2>
+                  <p className="text-xs opacity-70">إدارة الرحلات والكشوفات والطلبات</p>
                 </div>
-                <Button asChild className="rounded-[1.5rem] bg-white text-primary px-10 h-16 shadow-2xl font-black">
-                  <Link href="/admin">دخول اللوحة الآن</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <Button asChild className="rounded-[1.5rem] bg-white text-primary px-10 h-16 shadow-2xl font-black">
+                <Link href="/admin">دخول اللوحة الآن</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-          <section className="space-y-8">
-            <div className="flex items-center justify-between px-4 no-print">
-              <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري وحجوزاتي</h3>
-              <Badge variant="secondary" className="px-4 py-1.5 rounded-xl bg-primary/5 text-primary border-primary/10">{bookings?.length || 0} تذكرة</Badge>
-            </div>
-            
-            {isBookingsLoading ? (
-              <div className="flex justify-center p-20 opacity-20 no-print"><Loader2 className="animate-spin h-12 w-12" /></div>
-            ) : bookings && bookings.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                {bookings.map((booking) => (
-                  <div key={booking.id} className="relative group">
-                    <div ref={el => { ticketRefs.current[booking.id] = el; }} className="bg-white shadow-2xl rounded-[3.5rem] overflow-hidden border border-primary/5 print-area">
-                      <div className="p-8 flex items-center justify-between bg-primary/5">
-                        <div className="flex items-center gap-3">
-                           <Bus className="h-6 w-6 text-primary" />
-                           <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Travel</span>
-                        </div>
-                        <Badge className={cn(
-                          "font-black px-4 py-1 rounded-full border-none",
-                          booking.paymentStatus === "Completed" ? "bg-emerald-500" : "bg-amber-500"
-                        )}>
-                          {booking.paymentStatus === "Completed" ? "حجز مؤكد" : "بانتظار الدفع"}
-                        </Badge>
+        <section className="space-y-8">
+          <div className="flex items-center justify-between px-4 no-print">
+            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري وحجوزاتي</h3>
+            {hasBookings && <Badge variant="secondary" className="px-4 py-1.5 rounded-xl bg-primary/5 text-primary border-primary/10">{bookings.length} تذكرة</Badge>}
+          </div>
+          
+          {isBookingsLoading ? (
+            <div className="flex justify-center p-20 opacity-20 no-print"><Loader2 className="animate-spin h-12 w-12" /></div>
+          ) : hasBookings ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              {bookings.map((booking) => (
+                <div key={booking.id} className="relative group">
+                  <div ref={el => { ticketRefs.current[booking.id] = el; }} className="bg-white shadow-2xl rounded-[3.5rem] overflow-hidden border border-primary/5 print-area">
+                    <div className="p-8 flex items-center justify-between bg-primary/5">
+                      <div className="flex items-center gap-3">
+                         <Bus className="h-6 w-6 text-primary" />
+                         <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Travel</span>
                       </div>
-                      
-                      <div className="p-8 space-y-10">
-                         <div className="flex items-center justify-between text-center">
-                           <div className="flex-1">
-                             <p className="text-[10px] font-bold text-muted-foreground mb-1">من</p>
-                             <p className="font-black text-xl text-slate-900">{booking.boardingPoint || "غير محدد"}</p>
-                           </div>
-                           <div className="flex flex-col items-center gap-1 opacity-20">
-                             <ArrowLeft className="h-5 w-5" />
-                             <span className="text-[8px] font-bold">رحلة دولية</span>
-                           </div>
-                           <div className="flex-1">
-                             <p className="text-[10px] font-bold text-muted-foreground mb-1">إلى</p>
-                             <p className="font-black text-xl text-slate-900">{booking.droppingPoint || "غير محدد"}</p>
-                           </div>
-                         </div>
-
-                         <div className="grid grid-cols-2 gap-y-6 pt-8 border-t border-dashed border-slate-100">
-                            <div>
-                               <p className="text-[10px] font-bold text-muted-foreground">اسم المسافر الرئيسي</p>
-                               <p className="font-bold text-slate-900">{booking.passengers?.[0]?.fullName || "مسافر العوجان"}</p>
-                            </div>
-                            <div className="text-left">
-                               <p className="text-[10px] font-bold text-muted-foreground">المقاعد</p>
-                               <p className="font-black text-primary text-lg">{booking.seatNumbers?.join(', ')}</p>
-                            </div>
-                            <div>
-                               <p className="text-[10px] font-bold text-muted-foreground">رقم الرحلة</p>
-                               <p className="font-black text-accent font-mono text-base">{booking.busTripId}</p>
-                            </div>
-                            <div className="text-left">
-                               <p className="text-[10px] font-bold text-muted-foreground">تاريخ الحجز</p>
-                               <p className="font-bold text-slate-700 text-xs">{format(new Date(booking.createdAt?.toDate ? booking.createdAt.toDate() : booking.createdAt), "PPP", { locale: ar })}</p>
-                            </div>
-                         </div>
-
-                         <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
-                            <div className="space-y-1">
-                               <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">E-Ticket Identifier</p>
-                               <p className="text-xs font-mono font-bold text-slate-400">REF: {booking.trackingNumber}</p>
-                            </div>
-                            <QrCode className="h-14 w-14 text-slate-800" />
-                         </div>
-                      </div>
+                      <Badge className={cn(
+                        "font-black px-4 py-1 rounded-full border-none",
+                        booking.paymentStatus === "Completed" ? "bg-emerald-500" : "bg-amber-500"
+                      )}>
+                        {booking.paymentStatus === "Completed" ? "حجز مؤكد" : "بانتظار الدفع"}
+                      </Badge>
                     </div>
                     
-                    <div className="flex gap-2 justify-center mt-6 no-print">
-                      <Button 
-                        variant="outline"
-                        onClick={() => handlePrintTicket()} 
-                        className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2 hover:bg-primary/5"
-                      >
-                        <Printer className="h-4 w-4" /> طباعة
-                      </Button>
-                      <Button 
-                        onClick={() => downloadTicket(booking.id)} 
-                        disabled={isDownloading === booking.id} 
-                        className="rounded-full h-12 px-6 bg-slate-900 text-white font-black gap-2"
-                      >
-                        {isDownloading === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
-                        تحميل كصورة
-                      </Button>
+                    <div className="p-8 space-y-10">
+                       <div className="flex items-center justify-between text-center">
+                         <div className="flex-1">
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1">من</p>
+                           <p className="font-black text-xl text-slate-900">{booking.boardingPoint || "غير محدد"}</p>
+                         </div>
+                         <div className="flex flex-col items-center gap-1 opacity-20">
+                           <ArrowLeft className="h-5 w-5" />
+                           <span className="text-[8px] font-bold">رحلة دولية</span>
+                         </div>
+                         <div className="flex-1">
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1">إلى</p>
+                           <p className="font-black text-xl text-slate-900">{booking.droppingPoint || "غير محدد"}</p>
+                         </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-y-6 pt-8 border-t border-dashed border-slate-100">
+                          <div>
+                             <p className="text-[10px] font-bold text-muted-foreground">اسم المسافر الرئيسي</p>
+                             <p className="font-bold text-slate-900">{booking.passengers?.[0]?.fullName || "مسافر العوجان"}</p>
+                          </div>
+                          <div className="text-left">
+                             <p className="text-[10px] font-bold text-muted-foreground">المقاعد</p>
+                             <p className="font-black text-primary text-lg">{booking.seatNumbers?.join(', ')}</p>
+                          </div>
+                          <div>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم الرحلة</p>
+                             <p className="font-black text-accent font-mono text-base">{booking.busTripId}</p>
+                          </div>
+                          <div className="text-left">
+                             <p className="text-[10px] font-bold text-muted-foreground">تاريخ الحجز</p>
+                             <p className="font-bold text-slate-700 text-xs">{booking.createdAt?.toDate ? format(booking.createdAt.toDate(), "PPP", { locale: ar }) : booking.bookingDate}</p>
+                          </div>
+                       </div>
+
+                       <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
+                          <div className="space-y-1">
+                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">E-Ticket Identifier</p>
+                             <p className="text-xs font-mono font-bold text-slate-400">REF: {booking.trackingNumber}</p>
+                          </div>
+                          <QrCode className="h-14 w-14 text-slate-800" />
+                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-24 bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 no-print">
-                <TicketIcon className="h-16 w-16 text-slate-100 mx-auto mb-6" />
-                <p className="text-sm text-slate-400 font-black">لا توجد حجوزات نشطة مرتبطة ببريدك حالياً</p>
-                <Button asChild variant="link" className="mt-4 text-primary font-bold">
-                   <Link href="/">ابحث عن رحلة الآن</Link>
-                </Button>
-              </div>
-            )}
-          </section>
-
-          {!isGuest && (
-            <div className="pt-10 no-print">
-              <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-red-600 border-red-50 font-black hover:bg-red-50 hover:border-red-100 transition-colors">
-                <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من النظام
+                  
+                  <div className="flex gap-2 justify-center mt-6 no-print">
+                    <Button 
+                      variant="outline"
+                      onClick={() => handlePrintTicket()} 
+                      className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2 hover:bg-primary/5"
+                    >
+                      <Printer className="h-4 w-4" /> طباعة
+                    </Button>
+                    <Button 
+                      onClick={() => downloadTicket(booking.id)} 
+                      disabled={isDownloading === booking.id} 
+                      className="rounded-full h-12 px-6 bg-slate-900 text-white font-black gap-2"
+                    >
+                      {isDownloading === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
+                      تحميل كصورة
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-24 bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 no-print">
+              <TicketIcon className="h-16 w-16 text-slate-100 mx-auto mb-6" />
+              <p className="text-sm text-slate-400 font-black">لا توجد حجوزات نشطة مرتبطة بك حالياً</p>
+              <Button asChild variant="link" className="mt-4 text-primary font-bold">
+                 <Link href="/">ابحث عن رحلة الآن</Link>
               </Button>
             </div>
           )}
-        </div>
-      )}
+        </section>
+
+        {/* نموذج تسجيل الدخول/الاشتراك للضيوف فقط */}
+        {isGuest && (
+          <section className="max-w-md mx-auto pt-10 no-print">
+            <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/10 bg-primary/5">
+              <CardContent className="p-8">
+                <div className="flex flex-col items-center mb-6">
+                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center mb-3">
+                    <UserCheck className="h-6 w-6 text-white" />
+                  </div>
+                  <h2 className="text-xl font-black text-primary">حفظ تذاكرك للأبد</h2>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1 text-center">قم بإنشاء حساب ببريدك الإلكتروني لتجد تذاكرك في أي جهاز آخر.</p>
+                </div>
+                
+                <form onSubmit={handleAuthAction} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold">البريد الإلكتروني</Label>
+                    <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(e.target.value)} className="rounded-xl h-12 bg-white" required />
+                  </div>
+                  {authMode !== 'forgot' && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold">كلمة المرور</Label>
+                      <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="rounded-xl h-12 bg-white" required />
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full h-14 rounded-xl text-base font-black shadow-lg">
+                    {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'إنشاء حسابي الآن' : 'استعادة كلمة المرور'}
+                  </Button>
+                </form>
+                <div className="mt-6 text-center">
+                  {authMode === 'login' ? (
+                    <button onClick={() => setAuthMode('register')} className="text-primary text-xs font-black underline">ليس لديك حساب؟ اشترك الآن</button>
+                  ) : (
+                    <button onClick={() => setAuthMode('login')} className="text-primary text-xs font-black underline">لديك حساب؟ سجل دخولك</button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
+
+        {!isGuest && (
+          <div className="pt-10 no-print">
+            <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-red-600 border-red-50 font-black hover:bg-red-50 hover:border-red-100 transition-colors">
+              <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من النظام
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
