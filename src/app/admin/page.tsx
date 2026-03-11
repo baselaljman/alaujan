@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // التحقق من الصلاحيات بناءً على البريد الإلكتروني
+  // التحقق من الصلاحيات بناءً على البريد الإلكتروني (بأحرف صغيرة دائماً)
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user || !user.email) return false;
     
@@ -39,22 +39,22 @@ export default function AdminDashboard() {
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات
+  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات واستقرار الجلسة
   const tripsRef = useMemoFirebase(() => 
-    (isAuthorized && db) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized]
+    (isAuthorized && !isUserLoading && db) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isAuthorized && db) ? collection(db, "parcels") : null, 
-    [db, isAuthorized]
+    (isAuthorized && !isUserLoading && db) ? collection(db, "parcels") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isAuthorized && db) ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized]
+    (isAuthorized && !isUserLoading && db) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 

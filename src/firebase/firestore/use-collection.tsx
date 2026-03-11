@@ -85,25 +85,28 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        // For collectionGroup queries, the path might be empty, so we provide a fallback
-        let path: string = "";
+        // Safe path extraction for reporting
+        let path: string = "unknown-path";
         try {
-          path = memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+          if (memoizedTargetRefOrQuery.type === 'collection') {
+            path = (memoizedTargetRefOrQuery as CollectionReference).path;
+          } else {
+            // For queries, attempt to get canonical string, fallback to internal path
+            const internal = memoizedTargetRefOrQuery as unknown as InternalQuery;
+            path = internal._query?.path?.canonicalString() || "collection-group-query";
+          }
         } catch (e) {
           path = "collection-group-query";
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: path || "collection-group-query",
-        })
+          path: path,
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
         // trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
@@ -112,8 +115,10 @@ export function useCollection<T = any>(
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
   }
+  
   return { data, isLoading, error };
 }
