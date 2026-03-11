@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react";
@@ -39,7 +40,8 @@ import {
   ArrowLeft,
   Banknote,
   MapPin,
-  ChevronLeft
+  ChevronLeft,
+  QrCode
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
@@ -69,7 +71,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب من المجموعة الموحدة bookings
+  // استعلام كشف الركاب من المجموعة الموحدة العلوية
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
@@ -127,7 +129,6 @@ export default function AdminTrips() {
       toast({ title: "تم الحفظ", description: `الرحلة الدولية ${nextId} أصبحت نشطة في النظام.` });
       setIsAdding(false);
       setIsSubmitting(false);
-      // Reset form
       setBusId("");
       setOriginId("");
       setDestinationId("");
@@ -248,7 +249,7 @@ export default function AdminTrips() {
             <p className="text-muted-foreground font-bold">لا توجد رحلات مجدولة حالياً</p>
           </div>
         ) : trips?.map(trip => (
-          <Card key={trip.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all bg-white group">
+          <Card key={trip.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all bg-white group no-print">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-5 flex-1 w-full">
                 <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/5 shadow-inner group-hover:bg-primary/10 transition-colors">
@@ -274,8 +275,8 @@ export default function AdminTrips() {
                       <Users className="h-4 w-4" /> كشف الركاب
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl">
-                    <div className="p-8 space-y-8 text-right print-content">
+                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl manifest-dialog">
+                    <div className="p-8 space-y-8 text-right print-area">
                       <DialogHeader className="flex flex-row items-center justify-between border-b pb-6 no-print">
                         <div className="flex items-center gap-4">
                           <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-xl">
@@ -287,74 +288,85 @@ export default function AdminTrips() {
                           </div>
                         </div>
                         <Button variant="outline" className="rounded-xl gap-2 font-bold h-12 px-6" onClick={handlePrint}>
-                          <Printer className="h-4 w-4" /> طباعة
+                          <Printer className="h-4 w-4" /> طباعة الكشف
                         </Button>
                       </DialogHeader>
 
-                      {/* ترويسة مخصصة للطباعة تظهر فقط عند الطباعة */}
-                      <div className="hidden print:block border-b-2 border-primary pb-6 mb-6">
-                        <div className="flex justify-between items-center">
+                      {/* واجهة الكشف المصممة للطباعة والظهور الرقمي */}
+                      <div className="manifest-content">
+                        <div className="flex justify-between items-center border-b-2 border-primary pb-6 mb-8">
                           <div className="text-right">
-                            <h2 className="text-2xl font-black text-primary">شركة العوجان للسفر الدولي</h2>
-                            <p className="font-bold">كشف ركاب رحلة رقم: {trip.id}</p>
-                            <p className="text-xs">{trip.originName} ⬅ {trip.destinationName}</p>
+                            <h2 className="text-3xl font-black text-primary mb-1">شركة العوجان للسياحة والسفر</h2>
+                            <p className="font-bold text-slate-700">كشف ركاب الرحلة الدولية رقم: <span className="text-primary font-mono">{trip.id}</span></p>
+                            <div className="flex items-center gap-3 mt-2 text-sm">
+                              <span className="font-bold">{trip.originName}</span>
+                              <ArrowLeft className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-bold">{trip.destinationName}</span>
+                            </div>
                           </div>
-                          <div className="text-left text-xs font-mono">
-                            <p>التاريخ: {format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
-                            <p>الوقت: {format(new Date(trip.departureTime), "p", { locale: ar })}</p>
+                          <div className="text-left text-xs bg-slate-50 p-4 rounded-2xl border">
+                            <p className="mb-1">تاريخ الرحلة: <span className="font-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</span></p>
+                            <p className="mb-1">وقت التجمع: <span className="font-black">{format(new Date(trip.departureTime), "p", { locale: ar })}</span></p>
+                            <p>الحافلة: <span className="font-black">{trip.busLabel}</span></p>
                           </div>
                         </div>
-                      </div>
 
-                      {isManifestLoading ? (
-                        <div className="flex justify-center p-20"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" /></div>
-                      ) : passengersList.length === 0 ? (
-                        <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
-                          <Users className="h-16 w-16 mx-auto mb-4 opacity-10" />
-                          <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
-                        </div>
-                      ) : (
-                        <div className="rounded-[2rem] border border-primary/5 overflow-hidden shadow-sm print:border-slate-300">
-                          <table className="w-full text-right text-sm">
-                            <thead className="bg-primary/5 border-b font-black text-primary print:bg-slate-100">
-                              <tr>
-                                <th className="px-6 py-4">مقعد</th>
-                                <th className="px-6 py-4">اسم المسافر</th>
-                                <th className="px-6 py-4">رقم الجواز</th>
-                                <th className="px-6 py-4">رقم الهاتف</th>
-                                <th className="px-6 py-4">الحالة</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-primary/5 print:divide-slate-200">
-                              {passengersList.map((p: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-primary/5 transition-colors print:bg-white">
-                                  <td className="px-6 py-4">
-                                    <Badge className="bg-primary font-bold min-w-[28px] justify-center print:bg-black print:text-white">{p.seatNumber}</Badge>
-                                  </td>
-                                  <td className="px-6 py-4 font-black text-slate-900">{p.fullName}</td>
-                                  <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
-                                  <td className="px-6 py-4 font-bold text-xs">
-                                    <Smartphone className="h-3 w-3 inline ml-1 opacity-20 no-print" /> {p.phone}
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <Badge className={cn(
-                                      "text-[9px] font-black border-none px-3 py-1",
-                                      p.paymentStatus === "Completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                                    )}>
-                                      {p.paymentStatus === "Completed" ? "مدفوع" : "دفع عند السفر"}
-                                    </Badge>
-                                  </td>
+                        {isManifestLoading ? (
+                          <div className="flex justify-center p-20"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" /></div>
+                        ) : passengersList.length === 0 ? (
+                          <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
+                            <Users className="h-16 w-16 mx-auto mb-4 opacity-10" />
+                            <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
+                          </div>
+                        ) : (
+                          <div className="rounded-[2rem] border border-primary/10 overflow-hidden shadow-sm">
+                            <table className="w-full text-right text-sm border-collapse">
+                              <thead className="bg-primary/5 border-b-2 border-primary/10 font-black text-primary">
+                                <tr>
+                                  <th className="px-6 py-5 text-center border-l">مقعد</th>
+                                  <th className="px-6 py-5">اسم المسافر الثلاثي</th>
+                                  <th className="px-6 py-5">رقم الجواز / الهوية</th>
+                                  <th className="px-6 py-5">رقم الجوال</th>
+                                  <th className="px-6 py-5 text-center">حالة الدفع</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {passengersList.map((p: any, idx: number) => (
+                                  <tr key={idx} className="hover:bg-primary/5 transition-colors">
+                                    <td className="px-6 py-4 text-center border-l bg-primary/5">
+                                      <span className="font-black text-primary text-lg">{p.seatNumber}</span>
+                                    </td>
+                                    <td className="px-6 py-4 font-black text-slate-900">{p.fullName}</td>
+                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
+                                    <td className="px-6 py-4 font-bold text-xs">
+                                      <Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {p.phone}
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                      <Badge className={cn(
+                                        "text-[10px] font-black border-none px-4 py-1.5 rounded-full",
+                                        p.paymentStatus === "Completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                      )}>
+                                        {p.paymentStatus === "Completed" ? "مكتمل" : "عند السفر"}
+                                      </Badge>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        
+                        <div className="mt-12 pt-8 border-t-2 border-dashed border-slate-200 grid grid-cols-2 gap-8">
+                          <div className="text-right space-y-2">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">مصادقة مدير الرحلة</p>
+                            <div className="h-20 w-48 border rounded-2xl bg-slate-50/50 flex items-center justify-center italic text-slate-300">الختم والتوقيع</div>
+                          </div>
+                          <div className="text-left flex flex-col justify-end gap-1 opacity-30 text-[10px] font-bold">
+                            <p>© {new Date().getFullYear()} العوجان للسياحة والسفر</p>
+                            <p>تاريخ الاستخراج: {new Date().toLocaleString('ar-EG')}</p>
+                            <div className="flex justify-end mt-2"><QrCode className="h-8 w-8" /></div>
+                          </div>
                         </div>
-                      )}
-                      
-                      {/* تذييل للطباعة فقط */}
-                      <div className="hidden print:block pt-10 mt-10 border-t text-center text-[10px] text-slate-400">
-                        <p>© {new Date().getFullYear()} العوجان للسياحة والسفر - كشف رسمي معتمد</p>
-                        <p>تاريخ استخراج الكشف: {new Date().toLocaleString('ar-EG')}</p>
                       </div>
                     </div>
                   </DialogContent>

@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,30 +45,70 @@
   }
 }
 
-/* تحسينات الطباعة الاحترافية */
+/* نظام الطباعة المتقدم والاحترافي */
 @media print {
+  /* إخفاء كافة عناصر الموقع الافتراضية */
   body * {
     visibility: hidden;
   }
-  .print-content, .print-content * {
+
+  /* إظهار منطقة الطباعة فقط */
+  .print-area, .print-area * {
     visibility: visible;
   }
-  .print-content {
+
+  .print-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    padding: 20px;
+    padding: 0;
+    margin: 0;
+    background: white !important;
+    z-index: 9999;
+  }
+
+  /* تنسيق محتوى الكشف */
+  .manifest-content {
+    padding: 10mm;
     background: white !important;
   }
+
+  /* إخفاء الأزرار والعناصر التفاعلية */
   .no-print {
     display: none !important;
   }
-  /* إخفاء خلفية الدايلوج الشفافة عند الطباعة */
+
+  /* ضبط تنسيق الجداول للطباعة */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* إزالة أي خلفيات شفافة أو ظلال للدايلوج */
   [role="dialog"] {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
     background: white !important;
     box-shadow: none !important;
     border: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* إخفاء الغطاء الشفاف (Overlay) */
+  [data-state="open"]::before {
+    display: none !important;
   }
 }
 
