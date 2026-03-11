@@ -24,26 +24,40 @@ service cloud.firestore {
       );
     }
 
-    // التحقق من صلاحيات الموظف (بناءً على البريد المسجل في مجموعة staff_permissions)
+    // التحقق من صلاحيات الموظف
     function isStaffMember() {
       return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail()));
     }
 
-    // 1. البيانات العامة: قراءة متاحة للجميع (أجهزة جديدة)
-    match /busTrips/{id} { allow read: if true; allow write: if isAuthenticated(); }
+    // 1. الرحلات والبيانات العامة: قراءة للجميع، تحديث المقاعد للمسافرين، تحكم كامل للمدير
+    match /busTrips/{id} { 
+      allow read: if true; 
+      allow update: if isAuthenticated() && (
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt'])) ||
+        isAdmin() || isStaffMember()
+      );
+      allow create, delete: if isAdmin() || isStaffMember();
+    }
+    
     match /locations/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /buses/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /drivers/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // 2. نظام الحجوزات: سماح بالقراءة العامة لضمان استقرار العرض، مع حماية الحذف والتعديل
+    // 2. نظام الحجوزات: خصوصية تامة
     match /bookings/{bookingId} {
       allow create: if true;
-      allow read: if true; // السماح بالقراءة لضمان ظهور التذاكر واستقرار الجلسات
+      // السماح بالقراءة فقط إذا كان مديراً أو صاحب التذكرة (بالبريد أو الـ UID)
+      allow read: if isAdmin() || isStaffMember() || (
+        isAuthenticated() && (
+          resource.data.userId == request.auth.uid || 
+          (hasEmail() && resource.data.userEmail == getEmail())
+        )
+      );
       allow update, delete: if isAdmin() || isStaffMember();
     }
 
-    // 3. الطرود والشحنات: تتبع متاح للجميع برقم الشحنة
+    // 3. الطرود والشحنات
     match /parcels/{id} {
       allow read: if true;
       allow create: if true;
@@ -52,12 +66,12 @@ service cloud.firestore {
 
     // 4. ملفات المستخدمين
     match /users/{userId} {
-      allow read, write: if true;
+      allow read, write: if isAuthenticated() && request.auth.uid == userId || isAdmin();
     }
 
     // القاعدة العامة للأمان
     match /{path=**} {
-      allow read: if true;
+      allow read: if isAdmin() || isStaffMember();
       allow write: if isAdmin();
     }
   }

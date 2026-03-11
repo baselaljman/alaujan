@@ -63,7 +63,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. إنشاء/تحديث بروفايل المستخدم بناءً على UID الجلسة (سواء ضيف أو مسجل)
+    // 1. إنشاء/تحديث بروفايل المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -75,13 +75,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز مع ربطه المزدوج (البريد للدوام، والـ UID للوصول الفوري للضيوف)
+    // 2. حفظ الحجز مع الربط المزدوج
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
-      userId: user.uid, // UID الجلسة الحالية لضمان الوصول الفوري للضيف
-      userEmail: emailInput, // البريد الإلكتروني للارتباط الدائم
+      userId: user.uid,
+      userEmail: emailInput,
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -92,14 +92,14 @@ function CheckoutContent() {
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
-      paymentMethodLabel: paymentMethod === "card" ? "بطاقة ائتمان" : paymentMethod === "wallet" ? "Apple Pay" : "دفع عند السفر",
+      paymentMethodLabel: paymentMethod === "card" ? "بطاقة ائتمان" : paymentMethod === "wallet" ? "Apple Pay" : "دفع نقدي",
       paymentMethod: paymentMethod,
       status: "Confirmed",
       createdAt: serverTimestamp()
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة في الرحلة فورياً
+    // 3. خصم المقاعد المتاحة فورياً
     if (tripId) {
       const tripDocRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripDocRef, {

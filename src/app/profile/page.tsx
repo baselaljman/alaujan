@@ -35,7 +35,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, or } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -70,13 +70,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام محصن وذكي: فك الارتباط بالـ UID وجعل البريد هو الهوية الأساسية
+  // استعلام تذاكر المستخدم فقط لضمان الخصوصية التامة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // 1. إذا كان المستخدم مسجلاً ببريد إلكتروني (الهوية الدائمة)
+    // إذا كان المستخدم ضيفاً، نبحث بـ UID الجلسة. إذا كان مسجلاً، نبحث ببريده أو UID
     if (user.email && !user.isAnonymous) {
       return query(
         bookingsRef, 
@@ -84,15 +84,11 @@ export default function ProfilePage() {
       );
     }
     
-    // 2. إذا كان ضيفاً (الهوية الفورية) نستخدم رقم جلسته UID
-    if (user.isAnonymous || !user.email) {
-      return query(
-        bookingsRef,
-        where("userId", "==", user.uid)
-      );
-    }
-
-    return null;
+    // للضيوف (Anonymous)
+    return query(
+      bookingsRef,
+      where("userId", "==", user.uid)
+    );
   }, [firestore, user?.uid, user?.email, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
@@ -187,7 +183,7 @@ export default function ProfilePage() {
 
         <section className="space-y-8">
           <div className="flex items-center justify-between px-4 no-print">
-            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري وحجوزاتي</h3>
+            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري الخاصة</h3>
             {hasBookings && <Badge variant="secondary" className="px-4 py-1.5 rounded-xl bg-primary/5 text-primary border-primary/10">{bookings.length} تذكرة</Badge>}
           </div>
           
