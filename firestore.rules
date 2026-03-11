@@ -13,80 +13,65 @@ service cloud.firestore {
     }
 
     function hasEmail() {
-      return isAuthenticated() && 'email' in request.auth.token && getEmail() != null;
+      return isAuthenticated() && 'email' in request.auth.token && request.auth.token.email != null;
     }
 
     function isAdmin() {
       return hasEmail() && (
-        getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
-        getEmail().matches(".*@alawajan\\.com")
+        getEmail().lower() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
+        getEmail().lower().matches(".*@alawajan\\.com")
       );
     }
 
     function isStaffMember() {
-      return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail()));
+      return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail().lower()));
     }
 
-    function hasStaffPermission(permission) {
-      return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
-    }
-
-    // نظام الحجوزات - تأمين صارم للخصوصية ومنع تسريب البيانات
+    // نظام الحجوزات - تأمين صارم مع السماح بفلترة المقاعد
     match /bookings/{bookingId} {
-      allow create: if true; // السماح للجميع ببدء عملية حجز (كضيف أو مسجل)
+      allow create: if true;
       
-      // السماح بالـ list فقط إذا كان الاستعلام "مفلتراً" بدقة
-      allow list: if isAdmin() || hasStaffPermission('canManageTrips') || (
-        // 1. السماح للجميع برؤية المقاعد المحجوزة فقط (لغرض اختيار المقاعد)
+      // السماح بالـ list فقط إذا كان الاستعلام "مفلتراً" أو للمديرين
+      allow list: if isAdmin() || (
+        // 1. السماح للجميع برؤية المقاعد المحجوزة في رحلة معينة (لاختيار المقاعد)
         (request.query.filters.busTripId != null) ||
         // 2. السماح للمسجلين برؤية تذاكرهم المرتبطة ببريدهم الموثق
-        (hasEmail() && request.query.filters.userEmail == getEmail()) ||
+        (hasEmail() && request.query.filters.userEmail == getEmail().lower()) ||
         // 3. السماح للضيوف برؤية تذاكرهم المرتبطة برقم جلستهم الحالية (UID)
         (isAuthenticated() && request.query.filters.userId == request.auth.uid)
       );
       
-      // السماح بـ get (التفاصيل الكاملة) فقط للمالك أو الإدارة
       allow get: if isAdmin() || 
-                  hasStaffPermission('canManageTrips') || 
                   (isAuthenticated() && (
                     resource.data.userId == request.auth.uid || 
-                    (hasEmail() && resource.data.userEmail == getEmail())
+                    (hasEmail() && resource.data.userEmail.lower() == getEmail().lower())
                   ));
       
-      allow update: if isAdmin() || hasStaffPermission('canManageTrips');
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if true;
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
 
-    match /locations/{id} { allow read: if true; }
-    
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح للمستخدمين بتحديث عدد المقاعد المتاحة عند الحجز
+      // السماح بتحديث عدد المقاعد المتاحة عند الحجز لكافة المستخدمين
       allow update: if isAuthenticated(); 
     }
     
+    match /locations/{id} { allow read: if true; }
     match /buses/{id} { allow read: if true; }
+    match /drivers/{id} { allow read: if true; }
     
     match /parcels/{id} {
       allow read: if isAdmin() || 
-                   hasStaffPermission('canManageParcels') || 
-                   (hasEmail() && resource.data.recipientEmail == getEmail()) ||
-                   (hasEmail() && resource.data.senderEmail == getEmail());
+                   (hasEmail() && (resource.data.recipientEmail == getEmail() || resource.data.senderEmail == getEmail()));
       allow create: if isAuthenticated();
-      allow update: if isAdmin() || hasStaffPermission('canManageParcels');
+      allow update: if isAdmin();
     }
     
     match /staff_permissions/{email} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /drivers/{id} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }

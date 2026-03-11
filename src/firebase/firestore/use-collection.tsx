@@ -41,7 +41,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // منع البدء إذا كان الاستعلام فارغاً أو غير مكتمل الترويسة
+    // منع البدء إذا كان الاستعلام فارغاً
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -64,8 +64,8 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // تحديد المسار بدقة للتشخيص العالمي للذكاء الاصطناعي
-        let detectedPath = "";
+        // تحديد المسار بدقة للتشخيص
+        let detectedPath = "unknown-collection";
         try {
           const q = memoizedTargetRefOrQuery as any;
           if (q.path) {
@@ -74,12 +74,12 @@ export function useCollection<T = any>(
             detectedPath = q._query.path.toString();
           }
         } catch (e) {
-          detectedPath = "bookings"; // افتراض أنها حجوزات في حال الفشل لأنها المصدر الرئيسي للخطأ
+          // ignore
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: detectedPath || "bookings",
+          path: detectedPath,
         });
 
         setError(contextualError);

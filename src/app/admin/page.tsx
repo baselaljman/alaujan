@@ -32,14 +32,12 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق الموحد من الصلاحيات الإدارية (حصرياً بالبريد الإلكتروني والامتناع عن المجهولين)
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user?.email || user.isAnonymous) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // التحقق من صلاحيات الموظفين
   const staffQuery = useMemoFirebase(() => {
     if (!db || !user?.email || user.isAnonymous) return null;
     return query(collection(db, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
@@ -51,7 +49,6 @@ export default function AdminDashboard() {
   const canAccess = isAuthorized || isStaff;
 
   useEffect(() => {
-    // الانتظار حتى استقرار الجلسة تماماً والتأكد من الهوية البريدية
     if (!isUserLoading && !isStaffLoading) {
       if (canAccess) {
         const timer = setTimeout(() => setIsReady(true), 1200);
@@ -62,23 +59,22 @@ export default function AdminDashboard() {
     }
   }, [isUserLoading, isStaffLoading, canAccess]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح لمنع أخطاء Permissions
-  // نستخدم استعلامات مباشرة على المجموعات بدلاً من collectionGroup لضمان استقرار الصلاحيات
+  // استعلامات البيانات - محصنة لعدم البدء إلا للمخولين وبوجود بريد إلكتروني
   const tripsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
-    [db, canAccess, isReady]
+    (isReady && canAccess && db && user?.email) ? collection(db, "busTrips") : null, 
+    [db, canAccess, isReady, user?.email]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db) ? collection(db, "parcels") : null, 
-    [db, canAccess, isReady]
+    (isReady && canAccess && db && user?.email) ? collection(db, "parcels") : null, 
+    [db, canAccess, isReady, user?.email]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db) ? collection(db, "bookings") : null, 
-    [db, canAccess, isReady]
+    (isReady && canAccess && db && user?.email) ? collection(db, "bookings") : null, 
+    [db, canAccess, isReady, user?.email]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
