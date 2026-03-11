@@ -15,8 +15,8 @@ import {
   Users,
   ShieldAlert
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
@@ -40,7 +40,6 @@ export default function AdminDashboard() {
   }, [user, isUserLoading]);
 
   // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات واستقرار الجلسة تماماً
-  // نستخدم checks إضافية لضمان عدم إرسال الطلب لقاعدة البيانات إلا بعد اكتمال Auth Context
   const tripsRef = useMemoFirebase(() => 
     (isAuthorized && !isUserLoading && db && user) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isUserLoading, user]

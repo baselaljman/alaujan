@@ -84,9 +84,9 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
+      (serverError: FirestoreError) => {
         // Safe path extraction for reporting
-        let path: string = "unknown-path";
+        let path: string = "collection-group-query";
         try {
           if (memoizedTargetRefOrQuery.type === 'collection') {
             path = (memoizedTargetRefOrQuery as CollectionReference).path;

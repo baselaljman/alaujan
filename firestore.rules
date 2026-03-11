@@ -13,7 +13,7 @@ service cloud.firestore {
     
     /**
      * 2. تصاريح استعلامات المجموعات (Collection Group Rules) - هامة جداً
-     * يجب التصريح عنها صراحة للسماح بالاستعلام عبر كامل قاعدة البيانات.
+     * يجب التصريح عنها صراحة باستخدام النمط {path=**} للسماح بالاستعلام عبر كامل قاعدة البيانات.
      */
     
     // تصريح لمجموعة الحجوزات (تستخدم في الإدارة والبروفايل)
@@ -35,13 +35,15 @@ service cloud.firestore {
     match /{path=**}/users/{userId} {
       allow read, write: if request.auth != null;
     }
+    
     match /{path=**}/staff_permissions/{staffId} {
       allow read, write: if request.auth != null;
     }
 
     /**
      * إجبار النظام على تحديث القواعد فوراً لضمان حل مشكلة "Missing or insufficient permissions".
-     * Force Deploy Timestamp: 2025-05-23T16:45:00Z
+     * تم تحديث القواعد لتكون شاملة وصريحة لكافة أنواع الاستعلامات.
+     * Force Deploy Timestamp: 2025-05-23T18:30:00Z
      */
   }
 }
