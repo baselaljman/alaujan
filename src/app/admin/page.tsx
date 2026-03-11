@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState } from "react";
@@ -19,7 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, collectionGroup } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { format } from "date-fns";
 
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
@@ -40,7 +41,7 @@ export default function AdminDashboard() {
   // تأخير الاستعلامات لضمان استقرار الجلسة تماماً (يمنع أخطاء Permissions المؤقتة عند التحميل)
   useEffect(() => {
     if (!isUserLoading && isAuthorized) {
-      const timer = setTimeout(() => setIsReady(true), 1500);
+      const timer = setTimeout(() => setIsReady(true), 1000);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isAuthorized]);
@@ -59,7 +60,7 @@ export default function AdminDashboard() {
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collectionGroup(db, "bookings") : null, 
+    (isReady && isAuthorized && db) ? collection(db, "bookings") : null, 
     [db, isAuthorized, isReady]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
