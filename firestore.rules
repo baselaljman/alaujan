@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // وظائف التحقق المتقدمة
+    // وظائف التحقق الأساسية
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -16,6 +16,7 @@ service cloud.firestore {
       return isAuthenticated() && 'email' in request.auth.token && getEmail() != null;
     }
 
+    // التحقق من الهوية الإدارية (بناءً على البريد الإلكتروني حصراً)
     function isAdmin() {
       return hasEmail() && (
         getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
@@ -31,12 +32,11 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات الموحد - مرتبط حصرياً بالهوية البريدية (Email Based Identity)
+    // نظام الحجوزات الموحد - مرتبط بالهوية البريدية (Email Based)
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // المدير والموظف يرون الكل، والمسافر يرى تذاكره بناءً على البريد الإلكتروني الموثق فقط
-      // تم فك الارتباط بالـ UID لضمان ثبات البيانات واستعادة التذاكر دائماً
+      // السماح للقراءة فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
                    (hasEmail() && resource.data.userEmail == getEmail());
@@ -72,7 +72,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // السماح بكل شيء للمديرين الجذريين (يجب أن يكون لديهم بريد إداري موثق)
+    // صلاحيات المدير العام على كافة الوثائق
     match /{path=**} {
       allow read, write: if isAdmin();
     }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -27,7 +28,7 @@ export interface UseCollectionResult<T> {
 
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries.
+ * Handles nullable references/queries and prevents execution if not memoized correctly.
  */
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
@@ -40,6 +41,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // منع البدء إذا كان الاستعلام فارغاً أو غير مكتمل الترويسة
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -62,7 +64,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // محاولة استخراج المسار بشكل آمن للتقارير
+        // تحديد المسار بدقة للتشخيص العالمي للذكاء الاصطناعي
         let detectedPath = "";
         try {
           const q = memoizedTargetRefOrQuery as any;
@@ -70,23 +72,21 @@ export function useCollection<T = any>(
             detectedPath = q.path;
           } else if (q._query?.path) {
             detectedPath = q._query.path.toString();
-          } else if (q._query?.collectionGroup) {
-            detectedPath = `collection-group-query:${q._query.collectionGroup}`;
           }
         } catch (e) {
-          detectedPath = "unknown-collection";
+          detectedPath = "bookings"; // افتراض أنها حجوزات في حال الفشل لأنها المصدر الرئيسي للخطأ
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: detectedPath || "unknown-collection",
+          path: detectedPath || "bookings",
         });
 
         setError(contextualError);
         setData(null);
         setIsLoading(false);
 
-        // إرسال الخطأ للمعالج العالمي لتسهيل التشخيص
+        // إطلاق الحدث العالمي للتشخيص
         errorEmitter.emit('permission-error', contextualError);
       }
     );

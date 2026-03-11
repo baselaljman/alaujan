@@ -58,8 +58,9 @@ export default function ProfilePage() {
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
+  // التحقق من الهوية الإدارية (حصرياً بالبريد الإلكتروني)
   const isAdmin = useMemo(() => {
-    if (!user?.email) return false;
+    if (!user?.email || user.isAnonymous) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user]);
@@ -70,16 +71,16 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: فك الارتباط بالـ UID والاعتماد حصرياً على البريد الإلكتروني
-  // هذا يمنع ظهور أخطاء الصلاحيات للمستخدمين المجهولين ويضمن ثبات البيانات
+  // فك الارتباط التام بـ UID: استعادة التذاكر بناءً على البريد الإلكتروني حصراً
+  // الاستعلام لا يبدأ إلا للمستخدمين المسجلين (غير المجهولين) لمنع أخطاء الصلاحيات
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
+    if (!firestore || !user?.email || user.isAnonymous) return null;
     
     return query(
       collection(firestore, "bookings"), 
-      where("userEmail", "==", user.email.toLowerCase())
+      where("userEmail", "==", user.email.toLowerCase().trim())
     );
-  }, [firestore, user?.email]);
+  }, [firestore, user?.email, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 

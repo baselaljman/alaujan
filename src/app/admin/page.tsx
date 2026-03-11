@@ -32,18 +32,18 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق الموحد من الصلاحيات (حصرياً بالبريد الإلكتروني المعتمد)
+  // التحقق الموحد من الصلاحيات الإدارية (حصرياً بالبريد الإلكتروني والامتناع عن المجهولين)
   const isAuthorized = useMemo(() => {
-    if (isUserLoading || !user?.email) return false;
+    if (isUserLoading || !user?.email || user.isAnonymous) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // التحقق من صلاحيات الموظفين الإضافية
+  // التحقق من صلاحيات الموظفين
   const staffQuery = useMemoFirebase(() => {
-    if (!db || !user?.email) return null;
+    if (!db || !user?.email || user.isAnonymous) return null;
     return query(collection(db, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
-  }, [db, user?.email]);
+  }, [db, user?.email, user?.isAnonymous]);
   
   const { data: staffData, isLoading: isStaffLoading } = useCollection(staffQuery);
   const isStaff = staffData && staffData.length > 0;
@@ -51,15 +51,18 @@ export default function AdminDashboard() {
   const canAccess = isAuthorized || isStaff;
 
   useEffect(() => {
-    // ننتظر حتى استقرار الجلسة والتأكد من وجود البريد الإلكتروني
-    if (!isUserLoading && !isStaffLoading && canAccess) {
-      const timer = setTimeout(() => setIsReady(true), 800);
-      return () => clearTimeout(timer);
+    // الانتظار حتى استقرار الجلسة تماماً والتأكد من الهوية البريدية
+    if (!isUserLoading && !isStaffLoading) {
+      if (canAccess) {
+        const timer = setTimeout(() => setIsReady(true), 1000);
+        return () => clearTimeout(timer);
+      } else {
+        setIsReady(false);
+      }
     }
   }, [isUserLoading, isStaffLoading, canAccess]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح
-  // تم تحصين هذه الاستعلامات لمنع حدوث أخطاء Permissions للمستخدمين المجهولين
+  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح لمنع أخطاء Permissions
   const tripsRef = useMemoFirebase(() => 
     (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
     [db, canAccess, isReady]
