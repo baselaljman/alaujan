@@ -28,14 +28,13 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // التحقق مما إذا كان المستخدم مديراً أو موظفاً معتمداً
+  // التحقق من الصلاحيات: مدير أو موظف
   const isAuthorized = useMemo(() => {
-    if (!user) return false;
-    // المدير العام أو أي بريد ينتهي بنطاق الشركة
+    if (!user || isUserLoading) return false;
     return user.email === ADMIN_EMAIL || user.email?.endsWith("@alawajan.com");
-  }, [user]);
+  }, [user, isUserLoading]);
 
-  // استخدام استعلامات منفصلة تتبع صلاحية المستخدم بدقة لتجنب أخطاء Firestore Permission
+  // استعلامات البيانات: نستخدم مصفوفة تبعية تضمن عدم البدء إلا بعد التأكد من الصلاحية
   const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
@@ -46,19 +45,21 @@ export default function AdminDashboard() {
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
+    if (!trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
+    
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     
-    const todayTripsCount = trips?.filter(t => 
+    const todayTripsCount = trips.filter(t => 
       t.departureTime && t.departureTime.startsWith(todayStr)
-    ).length || 0;
+    ).length;
 
-    const activeParcelsCount = parcels?.filter(p => 
+    const activeParcelsCount = parcels.filter(p => 
       p.status !== "Delivered"
-    ).length || 0;
+    ).length;
 
-    const todayBookingsCount = bookings?.filter(b => 
+    const todayBookingsCount = bookings.filter(b => 
       b.bookingDate && b.bookingDate.startsWith(todayStr)
-    ).length || 0;
+    ).length;
 
     return {
       todayTrips: todayTripsCount,
@@ -118,26 +119,35 @@ export default function AdminDashboard() {
     }
   ];
 
-  const isLoading = isUserLoading || isTripsLoading || isParcelsLoading || isBookingsLoading;
-
-  if (isUserLoading) return <div className="flex justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
-
-  if (!isAuthorized) {
+  if (isUserLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <ShieldAlert className="h-16 w-16 text-red-500" />
-        <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
-        <p className="text-muted-foreground text-sm">هذه الصفحة مخصصة لمدراء النظام وموظفي الشركة فقط.</p>
-        <Button onClick={() => router.push("/")} className="rounded-xl">العودة للرئيسية</Button>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الصلاحيات...</p>
       </div>
     );
   }
 
+  if (!isAuthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4 animate-in fade-in duration-500">
+        <div className="h-20 w-20 rounded-full bg-red-50 flex items-center justify-center border-2 border-red-100 shadow-inner">
+          <ShieldAlert className="h-10 w-10 text-red-500" />
+        </div>
+        <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
+        <p className="text-muted-foreground text-sm max-w-xs">عذراً، هذه المنطقة مخصصة لإدارة الشركة فقط. يرجى تسجيل الدخول بحساب معتمد.</p>
+        <Button onClick={() => router.push("/")} className="rounded-xl h-12 px-8">العودة للرئيسية</Button>
+      </div>
+    );
+  }
+
+  const isStatsLoading = isTripsLoading || isParcelsLoading || isBookingsLoading;
+
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
             <LayoutDashboard className="h-6 w-6 text-white" />
           </div>
           <div className="text-right">
@@ -153,9 +163,9 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {adminModules.map((module) => (
           <Link key={module.href} href={module.href}>
-            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-2xl">
+            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-2xl border-primary/5">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className={`h-14 w-14 rounded-2xl ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110`}>
+                <div className={`h-14 w-14 rounded-2xl ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm`}>
                   <module.icon className={`h-7 w-7 ${module.color}`} />
                 </div>
                 <div className="flex-1 text-right">
@@ -169,37 +179,37 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <Card className="border-primary/5 bg-primary/5 rounded-[2rem]">
-        <CardHeader>
-          <CardTitle className="text-sm font-bold flex items-center gap-2 justify-end">
-             إحصائيات النظام الحقيقية
+      <Card className="border-primary/5 bg-primary/5 rounded-[2rem] overflow-hidden">
+        <CardHeader className="py-4 bg-primary/10">
+          <CardTitle className="text-xs font-bold flex items-center gap-2 justify-end text-primary">
+             إحصائيات النظام المباشرة
             <Settings className="h-4 w-4" />
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white p-3 rounded-xl border">
-              <p className="text-[10px] text-muted-foreground">رحلات اليوم</p>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+            <div className="bg-white p-4 rounded-2xl border shadow-sm">
+              <p className="text-[10px] font-bold text-muted-foreground mb-1">رحلات اليوم</p>
+              {isStatsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
-                <p className="text-lg font-black text-primary">{stats.todayTrips}</p>
+                <p className="text-xl font-black text-primary">{stats.todayTrips}</p>
               )}
             </div>
-            <div className="bg-white p-3 rounded-xl border">
-              <p className="text-[10px] text-muted-foreground">طرود نشطة</p>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+            <div className="bg-white p-4 rounded-2xl border shadow-sm">
+              <p className="text-[10px] font-bold text-muted-foreground mb-1">طرود نشطة</p>
+              {isStatsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
-                <p className="text-lg font-black text-primary">{stats.activeParcels}</p>
+                <p className="text-xl font-black text-primary">{stats.activeParcels}</p>
               )}
             </div>
-            <div className="bg-white p-3 rounded-xl border">
-              <p className="text-[10px] text-muted-foreground">حجوزات اليوم</p>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto mt-2" />
+            <div className="bg-white p-4 rounded-2xl border shadow-sm">
+              <p className="text-[10px] font-bold text-muted-foreground mb-1">حجوزات اليوم</p>
+              {isStatsLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
               ) : (
-                <p className="text-lg font-black text-primary">{stats.newBookings}</p>
+                <p className="text-xl font-black text-primary">{stats.newBookings}</p>
               )}
             </div>
           </div>

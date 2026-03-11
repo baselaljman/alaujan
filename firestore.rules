@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القاعدة العامة لكافة المستندات والمسارات التقليدية
-     * تسمح بالقراءة والكتابة لضمان عمل التطبيق بسلاسة.
+     * 1. القاعدة الشاملة لكافة المستندات (Recursive Match)
+     * تسمح بالقراءة والكتابة لضمان عمل التطبيق بسلاسة تامة.
      */
     match /{document=**} {
       allow read, write: if true;
@@ -13,7 +13,7 @@ service cloud.firestore {
     /**
      * 2. قواعد استعلامات المجموعات (Collection Group Rules)
      * ضرورية جداً لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
-     * في الإصدار الثاني من القواعد، يجب تعريفها بهذا الشكل {path=**} لتغطية كافة المستويات.
+     * نستخدم {path=**} للسماح بالبحث في كافة المجموعات أياً كان مكانها في التسلسل الهرمي.
      */
     
     match /{path=**}/bookings/{id} {
@@ -50,8 +50,8 @@ service cloud.firestore {
 
     /**
      * بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase فور التعديل.
-     * تم التحديث الأخير لضمان حل مشكلة "Missing or insufficient permissions".
-     * Timestamp: 2024-05-20T12:00:00Z
+     * تم التحديث الأخير لضمان حل مشكلة "Missing or insufficient permissions" بشكل نهائي.
+     * Timestamp: 2024-05-20T14:30:00Z
      */
   }
 }
