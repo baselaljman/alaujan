@@ -36,13 +36,9 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // القائمة للقراءة العامة (لأغراض فنية) ولكن البيانات التفصيلية محمية
-      allow list: if isAuthenticated();
-      
-      // السماح للقراءة التفصيلية فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق
-      allow get: if isAdmin() || 
-                   hasStaffPermission('canManageTrips') || 
-                   (hasEmail() && resource.data.userEmail == getEmail());
+      // السماح بالقراءة فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق في التوكن
+      allow list: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
+      allow get: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
       allow delete: if isAdmin();
@@ -57,7 +53,7 @@ service cloud.firestore {
     
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (هاتف أو ايميل)
+      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (حتى الضيوف)
       allow update: if isAuthenticated();
     }
     
@@ -66,8 +62,8 @@ service cloud.firestore {
     match /parcels/{id} {
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageParcels') || 
-                   (hasEmail() && resource.data.senderEmail == getEmail()) ||
-                   (hasEmail() && resource.data.recipientEmail == getEmail());
+                   (hasEmail() && resource.data.recipientEmail == getEmail()) ||
+                   (hasEmail() && resource.data.senderEmail == getEmail());
       allow create: if isAuthenticated();
       allow update: if isAdmin() || hasStaffPermission('canManageParcels');
     }

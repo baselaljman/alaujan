@@ -27,7 +27,7 @@ function CheckoutContent() {
   const tripId = searchParams.get("tripId") || "";
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
-  const email = searchParams.get("email")?.toLowerCase().trim() || "";
+  const emailInput = searchParams.get("email")?.toLowerCase().trim() || "";
   const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
   const boardingPoint = searchParams.get("boardingPoint") || "";
@@ -41,6 +41,7 @@ function CheckoutContent() {
   }));
 
   useEffect(() => {
+    // التأكد من وجود جلسة (مجهولة) لحفظ البيانات قبل الدفع
     if (!isUserLoading && !user && auth) {
       initiateAnonymousSignIn(auth);
     }
@@ -57,11 +58,12 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث بروفايل المستخدم (اختياري، الربط الحقيقي هو الايميل)
+    // 1. إنشاء/تحديث بروفايل المستخدم بناءً على UID الجلسة الحالية
+    // يتم استخدام البريد المدخل كمعرف أساسي للربط المستقبلي
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
-      email: email,
+      email: emailInput,
       phoneNumber: phone,
       firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
       lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
@@ -75,7 +77,7 @@ function CheckoutContent() {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email, // المعرف الأساسي لاستعادة التذاكر لاحقاً
+      userEmail: emailInput, // هذا هو الحقل الأهم لاستعادة التذاكر لاحقاً
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -93,7 +95,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. تقليل المقاعد المتاحة - تم منح صلاحية التحديث في القواعد
+    // 3. تقليل المقاعد المتاحة في الرحلة
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -130,7 +132,7 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({email}). يمكنك الوصول إليها في أي وقت عبر تسجيل الدخول.</p>
+            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({emailInput}). يمكنك الوصول إليها في أي وقت عبر تسجيل الدخول بنفس البريد.</p>
           </CardContent>
         </Card>
 

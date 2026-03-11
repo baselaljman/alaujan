@@ -71,8 +71,8 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // فك الارتباط التام بـ UID: استعادة التذاكر بناءً على البريد الإلكتروني حصراً
-  // الاستعلام لا يبدأ إلا للمستخدمين المسجلين (غير المجهولين) لمنع أخطاء الصلاحيات
+  // استعادة التذاكر بناءً على البريد الإلكتروني حصراً - فك الارتباط التام بـ UID
+  // لا يتم الاستعلام إلا إذا كان المستخدم مسجلاً (غير مجهول) ويملك بريداً إلكترونياً
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email || user.isAnonymous) return null;
     
@@ -92,12 +92,13 @@ export default function ProfilePage() {
   const handleAuthAction = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    const cleanEmail = email.toLowerCase().trim();
     if (authMode === 'login') {
-      initiateEmailSignIn(auth, email.toLowerCase().trim(), password);
+      initiateEmailSignIn(auth, cleanEmail, password);
     } else if (authMode === 'register') {
-      initiateEmailSignUp(auth, email.toLowerCase().trim(), password);
+      initiateEmailSignUp(auth, cleanEmail, password);
     } else {
-      initiatePasswordReset(auth, email.toLowerCase().trim());
+      initiatePasswordReset(auth, cleanEmail);
     }
   };
 
