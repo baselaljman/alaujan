@@ -1,9 +1,7 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // وظائف التحقق الأساسية
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -16,7 +14,6 @@ service cloud.firestore {
       return isAuthenticated() && 'email' in request.auth.token && request.auth.token.email != null;
     }
 
-    // التحقق من صلاحيات المدير العام
     function isAdmin() {
       return hasEmail() && (
         getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
@@ -24,20 +21,16 @@ service cloud.firestore {
       );
     }
 
-    // التحقق من صلاحيات الموظف
     function isStaffMember() {
       return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail()));
     }
 
-    // التحقق من صلاحيات السائق
     function isDriver() {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
-    // 1. الرحلات والبيانات العامة
     match /busTrips/{id} { 
       allow read: if true; 
-      // يسمح للسائق بتحديث موقعه وحالة الرحلة، ويسمح للعملاء بتحديث المقاعد عند الحجز
       allow update: if isAuthenticated() && (
         isAdmin() || isStaffMember() || isDriver() ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription', 'lastUpdatedAt']))
@@ -50,33 +43,31 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // 2. نظام الحجوزات
     match /bookings/{bookingId} {
       allow create: if true;
       allow read: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
           resource.data.userId == request.auth.uid || 
-          (hasEmail() && resource.data.userEmail == getEmail())
-        ) ||
-        // السماح بالاطلاع على المقاعد المحجوزة فقط للرحلة المختارة
-        (request.query.limit <= 100 && 'busTripId' in resource.data)
+          (hasEmail() && resource.data.userEmail == getEmail()) ||
+          resource.data.userUid == request.auth.uid
+        )
+      ) || (
+        // السماح بالاطلاع على المقاعد المحجوزة فقط عند البحث برقم الرحلة لغرض الحجز
+        request.query.limit <= 100 && 'busTripId' in request.query.filters
       );
       allow update, delete: if isAdmin() || isStaffMember();
     }
 
-    // 3. الطرود والشحنات
     match /parcels/{id} {
       allow read: if true;
       allow create: if true;
       allow update: if isAdmin() || isStaffMember() || isDriver() || isAuthenticated();
     }
 
-    // 4. ملفات المستخدمين
     match /users/{userId} {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isStaffMember());
     }
 
-    // القاعدة العامة للأمان
     match /{path=**} {
       allow read: if isAdmin() || isStaffMember();
       allow write: if isAdmin();

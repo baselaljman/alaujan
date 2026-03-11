@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -9,10 +8,9 @@ import { Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin } from "lucid
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, collection, query, where } from "firebase/firestore";
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
-// تسجيل مكتبة الخلفية بشكل مرن للعمل على المتصفح والأندرويد
 const BackgroundGeolocation = registerPlugin<any>("BackgroundGeolocation");
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
@@ -49,11 +47,9 @@ export default function DriverDashboard() {
     }
   }, [myTrips]);
 
-  // وظيفة تحديث الموقع في Firestore
   const updateFirebaseLocation = (lat: number, lng: number) => {
     if (!activeTripId) return;
     const now = Date.now();
-    // تقليل التحديثات لتوفير البطارية (كل 15 ثانية على الأقل)
     if (now - lastUpdateRef.current < 15000) return;
 
     lastUpdateRef.current = now;
@@ -70,18 +66,16 @@ export default function DriverDashboard() {
 
   const startTracking = async () => {
     if (!activeTripId) return;
-    setIsTracking(true);
-
-    if (Capacitor.isNativePlatform()) {
-      // إعداد تتبع الخلفية لنظام أندرويد/iOS
-      try {
+    
+    try {
+      if (Capacitor.isNativePlatform()) {
         const id = await BackgroundGeolocation.addWatcher(
           {
             backgroundMessage: "العوجان للسفر: جاري إرسال موقع الحافلة للركاب...",
-            backgroundTitle: "تتبع الرحلة نشط",
+            backgroundTitle: "بث موقع الرحلة نشط",
             requestPermissions: true,
             stale: false,
-            distanceFilter: 10 // تحديث كل 10 أمتار
+            distanceFilter: 10
           },
           (location: any, error: any) => {
             if (error) {
@@ -94,20 +88,25 @@ export default function DriverDashboard() {
           }
         );
         watchIdRef.current = id;
-      } catch (e) {
-        toast({ variant: "destructive", title: "خطأ في التتبع", description: "يرجى منح صلاحيات الموقع الدائم للتطبيق" });
-        setIsTracking(false);
+        setIsTracking(true);
+      } else {
+        if (navigator.geolocation) {
+          const id = navigator.geolocation.watchPosition(
+            (pos) => updateFirebaseLocation(pos.coords.latitude, pos.coords.longitude),
+            () => toast({ variant: "destructive", title: "خطأ GPS" }),
+            { enableHighAccuracy: true }
+          );
+          watchIdRef.current = id.toString();
+          setIsTracking(true);
+        }
       }
-    } else {
-      // التتبع العادي للمتصفح
-      if (navigator.geolocation) {
-        const id = navigator.geolocation.watchPosition(
-          (pos) => updateFirebaseLocation(pos.coords.latitude, pos.coords.longitude),
-          () => toast({ variant: "destructive", title: "خطأ GPS" }),
-          { enableHighAccuracy: true }
-        );
-        watchIdRef.current = id.toString();
-      }
+    } catch (e) {
+      toast({ 
+        variant: "destructive", 
+        title: "خطأ في التتبع", 
+        description: "تأكد من اختيار 'Allow all the time' في إعدادات الموقع" 
+      });
+      setIsTracking(false);
     }
   };
 
@@ -160,7 +159,7 @@ export default function DriverDashboard() {
         <AlertTriangle className="h-8 w-8 text-red-500" />
       </div>
       <h1 className="text-xl font-bold">لا توجد حافلة مرتبطة بحسابك</h1>
-      <p className="text-muted-foreground text-sm text-center">يرجى من الإدارة ربط بريدك {user?.email} بحافلة من لوحة الإدارة.</p>
+      <p className="text-muted-foreground text-sm">يرجى من الإدارة ربط بريدك {user?.email} بحافلة من لوحة الإدارة.</p>
     </div>
   );
 
@@ -172,7 +171,7 @@ export default function DriverDashboard() {
           <p className="text-xs text-muted-foreground">حافلة: {myBus.licensePlate} | الكابتن: {user?.displayName || user?.email}</p>
         </div>
         <Badge variant={tripStatus === "Departed" ? "default" : "secondary"} className={cn(tripStatus === "Departed" && "bg-green-600 animate-pulse")}>
-          {tripStatus === "Departed" ? "بث مباشر (خلفية)" : "انتظار"}
+          {tripStatus === "Departed" ? "بث مباشر نشط" : "انتظار"}
         </Badge>
       </header>
 
@@ -182,7 +181,7 @@ export default function DriverDashboard() {
           <p className="text-sm font-bold">لا توجد رحلات مجدولة لهذه الحافلة اليوم</p>
         </Card>
       ) : (
-        <Card className="border-primary/10 shadow-lg">
+        <Card className="border-primary/10 shadow-lg rounded-[2rem]">
           <CardHeader className="bg-primary/5 border-b py-4">
             <CardTitle className="text-sm font-bold flex items-center gap-2 justify-end">
               <span>التحكم في تتبع الرحلة: {activeTripId}</span>
@@ -193,20 +192,20 @@ export default function DriverDashboard() {
             <div className="grid grid-cols-1 gap-4">
               {tripStatus !== "Departed" ? (
                 <Button onClick={() => handleStatusChange("Departed")} className="w-full h-16 text-lg font-bold gap-2 rounded-2xl bg-primary shadow-xl">
-                  <Play className="h-6 w-6" /> بدء الرحلة (التتبع بالخلفية)
+                  <Play className="h-6 w-6" /> بدء الرحلة وبث الموقع
                 </Button>
               ) : (
                 <div className="space-y-4">
                   <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-                      <span className="text-sm font-bold text-emerald-800">التتبع يعمل الآن في الخلفية...</span>
+                      <span className="text-sm font-bold text-emerald-800">جاري البث في الخلفية...</span>
                     </div>
                     <Badge className="bg-emerald-600">LIVE</Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" onClick={() => handleStatusChange("Delayed")} className="h-14 rounded-xl font-bold border-red-200 text-red-600">تسجيل تأخير</Button>
-                    <Button variant="default" onClick={() => handleStatusChange("Arrived")} className="h-14 rounded-xl font-bold">إنهاء الرحلة</Button>
+                    <Button variant="default" onClick={() => handleStatusChange("Arrived")} className="h-14 rounded-xl font-bold bg-slate-900">إنهاء الرحلة</Button>
                   </div>
                 </div>
               )}
@@ -215,11 +214,14 @@ export default function DriverDashboard() {
         </Card>
       )}
 
-      <div className="p-4 bg-accent/5 rounded-2xl border border-accent/20 text-right">
-        <h4 className="text-xs font-bold text-accent mb-1 flex items-center gap-2 justify-end">تنبيه تقني <Info className="h-3 w-3" /></h4>
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          تم تفعيل ميزة "تتبع الخلفية". يمكنك الآن تصغير التطبيق أو قفل الشاشة، وسيستمر النظام في إرسال موقعك للركاب. يرجى التأكد من اختيار "Allow all the time" في إعدادات الموقع عند طلب النظام.
-        </p>
+      <div className="p-6 bg-accent/5 rounded-3xl border border-accent/20 text-right">
+        <h4 className="text-xs font-bold text-accent mb-2 flex items-center gap-2 justify-end">دليل السائق للأندرويد <Info className="h-3 w-3" /></h4>
+        <ul className="text-[10px] text-muted-foreground space-y-2 leading-relaxed">
+          <li>1. اضغط "بدء الرحلة" عند التحرك من المحطة.</li>
+          <li>2. في حال طلب النظام، اختر <strong>"Allow all the time"</strong> لضمان استمرار البث عند قفل الشاشة.</li>
+          <li>3. تأكد من تفعيل الـ GPS (الموقع) في هاتفك.</li>
+          <li>4. سيظهر إشعار في أعلى الهاتف يثبت أن البث نشط، لا تقم بإغلاق التطبيق تماماً.</li>
+        </ul>
       </div>
     </div>
   );
