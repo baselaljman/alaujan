@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
 import { ChevronRight, ShieldAlert, Lock, Loader2 } from "lucide-react";
 import { useUser, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, doc, getDoc } from "firebase/firestore";
 
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
 
@@ -16,34 +16,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const [isReady, setIsReady] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const isRootAdmin = pathname === "/admin";
 
-  // التحقق من الصلاحيات الإدارية المطلقة (حصرياً بالبريد الإلكتروني والامتناع عن المجهولين)
+  // التحقق من الصلاحيات الإدارية المطلقة
   const isAdmin = useMemo(() => {
     if (isUserLoading || !user?.email || user.isAnonymous) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // التحقق من صلاحيات الموظفين
-  const staffQuery = useMemoFirebase(() => {
-    if (!db || !user?.email || user.isAnonymous) return null;
-    return query(collection(db, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
-  }, [db, user?.email, user?.isAnonymous]);
-  
-  const { data: staffData, isLoading: isStaffLoading } = useCollection(staffQuery);
-  const isStaff = staffData && staffData.length > 0;
-
+  // التحقق من صلاحيات الموظفين بشكل مباشر وسريع
   useEffect(() => {
-    // ننتظر حتى ينتهي التحميل تماماً وتستقر الجلسة وتظهر الهوية البريدية
-    if (!isUserLoading && !isStaffLoading) {
-      const timer = setTimeout(() => setIsReady(true), 1200);
-      return () => clearTimeout(timer);
+    async function checkStaff() {
+      if (!db || !user?.email || user.isAnonymous) {
+        setIsStaff(false);
+        return;
+      }
+      try {
+        const staffDoc = await getDoc(doc(db, "staff_permissions", user.email.toLowerCase().trim()));
+        setIsStaff(staffDoc.exists());
+      } catch (e) {
+        setIsStaff(false);
+      }
     }
-  }, [isUserLoading, isStaffLoading]);
+    
+    if (!isUserLoading) {
+      checkStaff().then(() => {
+        const timer = setTimeout(() => setIsReady(true), 800);
+        return () => clearTimeout(timer);
+      });
+    }
+  }, [db, user, isUserLoading]);
 
   // واجهة التحميل أثناء فحص التراخيص
-  if (isUserLoading || isStaffLoading || !isReady) {
+  if (isUserLoading || !isReady) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
         <div className="h-20 w-20 rounded-3xl bg-primary/5 flex items-center justify-center relative">
@@ -58,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // واجهة حظر الدخول لغير المخولين (تعتمد على البريد الإلكتروني حصرياً)
+  // واجهة حظر الدخول لغير المخولين
   if (!isAdmin && !isStaff) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-6">
@@ -68,10 +75,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="space-y-2">
           <h1 className="text-2xl font-black text-slate-900">دخول محظور</h1>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto text-right">
-            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي لا يملك صلاحيات إدارية مرتبطة ببريدك الإلكتروني. يرجى تسجيل الدخول ببريد إداري معتمد.
+            هذه المنطقة مخصصة للإدارة والموظفين فقط. حسابك الحالي لا يملك صلاحيات وصول. يرجى تسجيل الدخول ببريد إداري معتمد.
           </p>
         </div>
-        <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl px-10 font-bold shadow-lg bg-primary">تبديل الحساب</Button>
+        <div className="flex flex-col w-full gap-3 max-w-xs">
+          <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl font-bold shadow-lg bg-primary">تسجيل دخول إداري</Button>
+          <Button variant="ghost" onClick={() => router.push("/")} className="h-12 rounded-xl">العودة للرئيسية</Button>
+        </div>
       </div>
     );
   }

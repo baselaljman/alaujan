@@ -9,74 +9,81 @@ service cloud.firestore {
     }
 
     function getEmail() {
-      return request.auth.token.email;
+      return request.auth.token.email.lower();
     }
 
     function hasEmail() {
       return isAuthenticated() && 'email' in request.auth.token && request.auth.token.email != null;
     }
 
+    // التحقق من صلاحيات المدير العام
     function isAdmin() {
       return hasEmail() && (
-        getEmail().lower() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
-        getEmail().lower().matches(".*@alawajan\\.com")
+        getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
+        getEmail().matches(".*@alawajan\\.com")
       );
     }
 
+    // التحقق من صلاحيات الموظف (بناءً على البريد المسجل في مجموعة staff_permissions)
     function isStaffMember() {
-      return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail().lower()));
+      return hasEmail() && exists(/databases/$(database)/documents/staff_permissions/$(getEmail()));
     }
 
-    // نظام الحجوزات - تأمين صارم مع السماح بفلترة المقاعد
+    // التحقق مما إذا كان المستخدم هو صاحب البيانات (عبر البريد أو UID)
+    function isOwner(data) {
+      return (isAuthenticated() && data.userId == request.auth.uid) || 
+             (hasEmail() && data.userEmail.lower() == getEmail());
+    }
+
+    // 1. الرحلات الدولية: قراءة عامة للجميع، تحديث المقاعد متاح للكل عند الحجز
+    match /busTrips/{id} { 
+      allow read: if true;
+      allow update: if isAuthenticated(); // للسماح بخصم المقاعد وتحديث موقع السائق
+      allow create, delete: if isAdmin() || isStaffMember();
+    }
+    
+    // 2. المواقع، الحافلات، السائقين: قراءة عامة، تعديل للمديرين والموظفين
+    match /locations/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
+    match /buses/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
+    match /drivers/{id} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
+
+    // 3. نظام الحجوزات: يسمح للجميع بطلب "قائمة" لفحص المقاعد المشغولة، ورؤية تذاكرهم فقط
     match /bookings/{bookingId} {
-      allow create: if true;
+      allow create: if true; // السماح بالحجز كضيف
       
-      // السماح بالـ list فقط إذا كان الاستعلام "مفلتراً" أو للمديرين
-      allow list: if isAdmin() || (
-        // 1. السماح للجميع برؤية المقاعد المحجوزة في رحلة معينة (لاختيار المقاعد)
+      allow list: if isAdmin() || isStaffMember() || (
+        // السماح للكل برؤية المقاعد المشغولة لرحلة معينة (لاختيار المقاعد)
         (request.query.filters.busTripId != null) ||
-        // 2. السماح للمسجلين برؤية تذاكرهم المرتبطة ببريدهم الموثق
-        (hasEmail() && request.query.filters.userEmail == getEmail().lower()) ||
-        // 3. السماح للضيوف برؤية تذاكرهم المرتبطة برقم جلستهم الحالية (UID)
-        (isAuthenticated() && request.query.filters.userId == request.auth.uid)
+        // السماح للمالك برؤية تذاكره عبر UID الجلسة أو البريد
+        (isAuthenticated() && request.query.filters.userId == request.auth.uid) ||
+        (hasEmail() && request.query.filters.userEmail == getEmail())
       );
       
-      allow get: if isAdmin() || 
-                  (isAuthenticated() && (
-                    resource.data.userId == request.auth.uid || 
-                    (hasEmail() && resource.data.userEmail.lower() == getEmail().lower())
-                  ));
-      
-      allow update, delete: if isAdmin();
+      allow get: if isAdmin() || isStaffMember() || isOwner(resource.data);
+      allow update, delete: if isAdmin() || isStaffMember();
     }
 
+    // 4. الطرود والشحنات
+    match /parcels/{id} {
+      allow read: if isAdmin() || isStaffMember() || 
+                   (hasEmail() && (resource.data.recipientEmail == getEmail() || resource.data.senderEmail == getEmail())) ||
+                   (isAuthenticated() && resource.data.busTripId != null); // للتتبع عبر رقم الرحلة
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || isStaffMember();
+    }
+
+    // 5. ملفات المستخدمين
     match /users/{userId} {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
     }
-
-    match /busTrips/{id} { 
-      allow read: if true;
-      // السماح بتحديث عدد المقاعد المتاحة عند الحجز لكافة المستخدمين
-      allow update: if isAuthenticated(); 
-    }
     
-    match /locations/{id} { allow read: if true; }
-    match /buses/{id} { allow read: if true; }
-    match /drivers/{id} { allow read: if true; }
-    
-    match /parcels/{id} {
-      allow read: if isAdmin() || 
-                   (hasEmail() && (resource.data.recipientEmail == getEmail() || resource.data.senderEmail == getEmail()));
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-    }
-    
+    // 6. صلاحيات الموظفين
     match /staff_permissions/{email} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // القاعدة العامة للمديرين فقط
+    // القاعدة العامة: المدير العام يملك كافة الصلاحيات على كل شيء
     match /{path=**} {
       allow read, write: if isAdmin();
     }

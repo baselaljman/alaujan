@@ -21,7 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, getDoc, doc } from "firebase/firestore";
 import { format } from "date-fns";
 
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user?.email || user.isAnonymous) return false;
@@ -38,43 +39,46 @@ export default function AdminDashboard() {
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  const staffQuery = useMemoFirebase(() => {
-    if (!db || !user?.email || user.isAnonymous) return null;
-    return query(collection(db, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
-  }, [db, user?.email, user?.isAnonymous]);
-  
-  const { data: staffData, isLoading: isStaffLoading } = useCollection(staffQuery);
-  const isStaff = staffData && staffData.length > 0;
+  useEffect(() => {
+    async function checkPermissions() {
+      if (!db || !user?.email || user.isAnonymous) {
+        setIsStaff(false);
+        return;
+      }
+      try {
+        const staffDoc = await getDoc(doc(db, "staff_permissions", user.email.toLowerCase().trim()));
+        setIsStaff(staffDoc.exists());
+      } catch (e) {
+        setIsStaff(false);
+      }
+    }
+    
+    if (!isUserLoading) {
+      checkPermissions().then(() => {
+        const timer = setTimeout(() => setIsReady(true), 800);
+        return () => clearTimeout(timer);
+      });
+    }
+  }, [db, user, isUserLoading]);
 
   const canAccess = isAuthorized || isStaff;
 
-  useEffect(() => {
-    if (!isUserLoading && !isStaffLoading) {
-      if (canAccess) {
-        const timer = setTimeout(() => setIsReady(true), 1200);
-        return () => clearTimeout(timer);
-      } else {
-        setIsReady(false);
-      }
-    }
-  }, [isUserLoading, isStaffLoading, canAccess]);
-
   // استعلامات البيانات - محصنة لعدم البدء إلا للمخولين وبوجود بريد إلكتروني
   const tripsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db && user?.email) ? collection(db, "busTrips") : null, 
-    [db, canAccess, isReady, user?.email]
+    (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
+    [db, canAccess, isReady]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db && user?.email) ? collection(db, "parcels") : null, 
-    [db, canAccess, isReady, user?.email]
+    (isReady && canAccess && db) ? collection(db, "parcels") : null, 
+    [db, canAccess, isReady]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isReady && canAccess && db && user?.email) ? collection(db, "bookings") : null, 
-    [db, canAccess, isReady, user?.email]
+    (isReady && canAccess && db) ? collection(db, "bookings") : null, 
+    [db, canAccess, isReady]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
@@ -88,7 +92,7 @@ export default function AdminDashboard() {
     };
   }, [trips, parcels, bookings]);
 
-  if (isUserLoading || isStaffLoading || (canAccess && !isReady)) {
+  if (isUserLoading || (canAccess && !isReady)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
         <div className="h-20 w-20 rounded-3xl bg-primary/5 flex items-center justify-center relative">
