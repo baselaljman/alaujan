@@ -34,20 +34,43 @@
   }
   body {
     @apply bg-background text-foreground font-body;
-    /* منع سحب الصفحة للأسفل لتحديثها في الجوال لتعزيز تجربة التطبيق الأصلي */
     overscroll-behavior-y: contain;
-    /* منع تحديد النص في العناصر التفاعلية */
     -webkit-user-select: none;
     user-select: none;
   }
   input, textarea {
-    /* السماح بتحديد النص فقط في الحقول */
     -webkit-user-select: text;
     user-select: text;
   }
 }
 
-/* تحسينات للشاشات ذات النتوء (Notch) */
+/* تحسينات الطباعة الاحترافية */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-content, .print-content * {
+    visibility: visible;
+  }
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* إخفاء خلفية الدايلوج الشفافة عند الطباعة */
+  [role="dialog"] {
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
 @supports (padding: env(safe-area-inset-bottom)) {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);

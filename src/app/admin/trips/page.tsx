@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react";
@@ -70,7 +69,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب الحديث - يستهدف المجموعة الموحدة bookings
+  // استعلام كشف الركاب من المجموعة الموحدة bookings
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
@@ -136,9 +135,13 @@ export default function AdminTrips() {
     }, 500);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-8 pb-32 text-right">
-      <header className="flex items-center justify-between bg-white p-5 rounded-[2rem] shadow-sm border border-primary/5">
+      <header className="flex items-center justify-between bg-white p-5 rounded-[2rem] shadow-sm border border-primary/5 no-print">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
             <Navigation className="h-6 w-6 text-white" />
@@ -157,7 +160,7 @@ export default function AdminTrips() {
       </header>
 
       {isAdding && (
-        <Card className="rounded-[2.5rem] shadow-2xl animate-in slide-in-from-top-4 duration-500 border-primary/10">
+        <Card className="rounded-[2.5rem] shadow-2xl animate-in slide-in-from-top-4 duration-500 border-primary/10 no-print">
           <CardHeader className="bg-primary/5 border-b py-6">
             <CardTitle className="text-lg font-black text-primary flex items-center gap-2 justify-end">
               <span>تخطيط رحلة دولية جديدة</span>
@@ -231,7 +234,7 @@ export default function AdminTrips() {
         </Card>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4 no-print">
         <h3 className="font-black text-lg text-primary px-1 flex items-center gap-2 justify-end">
           <span>جدول الرحلات النشطة</span>
           <ChevronLeft className="h-5 w-5 text-primary" />
@@ -265,15 +268,15 @@ export default function AdminTrips() {
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
-                <Dialog>
+                <Dialog onOpenChange={(open) => { if (open) setSelectedTripForManifest(trip); }}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" onClick={() => setSelectedTripForManifest(trip)} className="rounded-xl h-12 gap-2 font-bold flex-1 md:flex-none border-primary/10 hover:bg-primary/5">
+                    <Button variant="outline" className="rounded-xl h-12 gap-2 font-bold flex-1 md:flex-none border-primary/10 hover:bg-primary/5">
                       <Users className="h-4 w-4" /> كشف الركاب
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl">
-                    <div className="p-8 space-y-8 text-right">
-                      <DialogHeader className="flex flex-row items-center justify-between border-b pb-6">
+                    <div className="p-8 space-y-8 text-right print-content">
+                      <DialogHeader className="flex flex-row items-center justify-between border-b pb-6 no-print">
                         <div className="flex items-center gap-4">
                           <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-xl">
                             <FileText className="h-8 w-8 text-white" />
@@ -283,10 +286,25 @@ export default function AdminTrips() {
                             <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</p>
                           </div>
                         </div>
-                        <Button variant="outline" className="rounded-xl gap-2 font-bold h-12 px-6" onClick={() => window.print()}>
+                        <Button variant="outline" className="rounded-xl gap-2 font-bold h-12 px-6" onClick={handlePrint}>
                           <Printer className="h-4 w-4" /> طباعة
                         </Button>
                       </DialogHeader>
+
+                      {/* ترويسة مخصصة للطباعة تظهر فقط عند الطباعة */}
+                      <div className="hidden print:block border-b-2 border-primary pb-6 mb-6">
+                        <div className="flex justify-between items-center">
+                          <div className="text-right">
+                            <h2 className="text-2xl font-black text-primary">شركة العوجان للسفر الدولي</h2>
+                            <p className="font-bold">كشف ركاب رحلة رقم: {trip.id}</p>
+                            <p className="text-xs">{trip.originName} ⬅ {trip.destinationName}</p>
+                          </div>
+                          <div className="text-left text-xs font-mono">
+                            <p>التاريخ: {format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
+                            <p>الوقت: {format(new Date(trip.departureTime), "p", { locale: ar })}</p>
+                          </div>
+                        </div>
+                      </div>
 
                       {isManifestLoading ? (
                         <div className="flex justify-center p-20"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" /></div>
@@ -296,9 +314,9 @@ export default function AdminTrips() {
                           <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
                         </div>
                       ) : (
-                        <div className="rounded-[2rem] border border-primary/5 overflow-hidden shadow-sm">
+                        <div className="rounded-[2rem] border border-primary/5 overflow-hidden shadow-sm print:border-slate-300">
                           <table className="w-full text-right text-sm">
-                            <thead className="bg-primary/5 border-b font-black text-primary">
+                            <thead className="bg-primary/5 border-b font-black text-primary print:bg-slate-100">
                               <tr>
                                 <th className="px-6 py-4">مقعد</th>
                                 <th className="px-6 py-4">اسم المسافر</th>
@@ -307,13 +325,17 @@ export default function AdminTrips() {
                                 <th className="px-6 py-4">الحالة</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-primary/5">
+                            <tbody className="divide-y divide-primary/5 print:divide-slate-200">
                               {passengersList.map((p: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                                  <td className="px-6 py-4"><Badge className="bg-primary font-bold min-w-[28px] justify-center">{p.seatNumber}</Badge></td>
+                                <tr key={idx} className="hover:bg-primary/5 transition-colors print:bg-white">
+                                  <td className="px-6 py-4">
+                                    <Badge className="bg-primary font-bold min-w-[28px] justify-center print:bg-black print:text-white">{p.seatNumber}</Badge>
+                                  </td>
                                   <td className="px-6 py-4 font-black text-slate-900">{p.fullName}</td>
                                   <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
-                                  <td className="px-6 py-4 font-bold text-xs"><Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {p.phone}</td>
+                                  <td className="px-6 py-4 font-bold text-xs">
+                                    <Smartphone className="h-3 w-3 inline ml-1 opacity-20 no-print" /> {p.phone}
+                                  </td>
                                   <td className="px-6 py-4">
                                     <Badge className={cn(
                                       "text-[9px] font-black border-none px-3 py-1",
@@ -328,6 +350,12 @@ export default function AdminTrips() {
                           </table>
                         </div>
                       )}
+                      
+                      {/* تذييل للطباعة فقط */}
+                      <div className="hidden print:block pt-10 mt-10 border-t text-center text-[10px] text-slate-400">
+                        <p>© {new Date().getFullYear()} العوجان للسياحة والسفر - كشف رسمي معتمد</p>
+                        <p>تاريخ استخراج الكشف: {new Date().toLocaleString('ar-EG')}</p>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -336,7 +364,7 @@ export default function AdminTrips() {
                   variant="ghost" 
                   size="icon" 
                   onClick={() => { if(confirm("هل أنت متأكد من حذف هذه الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} 
-                  className="text-red-500 rounded-full hover:bg-red-50 h-12 w-12 shrink-0 transition-colors"
+                  className="text-red-500 rounded-full hover:bg-red-50 h-12 w-12 shrink-0 transition-colors no-print"
                 >
                   <Trash2 className="h-5 w-5" />
                 </Button>
