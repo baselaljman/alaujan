@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -18,7 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection, collectionGroup } from "firebase/firestore";
+import { collection, collectionGroup, query, where } from "firebase/firestore";
 import { format } from "date-fns";
 
 const ADMIN_EMAIL = "atlob.co@gmail.com";
@@ -27,23 +27,43 @@ export default function AdminDashboard() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
-  // التحقق من الصلاحيات: مدير أو موظف (مع توحيد حالة الحروف للبريد)
+  // التحقق من الصلاحيات: مدير أو موظف
   const isAuthorized = useMemo(() => {
-    if (!user || isUserLoading || !user.email) return false;
+    if (isUserLoading) return false;
+    if (!user || !user.email) return false;
+    
     const email = user.email.toLowerCase();
     const adminEmail = ADMIN_EMAIL.toLowerCase();
+    
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // استعلامات البيانات المباشرة (تظهر فقط بعد التأكد من الصلاحية)
-  const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
+  // تحديث حالة التحقق لضمان عدم حدوث وميض أو استدعاءات خاطئة
+  useEffect(() => {
+    if (!isUserLoading) {
+      setIsAuthChecked(true);
+    }
+  }, [isUserLoading]);
+
+  // استعلامات البيانات (تعمل فقط إذا تم التحقق من الصلاحية)
+  const tripsRef = useMemoFirebase(() => 
+    isAuthorized ? collection(db, "busTrips") : null, 
+    [db, isAuthorized]
+  );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  const parcelsRef = useMemoFirebase(() => isAuthorized ? collection(db, "parcels") : null, [db, isAuthorized]);
+  const parcelsRef = useMemoFirebase(() => 
+    isAuthorized ? collection(db, "parcels") : null, 
+    [db, isAuthorized]
+  );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
-  const bookingsRef = useMemoFirebase(() => isAuthorized ? collectionGroup(db, "bookings") : null, [db, isAuthorized]);
+  const bookingsRef = useMemoFirebase(() => 
+    isAuthorized ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized]
+  );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
@@ -121,7 +141,7 @@ export default function AdminDashboard() {
     }
   ];
 
-  if (isUserLoading) {
+  if (!isAuthChecked) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />

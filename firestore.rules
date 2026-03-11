@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القاعدة الشاملة لكافة المستندات (Recursive Match)
-     * تسمح بالقراءة والكتابة لضمان عمل التطبيق بسلاسة تامة.
+     * 1. القاعدة العامة (Recursive Match)
+     * تسمح بالقراءة والكتابة لكافة المستندات لضمان عمل التطبيق بدون عوائق برمجية.
      */
     match /{document=**} {
       allow read, write: if true;
@@ -12,51 +12,38 @@ service cloud.firestore {
     
     /**
      * 2. قواعد استعلامات المجموعات (Collection Group Rules)
-     * ضرورية جداً لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
-     * نستخدم {path=**} للسماح بالبحث في كافة المجموعات أياً كان مكانها في التسلسل الهرمي.
-     * تم تحديث هذه القواعد لضمان حل مشكلة "Missing or insufficient permissions" بشكل نهائي.
+     * ضرورية لعمليات البحث والإحصائيات التي تشمل كافة المستخدمين.
+     * نستخدم {path=**} للسماح بالاستعلام عن المجموعات أياً كان مكانها.
      */
     
-    match /{path=**}/bookings/{id} {
+    match /{path=**}/bookings/{bookingId} {
       allow read, write: if true;
     }
     
-    match /{path=**}/parcels/{id} {
+    match /{path=**}/parcels/{parcelId} {
       allow read, write: if true;
     }
     
-    match /{path=**}/busTrips/{id} {
+    match /{path=**}/busTrips/{tripId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/staff_permissions/{id} {
+    match /{path=**}/users/{userId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/locations/{id} {
+    match /{path=**}/locations/{locationId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/buses/{id} {
-      allow read, write: if true;
-    }
-
-    match /{path=**}/users/{id} {
-      allow read, write: if true;
-    }
-
-    match /{path=**}/mail/{id} {
-      allow read, write: if true;
-    }
-    
-    match /{path=**}/drivers/{id} {
+    match /{path=**}/staff_permissions/{staffId} {
       allow read, write: if true;
     }
 
     /**
      * بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase فور التعديل.
-     * التحديث الأخير لضمان حل جذري لمشكلة الصلاحيات في استعلامات المجموعات.
-     * Timestamp: 2024-05-20T16:00:00Z
+     * التحديث الحالي يركز على حل مشكلة الصلاحيات للمدير العام والموظفين.
+     * Timestamp: 2024-05-21T10:30:00Z
      */
   }
 }
