@@ -47,27 +47,27 @@ export default function AdminDashboard() {
     }
   }, [isUserLoading]);
 
-  // استعلامات البيانات (تعمل فقط إذا تم التحقق من الصلاحية)
+  // استعلامات البيانات (تعمل فقط إذا تم التحقق من الصلاحية وتم الانتهاء من تحميل المستخدم)
   const tripsRef = useMemoFirebase(() => 
-    isAuthorized ? collection(db, "busTrips") : null, 
-    [db, isAuthorized]
+    (isAuthorized && isAuthChecked) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized, isAuthChecked]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    isAuthorized ? collection(db, "parcels") : null, 
-    [db, isAuthorized]
+    (isAuthorized && isAuthChecked) ? collection(db, "parcels") : null, 
+    [db, isAuthorized, isAuthChecked]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    isAuthorized ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized]
+    (isAuthorized && isAuthChecked) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized, isAuthChecked]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
-    if (!trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
+    if (!isAuthorized || !trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
     
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
       activeParcels: activeParcelsCount,
       newBookings: todayBookingsCount
     };
-  }, [trips, parcels, bookings]);
+  }, [trips, parcels, bookings, isAuthorized]);
 
   const adminModules = [
     {
