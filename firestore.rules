@@ -32,12 +32,16 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات الموحد - مرتبط بالهوية البريدية (Email Based)
+    // نظام الحجوزات الموحد - فك الارتباط بالـ UID والاعتماد على البريد الإلكتروني
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // السماح للقراءة فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق
-      allow read: if isAdmin() || 
+      // السماح بالقائمة (List) لكافة المستخدمين لتمكين "اختيار المقاعد"
+      // ملاحظة أمنية: في التطبيق الفعلي يتم عرض أرقام المقاعد فقط للجمهور
+      allow list: if isAuthenticated();
+      
+      // السماح للقراءة التفصيلية (Get) فقط للمسؤولين أو صاحب الحجز بناءً على البريد
+      allow get: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
                    (hasEmail() && resource.data.userEmail == getEmail());
       
@@ -46,7 +50,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, update: if isAuthenticated() && request.auth.uid == userId;
+      allow read, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       allow create: if isAuthenticated();
     }
 
@@ -57,7 +61,8 @@ service cloud.firestore {
     match /parcels/{id} {
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageParcels') || 
-                   (hasEmail() && resource.data.senderEmail == getEmail());
+                   (hasEmail() && resource.data.senderEmail == getEmail()) ||
+                   (hasEmail() && resource.data.recipientEmail == getEmail());
       allow create: if isAuthenticated();
       allow update: if isAdmin() || hasStaffPermission('canManageParcels');
     }

@@ -54,7 +54,7 @@ export default function AdminDashboard() {
     // الانتظار حتى استقرار الجلسة تماماً والتأكد من الهوية البريدية
     if (!isUserLoading && !isStaffLoading) {
       if (canAccess) {
-        const timer = setTimeout(() => setIsReady(true), 1000);
+        const timer = setTimeout(() => setIsReady(true), 1200);
         return () => clearTimeout(timer);
       } else {
         setIsReady(false);
