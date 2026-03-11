@@ -18,48 +18,48 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      dir="ltr" // تغيير للغة الإنجليزية لمنع الانعكاس المزدوج وضمان اصطفاف الأرقام تحت الأيام بدقة
-      className={cn("p-3 bg-white rounded-2xl", className)}
+      dir="ltr" // استخدام LTR داخلياً لمنع انعكاس المكونات وضمان اصطفاف التواريخ بدقة تحت أسماء الأيام
+      className={cn("p-4 bg-white rounded-[2rem] shadow-sm", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
+        month: "space-y-6",
         caption: "flex justify-center pt-1 relative items-center mb-4",
-        caption_label: "text-sm font-bold",
+        caption_label: "text-sm font-black text-primary",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-lg"
+          "h-9 w-9 bg-transparent p-0 opacity-50 hover:opacity-100 rounded-xl border-primary/10"
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse",
-        // فرض توزيع شبكي صارم بـ 7 أعمدة
-        head_row: "grid grid-cols-7 mb-2 w-full",
-        head_cell: "text-muted-foreground rounded-md w-full font-bold text-[0.7rem] text-center flex items-center justify-center h-9",
-        row: "grid grid-cols-7 mt-1 w-full",
+        // فرض نظام Grid صارم بـ 7 أعمدة لضمان الدقة الهندسية كما في تطبيقات الطيران
+        head_row: "grid grid-cols-7 mb-4 w-full",
+        head_cell: "text-muted-foreground rounded-md w-full font-bold text-[10px] uppercase tracking-wider text-center flex items-center justify-center h-8",
+        row: "grid grid-cols-7 mt-2 w-full",
         cell: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent/50",
-          "h-9 w-full flex items-center justify-center rounded-lg mx-auto"
+          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
+          "h-10 w-full flex items-center justify-center rounded-xl mx-auto"
         ),
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-primary/10 rounded-lg flex items-center justify-center"
+          "h-10 w-10 p-0 font-medium aria-selected:opacity-100 hover:bg-primary/5 rounded-xl flex items-center justify-center transition-all"
         ),
         day_range_end: "day-range-end",
         day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground font-bold",
-        day_today: "bg-accent/20 text-accent font-bold",
+          "bg-primary text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white font-black shadow-lg scale-110",
+        day_today: "bg-accent/10 text-accent border border-accent/20 font-black",
         day_outside:
-          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-        day_disabled: "text-muted-foreground opacity-50",
+          "day-outside text-muted-foreground opacity-30 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+        day_disabled: "text-muted-foreground opacity-20 cursor-not-allowed",
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-5 w-5" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-5 w-5" />,
       }}
       {...props}
     />

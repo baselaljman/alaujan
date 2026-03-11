@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge"; // تأكيد استيراد مكون الـ Badge
+import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import { 
@@ -105,9 +105,9 @@ export default function AdminTrips() {
       </header>
 
       {isAdding && (
-        <Card className="border-primary/20 shadow-xl animate-in slide-in-from-top-4 duration-500 rounded-[2rem] overflow-hidden">
+        <Card className="border-primary/20 shadow-xl animate-in slide-in-from-top-4 duration-500 rounded-[2.5rem] overflow-hidden">
           <CardContent className="p-8">
-            <form onSubmit={handleAddTrip} className="space-y-6">
+            <form onSubmit={handleAddTrip} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold pr-1">من مدينة الانطلاق</Label>
@@ -141,15 +141,15 @@ export default function AdminTrips() {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full h-14 rounded-2xl bg-slate-50 border-primary/5 justify-between px-4 font-normal",
-                          !departureDate && "text-muted-foreground"
+                          "w-full h-14 rounded-2xl bg-slate-50 border-primary/5 justify-between px-4 font-bold text-slate-700",
+                          !departureDate && "text-muted-foreground font-normal"
                         )}
                       >
-                        {departureDate ? format(departureDate, "PPP", { locale: ar }) : <span>اختر تاريخ</span>}
-                        <CalendarIcon className="h-4 w-4 opacity-50" />
+                        {departureDate ? format(departureDate, "PPP", { locale: ar }) : <span>اختر تاريخ السفر</span>}
+                        <CalendarIcon className="h-5 w-5 text-primary opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 rounded-2xl shadow-2xl border-primary/5" align="start">
+                    <PopoverContent className="w-auto p-0 rounded-[2rem] shadow-2xl border-none" align="center" sideOffset={10}>
                       <Calendar
                         mode="single"
                         selected={departureDate}
@@ -167,9 +167,9 @@ export default function AdminTrips() {
                       type="time" 
                       value={depTime} 
                       onChange={e => setDepTime(e.target.value)} 
-                      className="h-14 rounded-2xl bg-slate-50 border-primary/5 pl-10"
+                      className="h-14 rounded-2xl bg-slate-50 border-primary/5 pl-10 font-bold"
                     />
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   </div>
                 </div>
               </div>
@@ -196,13 +196,13 @@ export default function AdminTrips() {
                     type="number" 
                     value={pricePerSeat} 
                     onChange={e => setPricePerSeat(e.target.value)} 
-                    className="h-14 rounded-2xl bg-slate-50 border-primary/5" 
+                    className="h-14 rounded-2xl bg-slate-50 border-primary/5 font-bold" 
                   />
                 </div>
               </div>
 
               <Button type="submit" className="w-full h-16 rounded-[1.5rem] font-black text-lg bg-primary shadow-xl hover:scale-[1.01] transition-transform">
-                حفظ ونشر الرحلة
+                حفظ ونشر الرحلة الدولية
               </Button>
             </form>
           </CardContent>
@@ -247,7 +247,7 @@ export default function AdminTrips() {
                     <p className="text-xs font-black text-primary">{trip.pricePerSeat} ريال</p>
                     <p className="text-[9px] text-muted-foreground">للمقعد الواحد</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => { if(confirm("حذف الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} className="text-red-500 rounded-full hover:bg-red-50">
+                  <Button variant="ghost" size="icon" onClick={() => { if(confirm("هل أنت متأكد من حذف الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} className="text-red-500 rounded-full hover:bg-red-50">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
