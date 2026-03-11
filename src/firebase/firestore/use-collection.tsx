@@ -63,7 +63,7 @@ export function useCollection<T = any>(
       },
       (serverError: FirestoreError) => {
         // تحسين استخراج المسار للبلاغات والأخطاء لتجنب تعليق النظام بمسارات وهمية
-        let path: string = "root-or-group-query";
+        let path: string = "collection-group-query";
         try {
           const q = memoizedTargetRefOrQuery as any;
           if (q.path) path = q.path;
