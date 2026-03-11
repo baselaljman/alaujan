@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, Suspense, useEffect } from "react";
@@ -48,8 +47,9 @@ function CheckoutContent() {
   }, [user, isUserLoading, auth]);
 
   const handlePay = () => {
-    if (!user) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى الانتظار حتى تهيئة الجلسة" });
+    // منع الحجز إذا لم تكتمل هوية المستخدم (حتى لو ضيف) لضمان الخصم الصحيح للمقاعد
+    if (!user || isUserLoading) {
+      toast({ variant: "destructive", title: "جاري تهيئة الحجز", description: "يرجى الانتظار ثانية واحدة والمحاولة مرة أخرى" });
       return;
     }
     
@@ -63,7 +63,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. إنشاء/تحديث بروفايل المستخدم
+    // 1. إنشاء/تحديث بروفايل المستخدم (Email-Centric)
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -75,7 +75,7 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز مع الربط المزدوج
+    // 2. حفظ الحجز بربط مزدوج (UID للجلسة الحالية + Email للارتباط الدائم)
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -99,7 +99,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة فورياً
+    // 3. خصم المقاعد المتاحة فورياً من الرحلة
     if (tripId) {
       const tripDocRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripDocRef, {
