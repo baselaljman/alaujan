@@ -71,13 +71,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام محصن: جلب التذاكر الخاصة بالمستخدم فقط (بريد للمسجلين، وUID للضيوف)
+  // استعلام محصن وذكي: فك الارتباط بالـ UID وجعل البريد هو الهوية الأساسية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // للمسجلين: ابحث حصراً بالبريد الإلكتروني الموثق
+    // 1. إذا كان المستخدم مسجلاً ببريد إلكتروني (الهوية الدائمة)
     if (user.email && !user.isAnonymous) {
       return query(
         bookingsRef, 
@@ -85,15 +85,16 @@ export default function ProfilePage() {
       );
     }
     
-    // للضيوف (مجهولين): ابحث حصراً بـ UID الجلسة الحالية
-    if (user.isAnonymous) {
+    // 2. إذا كان ضيفاً (الهوية الفورية) نستخدم رقم جلسته UID
+    // هذا يضمن ظهور تذاكره التي حجزها للتو كضيف
+    if (user.isAnonymous || !user.email) {
       return query(
         bookingsRef,
         where("userId", "==", user.uid)
       );
     }
 
-    return null; // أمان إضافي لمنع الاستعلام العام
+    return null;
   }, [firestore, user?.uid, user?.email, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);

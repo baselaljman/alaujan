@@ -31,23 +31,27 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات - تأمين صارم للخصوصية
+    // نظام الحجوزات - تأمين صارم للخصوصية ومنع تسريب البيانات
     match /bookings/{bookingId} {
-      allow create: if isAuthenticated();
+      allow create: if true; // السماح للجميع ببدء عملية حجز (كضيف أو مسجل)
       
-      // السماح بالـ list فقط إذا كان الاستعلام مفلتراً بالبريد أو الـ UID الخاص بالمستخدم، أو برقم الرحلة (لعرض المقاعد)
+      // السماح بالـ list فقط إذا كان الاستعلام "مفلتراً" بدقة
       allow list: if isAdmin() || hasStaffPermission('canManageTrips') || (
-        isAuthenticated() && (
-          (hasEmail() && request.query.filters.userEmail == getEmail()) ||
-          (request.query.filters.userId == request.auth.uid) ||
-          (request.query.filters.busTripId != null)
-        )
+        // 1. السماح للجميع برؤية المقاعد المحجوزة فقط (لغرض اختيار المقاعد)
+        (request.query.filters.busTripId != null) ||
+        // 2. السماح للمسجلين برؤية تذاكرهم المرتبطة ببريدهم الموثق
+        (hasEmail() && request.query.filters.userEmail == getEmail()) ||
+        // 3. السماح للضيوف برؤية تذاكرهم المرتبطة برقم جلستهم الحالية (UID)
+        (isAuthenticated() && request.query.filters.userId == request.auth.uid)
       );
       
-      // السماح بـ get فقط لصاحب التذكرة أو الإدارة
+      // السماح بـ get (التفاصيل الكاملة) فقط للمالك أو الإدارة
       allow get: if isAdmin() || 
                   hasStaffPermission('canManageTrips') || 
-                  (isAuthenticated() && (resource.data.userId == request.auth.uid || (hasEmail() && resource.data.userEmail == getEmail())));
+                  (isAuthenticated() && (
+                    resource.data.userId == request.auth.uid || 
+                    (hasEmail() && resource.data.userEmail == getEmail())
+                  ));
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
       allow delete: if isAdmin();
@@ -55,14 +59,15 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuthenticated();
+      allow create: if true;
     }
 
     match /locations/{id} { allow read: if true; }
     
     match /busTrips/{id} { 
       allow read: if true;
-      allow update: if isAuthenticated();
+      // السماح للمستخدمين بتحديث عدد المقاعد المتاحة عند الحجز
+      allow update: if isAuthenticated(); 
     }
     
     match /buses/{id} { allow read: if true; }

@@ -80,8 +80,8 @@ function CheckoutContent() {
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
-      userId: user.uid,
-      userEmail: emailInput,
+      userId: user.uid, // UID الجلسة الحالية لضمان الوصول الفوري للضيف
+      userEmail: emailInput, // البريد الإلكتروني للارتباط الدائم
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -99,10 +99,10 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة في الرحلة فورياً (استخدام tripId من المعاملات)
+    // 3. خصم المقاعد المتاحة في الرحلة فورياً
     if (tripId) {
-      const tripRef = doc(firestore, "busTrips", tripId);
-      updateDocumentNonBlocking(tripRef, {
+      const tripDocRef = doc(firestore, "busTrips", tripId);
+      updateDocumentNonBlocking(tripDocRef, {
         availableSeats: increment(-seats.length),
         updatedAt: new Date().toISOString()
       });
