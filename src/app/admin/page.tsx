@@ -25,21 +25,25 @@ const ADMIN_EMAIL = "atlob.co@gmail.com";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const firestore = useFirestore();
-  const { user } = useUser();
+  const firestore = firestoreInstance(); // استخدام الدالة من الفايربيس
+  const { user, isUserLoading } = useUser();
 
-  // التحقق مما إذا كان المستخدم مديراً أو موظفاً قبل تفعيل الاستعلامات لتجنب أخطاء الصلاحيات
+  // التحقق مما إذا كان المستخدم مديراً أو موظفاً
   const isAuthorized = useMemo(() => {
-    return user?.email === ADMIN_EMAIL || user?.email?.endsWith("@alawajan.com");
+    if (!user) return false;
+    return user.email === ADMIN_EMAIL || user.email?.endsWith("@alawajan.com");
   }, [user]);
 
-  const tripsRef = useMemoFirebase(() => isAuthorized ? collection(firestore, "busTrips") : null, [firestore, isAuthorized]);
+  // استخدام فايرستور من الهوك بشكل صحيح
+  const db = useFirestore();
+
+  const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  const parcelsRef = useMemoFirebase(() => isAuthorized ? collection(firestore, "parcels") : null, [firestore, isAuthorized]);
+  const parcelsRef = useMemoFirebase(() => isAuthorized ? collection(db, "parcels") : null, [db, isAuthorized]);
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
-  const bookingsRef = useMemoFirebase(() => isAuthorized ? collectionGroup(firestore, "bookings") : null, [firestore, isAuthorized]);
+  const bookingsRef = useMemoFirebase(() => isAuthorized ? collectionGroup(db, "bookings") : null, [db, isAuthorized]);
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
@@ -115,7 +119,20 @@ export default function AdminDashboard() {
     }
   ];
 
-  const isLoading = isTripsLoading || isParcelsLoading || isBookingsLoading;
+  const isLoading = isUserLoading || isTripsLoading || isParcelsLoading || isBookingsLoading;
+
+  if (isUserLoading) return <div className="flex justify-center p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+        <ShieldAlert className="h-16 w-16 text-red-500" />
+        <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
+        <p className="text-muted-foreground text-sm">هذه الصفحة مخصصة لمدراء النظام فقط.</p>
+        <Button onClick={() => router.push("/")}>العودة للرئيسية</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20">
@@ -191,4 +208,15 @@ export default function AdminDashboard() {
       </Card>
     </div>
   );
+}
+
+function firestoreInstance() {
+  // دالة مساعدة لتجنب أخطاء التهيئة المبكرة
+  try {
+    const { getFirestore } = require('firebase/firestore');
+    const { getApp } = require('firebase/app');
+    return getFirestore(getApp());
+  } catch (e) {
+    return null as any;
+  }
 }
