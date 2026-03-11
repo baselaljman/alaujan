@@ -291,7 +291,7 @@ export default function AdminTrips() {
                           </div>
                           <div className="text-right">
                             <DialogTitle className="text-2xl font-black text-primary">بيان الركاب الرسمي</DialogTitle>
-                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</p>
+                            <DialogDescription className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</DialogDescription>
                           </div>
                         </div>
                         <Button variant="outline" className="rounded-xl gap-2 font-bold h-12 px-6" onClick={handlePrint}>
@@ -354,60 +354,64 @@ export default function AdminTrips() {
                                             <Printer className="h-3 w-3" /> تذكرة
                                           </Button>
                                         </DialogTrigger>
-                                        <DialogContent className="max-w-md rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden print-area">
-                                          <div className="p-8 space-y-6 text-right">
-                                            <DialogHeader className="flex justify-between items-center border-b pb-6 no-print">
-                                              <div>
-                                                <DialogTitle className="font-black text-primary text-xl">تذكرة سفر إلكترونية</DialogTitle>
-                                                <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">E-Ticket Passenger Copy</DialogDescription>
-                                              </div>
-                                              <Bus className="h-10 w-10 text-primary opacity-20" />
+                                        <DialogContent className="max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden">
+                                          <div className="p-10 space-y-8 text-right bg-white print-area">
+                                            <DialogHeader className="border-b pb-6 no-print">
+                                              <DialogTitle className="font-black text-primary text-2xl text-center">تذكرة سفر إلكترونية</DialogTitle>
+                                              <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center mt-1">International Travel Ticket</DialogDescription>
                                             </DialogHeader>
 
-                                            <div className="space-y-4 pt-4">
-                                              <div className="flex justify-between items-center text-center">
+                                            <div className="ticket-body space-y-8 pt-4">
+                                              <div className="flex justify-between items-center text-center px-4">
                                                 <div className="flex-1">
-                                                  <p className="text-[10px] font-bold text-muted-foreground">من</p>
-                                                  <p className="font-black text-lg">{p.boardingPoint}</p>
+                                                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">من (Origin)</p>
+                                                  <p className="font-black text-2xl text-black">{p.boardingPoint}</p>
                                                 </div>
-                                                <ArrowLeft className="h-4 w-4 text-primary opacity-30" />
+                                                <div className="px-4 opacity-20 flex flex-col items-center">
+                                                  <Bus className="h-6 w-6" />
+                                                  <ArrowLeft className="h-4 w-4" />
+                                                </div>
                                                 <div className="flex-1">
-                                                  <p className="text-[10px] font-bold text-muted-foreground">إلى</p>
-                                                  <p className="font-black text-lg">{p.droppingPoint}</p>
+                                                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">إلى (Destination)</p>
+                                                  <p className="font-black text-2xl text-black">{p.droppingPoint}</p>
                                                 </div>
                                               </div>
 
-                                              <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-3xl border border-dashed">
+                                              <div className="grid grid-cols-2 gap-x-8 gap-y-6 bg-slate-50/80 p-6 rounded-[2rem] border border-dashed border-slate-200">
                                                 <div>
-                                                  <p className="text-[9px] font-bold text-muted-foreground">اسم المسافر</p>
-                                                  <p className="font-bold text-sm">{p.fullName}</p>
+                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">اسم المسافر</p>
+                                                  <p className="font-black text-base text-black">{p.fullName}</p>
+                                                </div>
+                                                <div className="text-left">
+                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم المقعد</p>
+                                                  <p className="font-black text-primary text-2xl">{p.seatNumber}</p>
                                                 </div>
                                                 <div>
-                                                  <p className="text-[9px] font-bold text-muted-foreground">رقم المقعد</p>
-                                                  <p className="font-black text-primary text-lg">{p.seatNumber}</p>
+                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم الرحلة</p>
+                                                  <p className="font-mono font-black text-base text-black">{p.tripId}</p>
                                                 </div>
-                                                <div>
-                                                  <p className="text-[9px] font-bold text-muted-foreground">رقم الرحلة</p>
-                                                  <p className="font-mono font-bold text-xs">{p.tripId}</p>
-                                                </div>
-                                                <div>
-                                                  <p className="text-[9px] font-bold text-muted-foreground">تاريخ الانطلاق</p>
-                                                  <p className="font-bold text-xs">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
+                                                <div className="text-left">
+                                                  <p className="text-[10px] font-bold text-muted-foreground uppercase">تاريخ السفر</p>
+                                                  <p className="font-black text-sm text-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
                                                 </div>
                                               </div>
-                                            </div>
 
-                                            <div className="flex justify-between items-end pt-6 border-t border-dashed">
-                                              <div className="space-y-1">
-                                                <p className="text-[10px] font-bold opacity-30">© شركة العوجان للسفر</p>
-                                                <p className="text-[9px] font-mono text-muted-foreground">REF: {p.trackingNumber}</p>
+                                              <div className="flex items-center justify-between pt-8 border-t border-dashed border-slate-200">
+                                                <div className="space-y-1">
+                                                  <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Official Receipt</p>
+                                                  <p className="text-xs font-mono font-bold text-slate-400 uppercase">REF: {p.trackingNumber}</p>
+                                                </div>
+                                                <div className="p-2 bg-white rounded-xl border shadow-sm">
+                                                  <QrCode className="h-16 w-16 text-black" />
+                                                </div>
                                               </div>
-                                              <QrCode className="h-16 w-16 text-slate-800" />
                                             </div>
                                             
-                                            <Button className="w-full h-12 rounded-xl gap-2 font-bold no-print" onClick={handlePrint}>
-                                              <Printer className="h-4 w-4" /> طباعة هذه التذكرة
-                                            </Button>
+                                            <div className="pt-6 no-print">
+                                              <Button className="w-full h-14 rounded-2xl gap-2 font-black shadow-lg" onClick={handlePrint}>
+                                                <Printer className="h-5 w-5" /> طباعة هذه التذكرة الآن
+                                              </Button>
+                                            </div>
                                           </div>
                                         </DialogContent>
                                       </Dialog>

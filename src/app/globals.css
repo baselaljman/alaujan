@@ -45,53 +45,57 @@
   }
 }
 
-/* نظام الطباعة المتقدم والاحترافي */
+/* نظام الطباعة المتقدم والاحترافي - عزل شامل للمحتوى */
 @media print {
-  /* إخفاء كافة عناصر الموقع الافتراضية */
-  body * {
-    visibility: hidden;
+  @page {
+    margin: 1cm;
+    size: auto;
   }
 
-  /* إظهار منطقة الطباعة فقط */
+  /* إخفاء كل شيء بشكل افتراضي */
+  body * {
+    visibility: hidden !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* إظهار منطقة الطباعة فقط ورفع كفاءتها البصرية */
   .print-area, .print-area * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
   .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 0;
-    margin: 0;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
     background: white !important;
-    z-index: 9999;
+    color: black !important;
+    z-index: 99999;
+    transform: none !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
-  /* تنسيق محتوى الكشف */
-  .manifest-content {
-    padding: 10mm;
-    background: white !important;
+  /* ضمان ظهور نصوص التذكرة بلون أسود صريح للوضوح */
+  .print-area p, .print-area span, .print-area h1, .print-area h2, .print-area h3 {
+    color: black !important;
   }
 
-  /* إخفاء الأزرار والعناصر التفاعلية */
+  /* إخفاء الأزرار والعناصر التفاعلية تماماً */
   .no-print {
     display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
   }
 
-  /* ضبط تنسيق الجداول للطباعة */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    page-break-inside: auto;
-  }
-  
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
-
-  /* إزالة أي خلفيات شفافة أو ظلال للدايلوج */
+  /* إلغاء تموضع النافذة المنبثقة لـ Radix UI أثناء الطباعة */
   [role="dialog"] {
     position: absolute !important;
     top: 0 !important;
@@ -100,15 +104,25 @@
     width: 100% !important;
     max-width: none !important;
     background: white !important;
-    box-shadow: none !important;
-    border: none !important;
     height: auto !important;
     overflow: visible !important;
+    border: none !important;
   }
 
-  /* إخفاء الغطاء الشفاف (Overlay) */
+  /* إخفاء الغطاء الخلفي (Overlay) */
   [data-state="open"]::before {
     display: none !important;
+  }
+
+  /* تنسيق الجداول للطباعة */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
   }
 }
 
