@@ -75,7 +75,7 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز مع ربطه المزدوج (البريد للدوام، والـ UID للوصول الفوري)
+    // 2. حفظ الحجز مع ربطه المزدوج (البريد للدوام، والـ UID للوصول الفوري للضيوف)
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -99,7 +99,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة في الرحلة فورياً
+    // 3. خصم المقاعد المتاحة في الرحلة فورياً (استخدام tripId من المعاملات)
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -113,7 +113,7 @@ function CheckoutContent() {
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `رقم تتبع الرحلة: ${tripId}`,
+        description: `رقم تتبع الحجز: ${trackingNumber}`,
       });
     }, 1500);
   };
@@ -128,15 +128,15 @@ function CheckoutContent() {
         
         <Card className="max-w-xs mx-auto border-none shadow-2xl rounded-3xl overflow-hidden">
           <div className="bg-primary p-4 text-white">
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">رقم تتبع الرحلة (للخريطة)</p>
-            <p className="text-3xl font-black font-mono">{tripId}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70">رقم الحجز المرجعي</p>
+            <p className="text-3xl font-black font-mono">{generatedTicketId}</p>
           </div>
           <CardContent className="p-6 bg-white space-y-4">
             <div className="p-3 rounded-xl bg-muted/30 border border-dashed flex justify-between items-center">
-              <span className="text-[10px] font-bold">رقم الحجز:</span>
-              <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
+              <span className="text-[10px] font-bold">عدد المقاعد:</span>
+              <span className="text-sm font-mono font-bold text-primary">{seats.length}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({emailInput}). يمكنك الوصول إليها فوراً عبر الضغط على الزر أدناه.</p>
+            <p className="text-[10px] text-muted-foreground font-bold text-right">تذاكرك مرتبطة الآن ببريدك ({emailInput}). تم خصم المقاعد من الحافلة بنجاح.</p>
           </CardContent>
         </Card>
 

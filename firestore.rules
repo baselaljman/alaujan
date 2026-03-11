@@ -31,23 +31,16 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات - ربط مزدوج (UID للجلسة والبريد للهوية الدائمة)
+    // نظام الحجوزات
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // السماح بـ list في الحالات التالية:
-      // 1. المسؤولين والموظفين (قراءة الكل)
-      // 2. صاحب الجلسة الحالية (UID) - يتيح للضيوف رؤية تذاكرهم فورياً
-      // 3. صاحب البريد الإلكتروني الموثق - يتيح للمسجلين استعادة تاريخهم
-      allow list: if isAdmin() || 
-                   hasStaffPermission('canManageTrips') || 
-                   (isAuthenticated() && resource.data.userId == request.auth.uid) ||
-                   (hasEmail() && resource.data.userEmail == getEmail());
+      // السماح بـ list لكافة المسجلين لعرض خريطة المقاعد المحجوزة
+      allow list: if isAuthenticated();
       
       allow get: if isAdmin() || 
                   hasStaffPermission('canManageTrips') || 
-                  (isAuthenticated() && resource.data.userId == request.auth.uid) ||
-                  (hasEmail() && resource.data.userEmail == getEmail());
+                  (isAuthenticated() && (resource.data.userId == request.auth.uid || (hasEmail() && resource.data.userEmail == getEmail())));
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
       allow delete: if isAdmin();
@@ -62,7 +55,7 @@ service cloud.firestore {
     
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح بتحديث عدد المقاعد لكافة المسجلين لضمان نجاح عملية الخصم أثناء الحجز
+      // السماح بتحديث المقاعد لكافة المسجلين لضمان نجاح الخصم التلقائي
       allow update: if isAuthenticated();
     }
     
