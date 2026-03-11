@@ -5,56 +5,43 @@ service cloud.firestore {
     /**
      * 1. القواعد العامة (Global Rules)
      * تسمح بالقراءة والكتابة لأي مستخدم مسجل دخول (Authenticated User).
-     * هذه القاعدة تغطي معظم العمليات المباشرة.
+     * النمط {document=**} يغطي كافة المستندات في كافة المجموعات.
      */
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
     
     /**
-     * 2. تصاريح استعلامات المجموعات (Collection Group Rules)
-     * ضرورية جداً للبحث في الحجوزات والطرود والرحلات عبر كامل قاعدة البيانات.
-     * Firebase يتطلب هذا التنسيق {path=**}/collectionID/{docID} بشكل صريح للاستعلامات المجمعة.
+     * 2. تصاريح استعلامات المجموعات (Collection Group Rules) - هامة جداً
+     * يجب التصريح عنها صراحة للسماح بالاستعلام عبر كامل قاعدة البيانات.
      */
     
-    // تصريح للحجوزات (المستخدم في لوحة الإدارة والبروفايل)
-    match /{path=**}/bookings/{id} {
+    // تصريح لمجموعة الحجوزات (تستخدم في الإدارة والبروفايل)
+    match /{path=**}/bookings/{bookingId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح للطرود
-    match /{path=**}/parcels/{id} {
+    // تصريح لمجموعة الطرود (تستخدم في التتبع والبحث)
+    match /{path=**}/parcels/{parcelId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح للرحلات
-    match /{path=**}/busTrips/{id} {
+    // تصريح لمجموعة الرحلات
+    match /{path=**}/busTrips/{tripId} {
       allow read, write: if request.auth != null;
     }
 
-    // تصريح لبيانات المستخدمين
-    match /{path=**}/users/{id} {
+    // تصريح لبيانات المستخدمين والموظفين
+    match /{path=**}/users/{userId} {
       allow read, write: if request.auth != null;
     }
-
-    // تصريح للمواقع والمدن
-    match /{path=**}/locations/{id} {
-      allow read, write: if request.auth != null;
-    }
-
-    // تصريح للحافلات والأسطول
-    match /{path=**}/buses/{id} {
-      allow read, write: if request.auth != null;
-    }
-
-    // تصريح لنظام البريد الإلكتروني
-    match /{path=**}/mail/{id} {
+    match /{path=**}/staff_permissions/{staffId} {
       allow read, write: if request.auth != null;
     }
 
     /**
      * إجبار النظام على تحديث القواعد فوراً لضمان حل مشكلة "Missing or insufficient permissions".
-     * Force Deploy Timestamp: 2025-05-23T14:30:00Z
+     * Force Deploy Timestamp: 2025-05-23T16:45:00Z
      */
   }
 }

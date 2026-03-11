@@ -92,8 +92,8 @@ export function useCollection<T = any>(
             path = (memoizedTargetRefOrQuery as CollectionReference).path;
           } else {
             // For queries, attempt to get canonical string, fallback to internal path
-            const internal = memoizedTargetRefOrQuery as unknown as InternalQuery;
-            path = internal._query?.path?.canonicalString() || "collection-group-query";
+            const internal = memoizedTargetRefOrQuery as any;
+            path = internal._query?.path?.canonicalString() || internal.id || "collection-group-query";
           }
         } catch (e) {
           path = "collection-group-query";
