@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,8 @@ import {
   Banknote,
   MapPin,
   ChevronLeft,
-  QrCode
+  QrCode,
+  Ticket as TicketIcon
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
@@ -53,6 +54,7 @@ export default function AdminTrips() {
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTripForManifest, setSelectedTripForManifest] = useState<any>(null);
+  const [selectedPassengerForTicket, setSelectedPassengerForTicket] = useState<any>(null);
   
   // State for Trip Form
   const [busId, setBusId] = useState("");
@@ -71,7 +73,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب من المجموعة الموحدة العلوية
+  // استعلام الحجوزات من المجموعة الموحدة العلوية
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
     return query(collection(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
@@ -86,7 +88,11 @@ export default function AdminTrips() {
         ...p,
         phone: booking.userPhone,
         paymentStatus: booking.paymentStatus,
-        trackingNumber: booking.trackingNumber
+        trackingNumber: booking.trackingNumber,
+        bookingId: booking.id,
+        boardingPoint: booking.boardingPoint,
+        droppingPoint: booking.droppingPoint,
+        tripId: booking.busTripId
       }))
     ).sort((a: any, b: any) => a.seatNumber - b.seatNumber);
   }, [bookings]);
@@ -292,7 +298,6 @@ export default function AdminTrips() {
                         </Button>
                       </DialogHeader>
 
-                      {/* واجهة الكشف المصممة للطباعة والظهور الرقمي */}
                       <div className="manifest-content">
                         <div className="flex justify-between items-center border-b-2 border-primary pb-6 mb-8">
                           <div className="text-right">
@@ -327,7 +332,7 @@ export default function AdminTrips() {
                                   <th className="px-6 py-5">اسم المسافر الثلاثي</th>
                                   <th className="px-6 py-5">رقم الجواز / الهوية</th>
                                   <th className="px-6 py-5">رقم الجوال</th>
-                                  <th className="px-6 py-5 text-center">حالة الدفع</th>
+                                  <th className="px-6 py-5 text-center no-print">الإجراءات</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
@@ -341,13 +346,70 @@ export default function AdminTrips() {
                                     <td className="px-6 py-4 font-bold text-xs">
                                       <Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {p.phone}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                      <Badge className={cn(
-                                        "text-[10px] font-black border-none px-4 py-1.5 rounded-full",
-                                        p.paymentStatus === "Completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                                      )}>
-                                        {p.paymentStatus === "Completed" ? "مكتمل" : "عند السفر"}
-                                      </Badge>
+                                    <td className="px-6 py-4 text-center no-print">
+                                      <Dialog onOpenChange={(open) => { if (open) setSelectedPassengerForTicket({ ...p, trip }); }}>
+                                        <DialogTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary hover:bg-primary/10">
+                                            <Printer className="h-3 w-3" /> تذكرة
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-md rounded-[3rem] p-0 border-none shadow-2xl overflow-hidden print-area">
+                                          <div className="p-8 space-y-6 text-right">
+                                            <div className="flex justify-between items-center border-b pb-6">
+                                              <div>
+                                                <h3 className="font-black text-primary text-xl">تذكرة سفر إلكترونية</h3>
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">E-Ticket Passenger Copy</p>
+                                              </div>
+                                              <Bus className="h-10 w-10 text-primary opacity-20" />
+                                            </div>
+
+                                            <div className="space-y-4 pt-4">
+                                              <div className="flex justify-between items-center text-center">
+                                                <div className="flex-1">
+                                                  <p className="text-[10px] font-bold text-muted-foreground">من</p>
+                                                  <p className="font-black text-lg">{p.boardingPoint}</p>
+                                                </div>
+                                                <ArrowLeft className="h-4 w-4 text-primary opacity-30" />
+                                                <div className="flex-1">
+                                                  <p className="text-[10px] font-bold text-muted-foreground">إلى</p>
+                                                  <p className="font-black text-lg">{p.droppingPoint}</p>
+                                                </div>
+                                              </div>
+
+                                              <div className="grid grid-cols-2 gap-4 bg-muted/20 p-4 rounded-3xl border border-dashed">
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-muted-foreground">اسم المسافر</p>
+                                                  <p className="font-bold text-sm">{p.fullName}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-muted-foreground">رقم المقعد</p>
+                                                  <p className="font-black text-primary text-lg">{p.seatNumber}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-muted-foreground">رقم الرحلة</p>
+                                                  <p className="font-mono font-bold text-xs">{p.tripId}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-[9px] font-bold text-muted-foreground">تاريخ الانطلاق</p>
+                                                  <p className="font-bold text-xs">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div className="flex justify-between items-end pt-6 border-t border-dashed">
+                                              <div className="space-y-1">
+                                                <p className="text-[10px] font-bold opacity-30">© شركة العوجان للسفر</p>
+                                                <p className="text-[9px] font-mono text-muted-foreground">REF: {p.trackingNumber}</p>
+                                              </div>
+                                              <QrCode className="h-16 w-16 text-slate-800" />
+                                            </div>
+                                            
+                                            <Button className="w-full h-12 rounded-xl gap-2 font-bold no-print" onClick={handlePrint}>
+                                              <Printer className="h-4 w-4" /> طباعة هذه التذكرة
+                                            </Button>
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
                                     </td>
                                   </tr>
                                 ))}
