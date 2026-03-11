@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -41,7 +40,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // Avoid starting listeners if the reference is not yet ready or authorized
+    // تجنب بدء المستمعين إذا كانت المرجع غير جاهز أو غير مصرح به
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -64,8 +63,8 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // Extract a safe path for reporting
-        let detectedPath: string = "collection-group-query";
+        // استخراج المسار بشكل آمن للتقارير
+        let detectedPath: string = "unknown-path";
         try {
           const q = memoizedTargetRefOrQuery as any;
           if (q.path) {
@@ -76,18 +75,19 @@ export function useCollection<T = any>(
             detectedPath = `group:${q._query.collectionGroup}`;
           }
         } catch (e) {
-          // ignore
+          // تجاهل أي خطأ في استخراج المسار
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: detectedPath || "unknown-collection",
+          path: detectedPath,
         });
 
         setError(contextualError);
         setData(null);
         setIsLoading(false);
 
+        // إطلاق خطأ الصلاحيات العالمي للمديرين لتسهيل التشخيص
         errorEmitter.emit('permission-error', contextualError);
       }
     );

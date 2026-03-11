@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useEffect, useState } from "react";
@@ -31,14 +30,14 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق الصارم من الصلاحيات
+  // التحقق الصارم من الصلاحيات للمديرين المعتمدين
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user?.email) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير الاستعلامات لضمان استقرار الجلسة وتجنب أخطاء Permissions أثناء التحميل الأولي
+  // تأخير الاستعلامات لضمان استقرار الجلسة تماماً (يمنع أخطاء Permissions المؤقتة عند التحميل)
   useEffect(() => {
     if (!isUserLoading && isAuthorized) {
       const timer = setTimeout(() => setIsReady(true), 1500);
@@ -46,7 +45,7 @@ export default function AdminDashboard() {
     }
   }, [isUserLoading, isAuthorized]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية والصلاحية والمسار الصحيح
+  // استعلامات البيانات - مشروطة بالجاهزية التامة للمدير
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]
@@ -75,6 +74,7 @@ export default function AdminDashboard() {
     };
   }, [trips, parcels, bookings]);
 
+  // واجهة التحميل أثناء فحص التراخيص
   if (isUserLoading || (isAuthorized && !isReady)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
@@ -90,6 +90,7 @@ export default function AdminDashboard() {
     );
   }
 
+  // واجهة حظر الدخول لغير المديرين
   if (!isAuthorized) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-6">
@@ -108,12 +109,12 @@ export default function AdminDashboard() {
   }
 
   const adminModules = [
-    { title: "إدارة الرحلات", description: "إضافة وتعديل الرحلات الدولية", icon: Calendar, href: "/admin/trips", color: "text-blue-600", bgColor: "bg-blue-50" },
+    { title: "إدارة الرحلات", description: "إضافة وتعديل الرحلات وكشوف الركاب", icon: Calendar, href: "/admin/trips", color: "text-blue-600", bgColor: "bg-blue-50" },
     { title: "إدارة المدن", description: "إضافة وجهات ومحطات جديدة", icon: MapPin, href: "/admin/locations", color: "text-emerald-600", bgColor: "bg-emerald-50" },
     { title: "إدارة الحافلات", description: "إدارة الأسطول والمواصفات", icon: Bus, href: "/admin/buses", color: "text-amber-600", bgColor: "bg-amber-50" },
     { title: "إدارة السائقين", description: "تسجيل السائقين وربط المهام", icon: Users, href: "/admin/drivers", color: "text-indigo-600", bgColor: "bg-indigo-50" },
     { title: "إدارة الطرود", description: "تسجيل وتتبع الشحنات", icon: Package, href: "/admin/parcels", color: "text-purple-600", bgColor: "bg-purple-50" },
-    { title: "الموظفين", description: "إدارة صلاحيات الوصول", icon: ShieldAlert, href: "/admin/staff", color: "text-red-600", bgColor: "bg-red-50" }
+    { title: "الموظفين", description: "إدارة صلاحيات الوصول المتقدمة", icon: ShieldAlert, href: "/admin/staff", color: "text-red-600", bgColor: "bg-red-50" }
   ];
 
   const isStatsLoading = isTripsLoading || isParcelsLoading || isBookingsLoading;

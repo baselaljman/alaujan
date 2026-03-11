@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,19 +10,22 @@ service cloud.firestore {
       );
     }
 
-    // وظيفة للتحقق من ملكية البيانات
+    // وظيفة للتحقق من ملكية البيانات للمستخدم العادي
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
     // السماح للمسؤولين بالوصول الكامل والشامل لكافة المسارات (بما في ذلك Collection Groups)
+    // هذا التصريح الشامل يغطي كافة المجموعات المتداخلة والبحث العام
     match /{path=**} {
       allow read, write: if isAdmin();
     }
 
-    // قواعد للمستخدمين العاديين (لحماية خصوصيتهم)
+    // قواعد للمستخدمين العاديين (لحماية خصوصيتهم ومنع تداخل البيانات)
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if request.auth != null;
+      allow update: if isOwner(userId);
       
       match /bookings/{bookingId} {
         allow read, write: if isOwner(userId);
@@ -34,24 +36,30 @@ service cloud.firestore {
       }
     }
 
-    // قواعد الوصول للبيانات العامة للمستخدمين العاديين
+    // قواعد الوصول للبيانات العامة للجمهور (تصفح فقط)
     match /locations/{id} { allow read: if true; }
     match /busTrips/{id} { allow read: if true; }
-    match /buses/{id} { allow read: if request.auth != null; }
-    match /busRoutes/{id} { allow read: if request.auth != null; }
-    match /drivers/{id} { allow read: if request.auth != null; }
-    match /staff_permissions/{id} { allow read: if request.auth != null; }
+    match /buses/{id} { allow read: if true; }
+    match /busRoutes/{id} { allow read: if true; }
     
+    // الطرود: تسمح للمرسل فقط برؤية طرده، وللمدير بالتحكم
     match /parcels/{id} {
       allow read, write: if request.auth != null && (resource == null || resource.data.senderUserId == request.auth.uid);
     }
     
+    // المراجعات: عامة للقراءة، ومقيدة للكتابة
     match /reviews/{id} {
       allow read: if true;
-      allow write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // خدمة البريد
+    // صلاحيات الموظفين: تسمح بالتحقق للجميع لضمان عمل نظام الصلاحيات
+    match /staff_permissions/{id} {
+      allow read: if request.auth != null;
+    }
+
+    // خدمة البريد الآلي
     match /mail/{id} { allow create: if true; }
   }
 }

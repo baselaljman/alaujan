@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from "react";
@@ -63,7 +62,7 @@ export default function ProfilePage() {
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // تحقق الموظف: مسموح به لكافة المسجلين (للقراءة فقط)
+  // استعلام صلاحيات الموظف - خاص بالمستخدم الحالي فقط
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
@@ -71,24 +70,26 @@ export default function ProfilePage() {
   const { data: staffData } = useCollection(staffQuery);
   const isStaff = staffData && staffData.length > 0;
   
+  // فحص ما إذا كان المستخدم مديراً عاماً
   const isAdmin = useMemo(() => {
     if (!user?.email) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user]);
 
+  // جلب بيانات البروفايل الإضافية
   const profileRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, "users", user.uid);
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: خاص بالمستخدم الحالي فقط لضمان الخصوصية والأمان
+  // استعلام الحجوزات: خاص بالمستخدم الحالي فقط لضمان الخصوصية (يحل مشكلة تداخل التذاكر)
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
-    // الحجوزات مخزنة في مسار خاص بكل مستخدم
+    if (!firestore || !user?.uid || user.isAnonymous) return null;
+    // يتم الجلب من مسار المستخدم الخاص لضمان الخصوصية التامة
     return collection(firestore, "users", user.uid, "bookings");
-  }, [firestore, user?.uid]);
+  }, [firestore, user?.uid, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
