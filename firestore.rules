@@ -2,15 +2,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. القاعدة العامة: السماح بالوصول الكامل لجميع المستندات والمجموعات
-    // تم استخدام {document=**} لتغطية كافة المجموعات والمجموعات الفرعية
+    /**
+     * 1. القاعدة العامة (Catch-all)
+     * تسمح بالوصول الكامل لجميع المستندات في أي مسار تقليدي.
+     */
     match /{document=**} {
       allow read, write: if true;
     }
     
-    // 2. السماح الصريح لاستعلامات المجموعات (Collection Group Queries)
-    // هذا الجزء حيوي جداً لعمل وظيفة "البحث عن التذاكر" و "إحصائيات الإدارة"
-    // حيث يسمح بالاستعلام عن أي مجموعة تسمى 'bookings' أو 'parcels' في أي مكان في القاعدة
+    /**
+     * 2. قواعد استعلامات المجموعات (Collection Group Rules)
+     * ضرورية جداً لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
+     * هذه القواعد تسمح للمتصفح بالبحث في أي مجموعة تحمل هذه الأسماء في أي مكان في الشجرة.
+     */
     
     match /{path=**}/bookings/{bookingId} {
       allow read, write: if true;
@@ -29,6 +33,10 @@ service cloud.firestore {
     }
 
     match /{path=**}/drivers/{driverId} {
+      allow read, write: if true;
+    }
+    
+    match /{path=**}/mail/{mailId} {
       allow read, write: if true;
     }
   }
