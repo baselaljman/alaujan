@@ -36,7 +36,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, or } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -61,8 +61,8 @@ export default function ProfilePage() {
 
   const isAdmin = useMemo(() => {
     if (!user?.email || user.isAnonymous) return false;
-    const email = user.email.toLowerCase();
-    return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
+    const emailStr = user.email.toLowerCase();
+    return ADMIN_EMAILS.some(e => e.toLowerCase() === emailStr) || emailStr.endsWith("@alawajan.com");
   }, [user]);
 
   const profileRef = useMemoFirebase(() => {
@@ -71,23 +71,29 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام ذكي: جلب التذاكر بناءً على البريد الإلكتروني (للمسجلين) أو الـ UID (للضيوف الجدد)
+  // استعلام محصن: جلب التذاكر الخاصة بالمستخدم فقط (بريد للمسجلين، وUID للضيوف)
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
-    // إذا كان المستخدم مسجلاً ببريده، نبحث بالبريد لضمان استرجاع كل تاريخه
+    const bookingsRef = collection(firestore, "bookings");
+
+    // للمسجلين: ابحث حصراً بالبريد الإلكتروني الموثق
     if (user.email && !user.isAnonymous) {
       return query(
-        collection(firestore, "bookings"), 
+        bookingsRef, 
         where("userEmail", "==", user.email.toLowerCase().trim())
       );
     }
     
-    // إذا كان ضيفاً، نبحث بـ UID الجلسة الحالية ليتمكن من رؤية تذكرته التي اشتراها للتو
-    return query(
-      collection(firestore, "bookings"),
-      where("userId", "==", user.uid)
-    );
+    // للضيوف (مجهولين): ابحث حصراً بـ UID الجلسة الحالية
+    if (user.isAnonymous) {
+      return query(
+        bookingsRef,
+        where("userId", "==", user.uid)
+      );
+    }
+
+    return null; // أمان إضافي لمنع الاستعلام العام
   }, [firestore, user?.uid, user?.email, user?.isAnonymous]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
@@ -134,7 +140,7 @@ export default function ProfilePage() {
   if (isUserLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <Loader2 className="animate-spin h-10 w-10 text-primary opacity-20" />
-      <p className="text-[10px] font-bold text-muted-foreground animate-pulse">جاري التحميل...</p>
+      <p className="text-[10px] font-bold text-muted-foreground animate-pulse">جاري التحقق من الهوية...</p>
     </div>
   );
 
@@ -143,7 +149,6 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-8 pb-24 text-right">
-      {/* عرض التذاكر للجميع (ضيوف ومسجلين) */}
       <div className="max-w-4xl mx-auto space-y-10">
         {!isGuest && (
           <section className="bg-white rounded-[3rem] p-8 shadow-sm border border-primary/5 no-print">
@@ -283,7 +288,6 @@ export default function ProfilePage() {
           )}
         </section>
 
-        {/* نموذج تسجيل الدخول/الاشتراك للضيوف فقط */}
         {isGuest && (
           <section className="max-w-md mx-auto pt-10 no-print">
             <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/10 bg-primary/5">

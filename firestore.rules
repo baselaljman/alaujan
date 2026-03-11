@@ -31,13 +31,20 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات
+    // نظام الحجوزات - تأمين صارم للخصوصية
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // السماح بـ list لكافة المسجلين لعرض خريطة المقاعد المحجوزة
-      allow list: if isAuthenticated();
+      // السماح بالـ list فقط إذا كان الاستعلام مفلتراً بالبريد أو الـ UID الخاص بالمستخدم، أو برقم الرحلة (لعرض المقاعد)
+      allow list: if isAdmin() || hasStaffPermission('canManageTrips') || (
+        isAuthenticated() && (
+          (hasEmail() && request.query.filters.userEmail == getEmail()) ||
+          (request.query.filters.userId == request.auth.uid) ||
+          (request.query.filters.busTripId != null)
+        )
+      );
       
+      // السماح بـ get فقط لصاحب التذكرة أو الإدارة
       allow get: if isAdmin() || 
                   hasStaffPermission('canManageTrips') || 
                   (isAuthenticated() && (resource.data.userId == request.auth.uid || (hasEmail() && resource.data.userEmail == getEmail())));
@@ -55,7 +62,6 @@ service cloud.firestore {
     
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح بتحديث المقاعد لكافة المسجلين لضمان نجاح الخصم التلقائي
       allow update: if isAuthenticated();
     }
     
@@ -80,6 +86,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // القاعدة العامة للمديرين فقط
     match /{path=**} {
       allow read, write: if isAdmin();
     }
