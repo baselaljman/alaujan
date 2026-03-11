@@ -4,62 +4,82 @@ service cloud.firestore {
     
     // وظيفة للتحقق مما إذا كان المستخدم مديراً عاماً
     function isAdmin() {
-      return request.auth != null && (
+      return request.auth != null && request.auth.token.email != null && (
         request.auth.token.email in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
         request.auth.token.email.matches(".*@alawajan\\.com")
       );
     }
 
-    // وظيفة للتحقق من ملكية البيانات للمستخدم العادي
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // وظيفة للتحقق مما إذا كان المستخدم موظفاً يملك صلاحية محددة
+    // يتم البحث عن وثيقة الموظف باستخدام بريده الإلكتروني كمعرف (Document ID)
+    function hasStaffPermission(permission) {
+      return request.auth != null && request.auth.token.email != null &&
+        exists(/databases/$(database)/documents/staff_permissions/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/staff_permissions/$(request.auth.token.email)).data.permissions[permission] == true;
     }
 
-    // السماح للمسؤولين بالوصول الكامل والشامل لكافة المسارات (بما في ذلك Collection Groups)
-    // هذا التصريح الشامل يغطي كافة المجموعات المتداخلة والبحث العام
+    // السماح للمسؤولين بالوصول الكامل
     match /{path=**} {
       allow read, write: if isAdmin();
     }
 
-    // قواعد للمستخدمين العاديين (لحماية خصوصيتهم ومنع تداخل البيانات)
+    // قواعد للمستخدمين العاديين
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read, update: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
-      allow update: if isOwner(userId);
       
       match /bookings/{bookingId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
       match /notifications/{notificationId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // قواعد الوصول للبيانات العامة للجمهور (تصفح فقط)
-    match /locations/{id} { allow read: if true; }
-    match /busTrips/{id} { allow read: if true; }
-    match /buses/{id} { allow read: if true; }
-    match /busRoutes/{id} { allow read: if true; }
-    
-    // الطرود: تسمح للمرسل فقط برؤية طرده، وللمدير بالتحكم
-    match /parcels/{id} {
-      allow read, write: if request.auth != null && (resource == null || resource.data.senderUserId == request.auth.uid);
+    // قواعد البيانات العامة والمهام الإدارية للموظفين
+    match /locations/{id} { 
+      allow read: if true; 
+      allow write: if isAdmin() || hasStaffPermission('canManageLocations');
     }
     
-    // المراجعات: عامة للقراءة، ومقيدة للكتابة
+    match /busTrips/{id} { 
+      allow read: if true; 
+      allow write: if isAdmin() || hasStaffPermission('canManageTrips');
+    }
+    
+    match /buses/{id} { 
+      allow read: if true; 
+      allow write: if isAdmin() || hasStaffPermission('canManageBuses');
+    }
+    
+    match /busRoutes/{id} { 
+      allow read: if true; 
+      allow write: if isAdmin() || hasStaffPermission('canManageTrips');
+    }
+    
+    match /drivers/{id} {
+      allow read: if isAdmin() || hasStaffPermission('canManageDrivers');
+      allow write: if isAdmin() || hasStaffPermission('canManageDrivers');
+    }
+    
+    match /parcels/{id} {
+      allow read: if request.auth != null && (isAdmin() || hasStaffPermission('canManageParcels') || resource.data.senderUserId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update: if isAdmin() || hasStaffPermission('canManageParcels');
+    }
+    
     match /reviews/{id} {
       allow read: if true;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // صلاحيات الموظفين: تسمح بالتحقق للجميع لضمان عمل نظام الصلاحيات
-    match /staff_permissions/{id} {
+    match /staff_permissions/{email} {
       allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
-    // خدمة البريد الآلي
     match /mail/{id} { allow create: if true; }
   }
 }

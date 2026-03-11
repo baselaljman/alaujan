@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -21,9 +20,10 @@ import {
   MapPin,
   Package,
   Users as UsersIcon,
-  Edit2
+  Edit2,
+  RefreshCcw
 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp } from "firebase/firestore";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -64,23 +64,21 @@ export default function AdminStaff() {
       return;
     }
 
-    if (editingId) {
-      // تعديل موظف موجود
-      const staffDocRef = doc(firestore, "staff_permissions", editingId);
-      updateDocumentNonBlocking(staffDocRef, {
-        ...formData,
-        updatedAt: serverTimestamp()
-      });
-      toast({ title: "تم التحديث", description: "تم تحديث صلاحيات الموظف بنجاح." });
-    } else {
-      // إضافة موظف جديد
-      addDocumentNonBlocking(staffRef, {
-        ...formData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      toast({ title: "تمت الإضافة", description: "تم منح الصلاحيات للموظف الجديد بنجاح." });
-    }
+    const emailKey = formData.email.toLowerCase().trim();
+    const staffDocRef = doc(firestore, "staff_permissions", emailKey);
+
+    // استخدام البريد الإلكتروني كـ ID للوثيقة لضمان سهولة التحقق في قواعد الحماية
+    setDocumentNonBlocking(staffDocRef, {
+      ...formData,
+      email: emailKey,
+      updatedAt: serverTimestamp(),
+      createdAt: editingId ? (staffList?.find(s => s.id === editingId)?.createdAt || serverTimestamp()) : serverTimestamp()
+    }, { merge: true });
+
+    toast({ 
+      title: editingId ? "تم التحديث" : "تمت الإضافة", 
+      description: "تم منح الصلاحيات للموظف بنجاح." 
+    });
 
     resetForm();
   };
@@ -108,7 +106,12 @@ export default function AdminStaff() {
       fullName: staff.fullName,
       email: staff.email,
       permissions: {
-        ...formData.permissions,
+        canManageTrips: false,
+        canManageBuses: false,
+        canManageDrivers: false,
+        canManageLocations: false,
+        canManageParcels: false,
+        canManageStaff: false,
         ...(staff.permissions || {})
       }
     });
@@ -147,7 +150,7 @@ export default function AdminStaff() {
         </div>
         <Button 
           onClick={() => isAdding ? resetForm() : setIsAdding(true)} 
-          className="rounded-xl gap-2 h-12 px-6 shadow-md"
+          className="rounded-xl gap-2 h-12 px-6 shadow-md bg-primary"
         >
           {isAdding ? "إلغاء" : <><Plus className="h-4 w-4" /> إضافة موظف</>}
         </Button>
@@ -184,6 +187,7 @@ export default function AdminStaff() {
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
                     className="rounded-xl h-12"
+                    disabled={!!editingId}
                   />
                 </div>
               </div>
@@ -274,21 +278,12 @@ export default function AdminStaff() {
       <div className="p-6 bg-red-50 rounded-3xl border border-red-100 flex items-start gap-4">
         <Settings className="h-6 w-6 text-red-600 shrink-0 mt-1" />
         <div className="text-right">
-          <h4 className="font-bold text-red-800 mb-1">تنبيه المدير العام</h4>
-          <p className="text-xs text-red-700/80 leading-relaxed">
-            الموظفون المضافون هنا سيتمكنون من الدخول للوحة الإدارة واستخدام الأقسام المحددة لهم فقط بمجرد تسجيل دخولهم ببريدهم الإلكتروني. تأكد من صحة البريد الإلكتروني لمطابقته مع حساب الموظف.
+          <h4 className="font-bold text-red-800 mb-1 text-sm">تنبيه المدير العام</h4>
+          <p className="text-[10px] text-red-700/80 leading-relaxed">
+            الموظفون المضافون هنا سيتمكنون من الدخول للوحة الإدارة واستخدام الأقسام المحددة لهم فقط بمجرد تسجيل دخولهم ببريدهم الإلكتروني الرسمي. تم تحسين النظام ليتعرف على الموظفين فورياً بناءً على البريد الإلكتروني.
           </p>
         </div>
       </div>
     </div>
-  );
-}
-
-// أيقونات إضافية لمحاكاة الناقص
-function RefreshCcw({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" />
-    </svg>
   );
 }
