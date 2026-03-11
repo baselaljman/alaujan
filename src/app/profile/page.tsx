@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from "react";
@@ -25,7 +26,8 @@ import {
   UserCheck,
   Lock,
   PlusCircle,
-  Smartphone
+  Smartphone,
+  RefreshCcw
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -63,7 +65,7 @@ export default function ProfilePage() {
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // استعلامات البيانات - لا تبدأ إلا إذا كان المستخدم مسجلاً
+  // التحقق من صلاحيات الموظف
   const staffQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
@@ -71,24 +73,26 @@ export default function ProfilePage() {
   const { data: staffData } = useCollection(staffQuery);
   const isStaff = staffData && staffData.length > 0;
   
+  // التحقق من صلاحيات المدير العام
   const isAdmin = useMemo(() => {
     if (!user || !user.email) return false;
-    return ADMIN_EMAILS.some(e => e.toLowerCase() === user.email?.toLowerCase());
+    const email = user.email.toLowerCase();
+    return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user]);
 
+  // جلب بيانات البروفايل الإضافية
   const profileRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return doc(firestore, "users", user.uid);
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
+  // جلب الحجوزات الخاصة بالمستخدم فقط لضمان الخصوصية
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    if (user.email) {
-      return query(collectionGroup(firestore, "bookings"), where("userEmail", "==", user.email.toLowerCase()));
-    }
+    if (!firestore || !user?.uid) return null;
+    // العودة للمسار الخاص بالمستخدم لضمان عدم تداخل التذاكر
     return collection(firestore, "users", user.uid, "bookings");
-  }, [firestore, user, user?.email]);
+  }, [firestore, user?.uid]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
@@ -131,13 +135,15 @@ export default function ProfilePage() {
   if (isUserLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <Loader2 className="animate-spin h-12 w-12 text-primary opacity-20" />
-      <p className="text-sm font-bold text-muted-foreground animate-pulse">جاري تهيئة جلستك آمنة...</p>
+      <p className="text-sm font-bold text-muted-foreground animate-pulse">جاري تهيئة الجلسة...</p>
     </div>
   );
 
+  const isGuest = !user || user.isAnonymous;
+
   return (
     <div className="space-y-8 pb-24 text-right animate-in fade-in duration-700">
-      {(!user || user.isAnonymous) && !bookings?.length ? (
+      {isGuest ? (
         <div className="max-w-md mx-auto pt-4 space-y-8">
           <header className="text-center space-y-4">
             <div className="h-24 w-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mx-auto border border-primary/10 shadow-inner relative">
@@ -364,7 +370,7 @@ export default function ProfilePage() {
             )}
           </section>
 
-          {!user.isAnonymous && (
+          {user && !user.isAnonymous && (
             <section className="space-y-6 pt-12">
               <h3 className="font-black text-2xl text-slate-900 px-4 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-slate-100 flex items-center justify-center">
@@ -396,7 +402,7 @@ export default function ProfilePage() {
                       <Label className="text-xs font-black opacity-50 pr-1 uppercase">كلمة المرور الجديدة</Label>
                       <Input type="password" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="rounded-2xl h-12 border-none ring-1 ring-slate-200" />
                     </div>
-                    <Button onClick={() => { initiateUpdatePassword(user, newPassword); setNewPassword(""); setShowPasswordChange(false); }} className="w-full h-14 rounded-2xl font-black bg-primary">تأكيد التحديث</Button>
+                    <Button onClick={() => { if(user) { initiateUpdatePassword(user, newPassword); setNewPassword(""); setShowPasswordChange(false); } }} className="w-full h-14 rounded-2xl font-black bg-primary">تأكيد التحديث</Button>
                   </CardContent>
                 </Card>
               )}
