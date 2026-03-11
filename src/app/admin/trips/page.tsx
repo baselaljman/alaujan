@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react";
@@ -78,9 +77,10 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب (Manifest Query)
+  // استعلام كشف الركاب (Manifest Query) - يستخدم مجموعة الحجوزات من كافة المستخدمين
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
+    // استعلام المجموعة (Collection Group) يتطلب فهرساً وقواعد حماية خاصة
     return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
   }, [firestore, selectedTripForManifest]);
 
@@ -201,7 +201,7 @@ export default function AdminTrips() {
                         <CalendarIcon className="h-5 w-5 text-primary opacity-30" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 rounded-[2.5rem] border-none shadow-2xl">
+                    <PopoverContent className="w-auto p-0 rounded-[2.5rem] border-none shadow-2xl" align="center">
                       <Calendar selected={departureDate} onSelect={setDepartureDate} locale={ar} disabled={(date) => date < startOfDay(new Date())} />
                     </PopoverContent>
                   </Popover>
@@ -279,12 +279,12 @@ export default function AdminTrips() {
                           </div>
                           <div>
                             <DialogTitle className="text-2xl font-black text-primary">بيان الركاب الرسمي</DialogTitle>
-                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Flight Manifest - {trip.id}</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" className="rounded-xl gap-2 font-bold" onClick={() => window.print()}>
-                            <Printer className="h-4 w-4" /> طباعة الكشف
+                            <Printer className="h-4 w-4" /> طباعة
                           </Button>
                         </div>
                       </DialogHeader>
@@ -307,7 +307,7 @@ export default function AdminTrips() {
                       {isManifestLoading ? (
                         <div className="flex flex-col items-center justify-center p-20 gap-4 opacity-20">
                           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                          <p className="text-xs font-bold uppercase tracking-widest">Syncing Passenger Data...</p>
+                          <p className="text-xs font-bold uppercase tracking-widest">جاري جلب البيانات...</p>
                         </div>
                       ) : passengersList.length === 0 ? (
                         <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
@@ -319,11 +319,11 @@ export default function AdminTrips() {
                           <table className="w-full text-right text-sm">
                             <thead className="bg-primary/5 border-b font-black text-primary">
                               <tr>
-                                <th className="px-6 py-4">مقعد</th>
-                                <th className="px-6 py-4">اسم المسافر</th>
-                                <th className="px-6 py-4">رقم الجواز</th>
-                                <th className="px-6 py-4">رقم الهاتف</th>
-                                <th className="px-6 py-4">الحالة</th>
+                                <th className="px-6 py-4 text-right">مقعد</th>
+                                <th className="px-6 py-4 text-right">اسم المسافر</th>
+                                <th className="px-6 py-4 text-right">رقم الجواز</th>
+                                <th className="px-6 py-4 text-right">رقم الهاتف</th>
+                                <th className="px-6 py-4 text-right">الحالة</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-primary/5">

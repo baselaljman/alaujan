@@ -11,16 +11,21 @@ service cloud.firestore {
     }
 
     // وظيفة للتحقق مما إذا كان المستخدم موظفاً يملك صلاحية محددة
-    // يتم البحث عن وثيقة الموظف باستخدام بريده الإلكتروني كمعرف (Document ID)
     function hasStaffPermission(permission) {
       return request.auth != null && request.auth.token.email != null &&
         exists(/databases/$(database)/documents/staff_permissions/$(request.auth.token.email)) &&
         get(/databases/$(database)/documents/staff_permissions/$(request.auth.token.email)).data.permissions[permission] == true;
     }
 
-    // السماح للمسؤولين بالوصول الكامل
+    // السماح للمسؤولين بالوصول الكامل لكل المسارات
     match /{path=**} {
       allow read, write: if isAdmin();
+    }
+
+    // قاعدة خاصة لاستعلامات المجموعات (Collection Group) للمديرين
+    // هذا ضروري لعمل "كشف الركاب" الذي يبحث في كافة حجوزات المستخدمين
+    match /{path=**}/bookings/{bookingId} {
+      allow read: if isAdmin() || hasStaffPermission('canManageTrips');
     }
 
     // قواعد للمستخدمين العاديين
