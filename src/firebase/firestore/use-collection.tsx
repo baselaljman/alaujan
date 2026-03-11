@@ -40,7 +40,6 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // تجنب بدء المستمعين إذا كانت المرجع غير جاهز أو غير مصرح به
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -63,8 +62,8 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // استخراج المسار بشكل آمن للتقارير
-        let detectedPath: string = "unknown-path";
+        // محاولة استخراج المسار بشكل آمن للتقارير
+        let detectedPath = "";
         try {
           const q = memoizedTargetRefOrQuery as any;
           if (q.path) {
@@ -72,22 +71,22 @@ export function useCollection<T = any>(
           } else if (q._query?.path) {
             detectedPath = q._query.path.toString();
           } else if (q._query?.collectionGroup) {
-            detectedPath = `group:${q._query.collectionGroup}`;
+            detectedPath = `collection-group-query:${q._query.collectionGroup}`;
           }
         } catch (e) {
-          // تجاهل أي خطأ في استخراج المسار
+          detectedPath = "unknown-collection";
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: detectedPath,
+          path: detectedPath || "unknown-collection",
         });
 
         setError(contextualError);
         setData(null);
         setIsLoading(false);
 
-        // إطلاق خطأ الصلاحيات العالمي للمديرين لتسهيل التشخيص
+        // إرسال الخطأ للمعالج العالمي لتسهيل التشخيص
         errorEmitter.emit('permission-error', contextualError);
       }
     );

@@ -53,7 +53,7 @@ export default function AdminDashboard() {
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collectionGroup(db, "parcels") : null, 
+    (isReady && isAuthorized && db) ? collection(db, "parcels") : null, 
     [db, isAuthorized, isReady]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
         <div className="space-y-2">
           <h1 className="text-2xl font-black text-slate-900">دخول محظور</h1>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي ({user?.email || "غير مسجل"}) لا يملك الصلاحيات الكافية.
+            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي لا يملك الصلاحيات الكافية.
           </p>
         </div>
         <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl px-10 font-bold shadow-lg">تبديل الحساب</Button>

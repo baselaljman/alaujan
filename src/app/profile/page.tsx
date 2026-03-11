@@ -84,10 +84,9 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: خاص بالمستخدم الحالي فقط لضمان الخصوصية (يحل مشكلة تداخل التذاكر)
+  // استعلام الحجوزات: خاص بالمستخدم الحالي فقط لضمان الخصوصية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || user.isAnonymous) return null;
-    // يتم الجلب من مسار المستخدم الخاص لضمان الخصوصية التامة
     return collection(firestore, "users", user.uid, "bookings");
   }, [firestore, user?.uid, user?.isAnonymous]);
   

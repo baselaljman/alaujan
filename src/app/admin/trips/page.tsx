@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react";
@@ -64,7 +63,7 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب للرحلة المحددة - مشروط بكون المستخدم مديراً
+  // استعلام كشف الركاب للرحلة المحددة - باستخدام collectionGroup لجلب كافة الحجوزات
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripId || !isAdmin) return null;
     return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", selectedTripId));
