@@ -30,23 +30,25 @@ export default function AdminDashboard() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   // التحقق من الصلاحيات: مدير أو موظف
-  // نستخدم معالجة دقيقة للتأكد من وجود البريد الإلكتروني قبل السماح بالاستعلامات
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user || !user.email) return false;
     
     const email = user.email.toLowerCase();
     const adminEmail = ADMIN_EMAIL.toLowerCase();
     
+    // السماح للمدير العام أو أي إيميل ينتهي بنطاق الشركة
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
   useEffect(() => {
     if (!isUserLoading) {
-      setIsAuthChecked(true);
+      // تأخير بسيط للتأكد من استقرار حالة المستخدم قبل تفعيل الاستعلامات
+      const timer = setTimeout(() => setIsAuthChecked(true), 500);
+      return () => clearTimeout(timer);
     }
   }, [isUserLoading]);
 
-  // استعلامات البيانات (تعمل فقط إذا تم التحقق من الصلاحية وتم الانتهاء من تحميل المستخدم)
+  // استعلامات البيانات المباشرة (تعمل فقط للمصرح لهم)
   const tripsRef = useMemoFirebase(() => 
     (isAuthorized && isAuthChecked && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isAuthChecked]

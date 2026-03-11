@@ -4,7 +4,7 @@ service cloud.firestore {
     
     /**
      * 1. القاعدة العالمية (Recursive Match)
-     * تسمح بالقراءة والكتابة لكافة المستندات في المسارات العادية.
+     * تسمح بالقراءة والكتابة لكافة المستندات في المسارات القياسية.
      */
     match /{document=**} {
       allow read, write: if true;
@@ -16,33 +16,33 @@ service cloud.firestore {
      * نستخدم {path=**} للسماح بالاستعلام عن المجموعات أياً كان عمقها في قاعدة البيانات.
      */
     
-    match /{path=**}/bookings/{bookingId} {
+    match /{path=**}/bookings/{id} {
       allow read, write: if true;
     }
     
-    match /{path=**}/parcels/{parcelId} {
+    match /{path=**}/parcels/{id} {
       allow read, write: if true;
     }
     
-    match /{path=**}/busTrips/{tripId} {
+    match /{path=**}/busTrips/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/users/{userId} {
+    match /{path=**}/users/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/locations/{locationId} {
+    match /{path=**}/locations/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/staff_permissions/{staffId} {
+    match /{path=**}/staff_permissions/{id} {
       allow read, write: if true;
     }
 
     /**
-     * تحديث إجباري لإعادة نشر القواعد فوراً.
-     * Timestamp: 2025-05-22T10:00:00Z
+     * تحديث إجباري لإعادة نشر القواعد فوراً وضمان تفعيل استعلامات المجموعات.
+     * Timestamp: 2025-05-22T14:30:00Z
      */
   }
 }
