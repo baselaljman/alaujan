@@ -73,6 +73,7 @@ export default function ProfilePage() {
 
   // استعادة التذاكر بناءً على البريد الإلكتروني حصراً - فك الارتباط التام بـ UID
   // لا يتم الاستعلام إلا إذا كان المستخدم مسجلاً (غير مجهول) ويملك بريداً إلكترونياً
+  // هذا يمنع ظهور أخطاء Permissions للمستخدمين الضيوف
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email || user.isAnonymous) return null;
     

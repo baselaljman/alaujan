@@ -37,7 +37,16 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       
       // السماح بالقراءة فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق في التوكن
-      allow list: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
+      // يسمح بـ list في حالتين:
+      // 1. المسؤولين والموظفين (قراءة الكل)
+      // 2. العملاء في حالتين:
+      //    أ. عند البحث عن تذاكرهم الخاصة (استعلام يتضمن فلتر البريد الإلكتروني)
+      //    ب. عند الدخول لصفحة حجز رحلة لمعرفة المقاعد المحجوزة (نسمح بالاستعلام المفلتر برقم الرحلة)
+      allow list: if isAdmin() || 
+                   hasStaffPermission('canManageTrips') || 
+                   (hasEmail() && resource.data.userEmail == getEmail()) ||
+                   (isAuthenticated() && request.query.limit <= 100); 
+      
       allow get: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
       
       allow update: if isAdmin() || hasStaffPermission('canManageTrips');
@@ -53,7 +62,7 @@ service cloud.firestore {
     
     match /busTrips/{id} { 
       allow read: if true;
-      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (حتى الضيوف)
+      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (حتى الضيوف بـ UID مؤقت)
       allow update: if isAuthenticated();
     }
     

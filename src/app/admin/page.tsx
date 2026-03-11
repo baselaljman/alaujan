@@ -63,6 +63,7 @@ export default function AdminDashboard() {
   }, [isUserLoading, isStaffLoading, canAccess]);
 
   // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح لمنع أخطاء Permissions
+  // نستخدم استعلامات مباشرة على المجموعات بدلاً من collectionGroup لضمان استقرار الصلاحيات
   const tripsRef = useMemoFirebase(() => 
     (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
     [db, canAccess, isReady]
