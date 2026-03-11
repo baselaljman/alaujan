@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from "@/firebase";
 import { collection, doc, query, where, collectionGroup } from "firebase/firestore";
 import { 
   Plus, 
@@ -32,8 +32,11 @@ import { format, setHours, setMinutes } from "date-fns";
 import { ar } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
+const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
+
 export default function AdminTrips() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const [isAdding, setIsAdding] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   
@@ -45,8 +48,12 @@ export default function AdminTrips() {
   const [depTime, setDepTime] = useState("08:00");
   
   const [intermediateStops, setIntermediateStops] = useState<any[]>([]);
-  const [tempStopId, setTempStopId] = useState("");
-  const [tempStopPrice, setTempStopPrice] = useState("");
+
+  const isAdmin = useMemo(() => {
+    if (!user?.email) return false;
+    const email = user.email.toLowerCase();
+    return ADMIN_EMAILS.includes(email) || email.endsWith("@alawajan.com");
+  }, [user]);
 
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
   const { data: locations } = useCollection(locationsRef);
@@ -57,21 +64,13 @@ export default function AdminTrips() {
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب للرحلة المحددة
+  // استعلام كشف الركاب للرحلة المحددة - مشروط بكون المستخدم مديراً
   const manifestQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedTripId) return null;
+    if (!firestore || !selectedTripId || !isAdmin) return null;
     return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", selectedTripId));
-  }, [firestore, selectedTripId]);
+  }, [firestore, selectedTripId, isAdmin]);
   
   const { data: manifest, isLoading: isManifestLoading } = useCollection(manifestQuery);
-
-  const handleAddStop = () => {
-    if (!tempStopId || !tempStopPrice) return;
-    const loc = locations?.find(l => l.id === tempStopId);
-    setIntermediateStops([...intermediateStops, { id: tempStopId, name: loc?.name, price: Number(tempStopPrice) }]);
-    setTempStopId("");
-    setTempStopPrice("");
-  };
 
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +160,13 @@ export default function AdminTrips() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl h-9 gap-2" onClick={() => setSelectedTripId(trip.id)}>
+                <Button variant="outline" size="sm" className="rounded-xl h-9 gap-2" onClick={() => {
+                  if (!isAdmin) {
+                    toast({ variant: "destructive", title: "دخول محظور", description: "يجب تسجيل الدخول كمدير لعرض الكشف" });
+                    return;
+                  }
+                  setSelectedTripId(trip.id);
+                }}>
                   <Users className="h-4 w-4" /> كشف الركاب
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id))} className="text-red-500"><Trash2 className="h-4 w-4" /></Button>

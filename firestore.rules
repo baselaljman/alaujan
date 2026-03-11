@@ -11,47 +11,43 @@ service cloud.firestore {
       );
     }
 
-    // السماح للقراءة للموظفين والمديرين
-    match /staff_permissions/{id} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    // وظيفة للتحقق من ملكية البيانات
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // ملفات المستخدمين: خصوصية تامة للمالك، وصول كامل للمدير
+    // ملفات المستخدمين
     match /users/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read, write: if isOwner(userId) || isAdmin();
       
       match /bookings/{bookingId} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow read, write: if isOwner(userId) || isAdmin();
       }
       
       match /notifications/{notificationId} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow read, write: if isOwner(userId) || isAdmin();
       }
     }
 
-    // قواعد خاصة باستعلامات المجموعات (Collection Groups) - حصرياً للمدير والمالك
+    // قواعد خاصة باستعلامات المجموعات (Collection Groups)
+    // ضرورية جداً لكشف الركاب وتتبع الطرود الشامل
     match /{path=**}/bookings/{id} {
-      allow read: if request.auth != null && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
     }
     
     match /{path=**}/parcels/{id} {
-      allow read, write: if request.auth != null && (isAdmin() || resource.data.senderUserId == request.auth.uid);
+      allow read, write: if isAdmin() || (request.auth != null && resource.data.senderUserId == request.auth.uid);
     }
 
-    // البيانات العامة للرحلات والمدن
+    // البيانات العامة
     match /locations/{id} { allow read: if true; allow write: if isAdmin(); }
     match /buses/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     match /busRoutes/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     match /busTrips/{id} { allow read: if true; allow write: if isAdmin(); }
     match /drivers/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
+    match /staff_permissions/{id} { allow read: if request.auth != null; allow write: if isAdmin(); }
     
     // خدمة البريد
     match /mail/{id} { allow create: if true; }
-
-    /**
-     * تحديث أمان نهائي: تفعيل استعلامات المجموعات (Manifest) للمديرين بشكل صريح.
-     * DEPLOY_HASH: MANIFEST-FIX-V200
-     */
   }
 }
