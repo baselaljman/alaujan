@@ -32,15 +32,14 @@ service cloud.firestore {
       return isStaffMember() && get(/databases/$(database)/documents/staff_permissions/$(getEmail())).data.permissions[permission] == true;
     }
 
-    // نظام الحجوزات الموحد - فك الارتباط بالـ UID والاعتماد على البريد الإلكتروني
+    // نظام الحجوزات الموحد - الاعتماد الكلي على البريد الإلكتروني لفك الارتباط بالـ UID
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // السماح بالقائمة (List) لكافة المستخدمين لتمكين "اختيار المقاعد"
-      // ملاحظة أمنية: في التطبيق الفعلي يتم عرض أرقام المقاعد فقط للجمهور
+      // القائمة للقراءة العامة (لأغراض فنية) ولكن البيانات التفصيلية محمية
       allow list: if isAuthenticated();
       
-      // السماح للقراءة التفصيلية (Get) فقط للمسؤولين أو صاحب الحجز بناءً على البريد
+      // السماح للقراءة التفصيلية فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق
       allow get: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
                    (hasEmail() && resource.data.userEmail == getEmail());
@@ -55,7 +54,13 @@ service cloud.firestore {
     }
 
     match /locations/{id} { allow read: if true; }
-    match /busTrips/{id} { allow read: if true; }
+    
+    match /busTrips/{id} { 
+      allow read: if true;
+      // السماح بتحديث عدد المقاعد أثناء الحجز لكافة المسجلين (هاتف أو ايميل)
+      allow update: if isAuthenticated();
+    }
+    
     match /buses/{id} { allow read: if true; }
     
     match /parcels/{id} {

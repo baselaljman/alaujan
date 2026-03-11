@@ -57,7 +57,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث بروفايل المستخدم
+    // 1. تحديث بروفايل المستخدم (اختياري، الربط الحقيقي هو الايميل)
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -93,11 +93,12 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. تقليل المقاعد المتاحة
+    // 3. تقليل المقاعد المتاحة - تم منح صلاحية التحديث في القواعد
     if (tripId) {
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
-        availableSeats: increment(-seats.length)
+        availableSeats: increment(-seats.length),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -129,7 +130,7 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({email}). يمكنك الوصول إليها في أي وقت.</p>
+            <p className="text-[10px] text-muted-foreground font-bold">تذاكرك مرتبطة الآن ببريدك ({email}). يمكنك الوصول إليها في أي وقت عبر تسجيل الدخول.</p>
           </CardContent>
         </Card>
 
