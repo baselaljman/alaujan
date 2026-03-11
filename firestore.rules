@@ -1,8 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // السماح الكامل لجميع العمليات لتبسيط التطوير وتجاوز مشاكل الصلاحيات
+    // catch-all rule: تسمح بجميع العمليات على كافة المستندات لتبسيط التطوير
     match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // إضافة قواعد صريحة لاستعلامات المجموعات (Collection Group Queries)
+    // هذا ضروري عندما يقوم التطبيق بالبحث عن "bookings" في كافة مسارات المستخدمين
+    match /{path=**}/bookings/{booking} {
+      allow read, write: if true;
+    }
+    
+    match /{path=**}/parcels/{parcel} {
+      allow read, write: if true;
+    }
+    
+    match /{path=**}/notifications/{notification} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/staff_permissions/{staff} {
       allow read, write: if true;
     }
   }
