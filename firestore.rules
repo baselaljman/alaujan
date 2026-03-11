@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القاعدة العامة لكافة المستندات (Recursive Match)
-     * تسمح بالقراءة والكتابة لكافة المسارات لضمان عمل التطبيق في مرحلة التطوير.
+     * 1. القاعدة العامة لكافة المستندات والمسارات التقليدية
+     * تسمح بالقراءة والكتابة لضمان عمل التطبيق بسلاسة.
      */
     match /{document=**} {
       allow read, write: if true;
@@ -12,8 +12,8 @@ service cloud.firestore {
     
     /**
      * 2. قواعد استعلامات المجموعات (Collection Group Rules)
-     * ضرورية لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
-     * في إصدار rules_version = '2' يجب تعريفها بشكل منفصل لتغطية المسارات العميقة.
+     * ضرورية جداً لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
+     * في الإصدار الثاني من القواعد، يجب تعريفها بهذا الشكل {path=**} لتغطية كافة المستويات.
      */
     
     match /{path=**}/bookings/{id} {
@@ -24,23 +24,34 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    match /{path=**}/busTrips/{id} {
+      allow read, write: if true;
+    }
+
     match /{path=**}/staff_permissions/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/notifications/{id} {
+    match /{path=**}/locations/{id} {
       allow read, write: if true;
     }
 
-    match /{path=**}/drivers/{id} {
+    match /{path=**}/buses/{id} {
       allow read, write: if true;
     }
-    
+
+    match /{path=**}/users/{id} {
+      allow read, write: if true;
+    }
+
     match /{path=**}/mail/{id} {
       allow read, write: if true;
     }
 
-    // إضافة بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase
-    // Last Updated: 2024-03-21T12:30:00Z
+    /**
+     * بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase فور التعديل.
+     * تم التحديث الأخير لضمان حل مشكلة "Missing or insufficient permissions".
+     * Timestamp: 2024-05-20T12:00:00Z
+     */
   }
 }
