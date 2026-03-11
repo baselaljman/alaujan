@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react";
@@ -23,35 +24,26 @@ import {
   setDocumentNonBlocking,
   deleteDocumentNonBlocking 
 } from "@/firebase";
-import { collection, doc, query, where, collectionGroup } from "firebase/firestore";
+import { collection, doc, query, where } from "firebase/firestore";
 import { 
   Plus, 
   Trash2, 
   Bus, 
   Loader2, 
-  ArrowLeft,
   CalendarIcon,
   Clock,
-  MapPin,
-  Banknote,
   Navigation,
-  CheckCircle2,
-  X,
   Users,
   Printer,
   FileText,
-  Search,
-  UserCheck,
-  Smartphone
+  Smartphone,
+  X,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-
-/**
- * @fileOverview نظام إدارة الرحلات الدولية المتطور مع كشف ركاب ذكي.
- */
 
 export default function AdminTrips() {
   const firestore = useFirestore();
@@ -59,7 +51,6 @@ export default function AdminTrips() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTripForManifest, setSelectedTripForManifest] = useState<any>(null);
   
-  // حالات النموذج (Form State)
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -67,35 +58,30 @@ export default function AdminTrips() {
   const [departureDate, setDepartureDate] = useState<Date>();
   const [depTime, setDepTime] = useState("08:00");
   
-  // جلب البيانات الأساسية
   const locationsRef = useMemoFirebase(() => collection(firestore, "locations"), [firestore]);
-  const { data: locations, isLoading: isLocsLoading } = useCollection(locationsRef);
+  const { data: locations } = useCollection(locationsRef);
 
   const busesRef = useMemoFirebase(() => collection(firestore, "buses"), [firestore]);
-  const { data: buses, isLoading: isBusesLoading } = useCollection(busesRef);
+  const { data: buses } = useCollection(busesRef);
 
   const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  // استعلام كشف الركاب (Manifest Query) - يستخدم مجموعة الحجوزات من كافة المستخدمين
+  // استعلام كشف الركاب الحديث - يستهدف المجموعة الرئيسية الموحدة لتجنب أخطاء التراخيص
   const manifestQuery = useMemoFirebase(() => {
     if (!firestore || !selectedTripForManifest) return null;
-    // استعلام المجموعة (Collection Group) يتطلب فهرساً وقواعد حماية خاصة
-    return query(collectionGroup(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
+    return query(collection(firestore, "bookings"), where("busTripId", "==", selectedTripForManifest.id));
   }, [firestore, selectedTripForManifest]);
 
   const { data: bookings, isLoading: isManifestLoading } = useCollection(manifestQuery);
 
-  // معالجة بيانات الركاب من الحجوزات
   const passengersList = useMemo(() => {
     if (!bookings) return [];
     return bookings.flatMap((booking: any) => 
       (booking.passengers || []).map((p: any) => ({
         ...p,
         phone: booking.userPhone,
-        email: booking.userEmail,
         paymentStatus: booking.paymentStatus,
-        paymentMethod: booking.paymentMethodLabel,
         trackingNumber: booking.trackingNumber
       }))
     ).sort((a: any, b: any) => a.seatNumber - b.seatNumber);
@@ -104,131 +90,83 @@ export default function AdminTrips() {
   const handleAddTrip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!busId || !departureDate || !originId || !destinationId) {
-      toast({ variant: "destructive", title: "بيانات ناقصة", description: "يرجى تعبئة كافة الحقول." });
+      toast({ variant: "destructive", title: "بيانات ناقصة" });
       return;
     }
 
     setIsSubmitting(true);
-    try {
-      const randomSuffix = Math.floor(100 + Math.random() * 899);
-      const nextId = `AWJ-${randomSuffix}`;
-      const [hours, minutes] = depTime.split(":").map(Number);
-      const finalDepartureTime = setMinutes(setHours(startOfDay(departureDate), hours), minutes);
-      
-      const originName = locations?.find(l => l.id === originId)?.name || "غير محدد";
-      const destinationName = locations?.find(l => l.id === destinationId)?.name || "غير محدد";
-      const selectedBus = buses?.find(b => b.id === busId);
-      
-      const tripData = {
-        id: nextId,
-        busId,
-        busLabel: selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "حافلة غير محددة",
-        originId,
-        originName,
-        destinationId,
-        destinationName,
-        status: "Scheduled",
-        pricePerSeat: Number(pricePerSeat),
-        availableSeats: selectedBus?.capacity || 40,
-        totalSeats: selectedBus?.capacity || 40,
-        departureTime: finalDepartureTime.toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    const randomSuffix = Math.floor(100 + Math.random() * 899);
+    const nextId = `AWJ-${randomSuffix}`;
+    const [hours, minutes] = depTime.split(":").map(Number);
+    const finalDepartureTime = setMinutes(setHours(startOfDay(departureDate), hours), minutes);
+    
+    const selectedBus = buses?.find(b => b.id === busId);
+    
+    const tripData = {
+      id: nextId,
+      busId,
+      busLabel: selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "حافلة غير محددة",
+      originId,
+      originName: locations?.find(l => l.id === originId)?.name || "",
+      destinationId,
+      destinationName: locations?.find(l => l.id === destinationId)?.name || "",
+      status: "Scheduled",
+      pricePerSeat: Number(pricePerSeat),
+      availableSeats: selectedBus?.capacity || 40,
+      totalSeats: selectedBus?.capacity || 40,
+      departureTime: finalDepartureTime.toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-      setDocumentNonBlocking(doc(firestore, "busTrips", nextId), tripData, { merge: true });
-      toast({ title: "تم الحفظ", description: `الرحلة ${nextId} أصبحت نشطة.` });
-      setIsAdding(false);
-    } catch (error) {
-      toast({ variant: "destructive", title: "خطأ فني" });
-    } finally {
-      setIsSubmitting(false);
-    }
+    setDocumentNonBlocking(doc(firestore, "busTrips", nextId), tripData, { merge: true });
+    toast({ title: "تم الحفظ", description: `الرحلة ${nextId} أصبحت نشطة.` });
+    setIsAdding(false);
+    setIsSubmitting(false);
   };
 
   return (
-    <div className="space-y-8 pb-32 text-right animate-in fade-in duration-500">
+    <div className="space-y-8 pb-32 text-right">
       <header className="flex items-center justify-between bg-white p-5 rounded-[2rem] shadow-sm border border-primary/5">
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
             <Navigation className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-primary leading-none">غرفة عمليات الرحلات</h1>
-            <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-widest">Global Fleet Management</p>
+            <h1 className="text-xl font-black text-primary">غرفة عمليات الرحلات</h1>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Global Fleet Management</p>
           </div>
         </div>
-        <Button 
-          onClick={() => setIsAdding(!isAdding)} 
-          className={cn("rounded-xl h-12 px-6 gap-2 font-bold", isAdding && "bg-red-50 text-red-600 hover:bg-red-100 border-none")}
-        >
-          {isAdding ? <><X className="h-4 w-4" /> إلغاء</> : <><Plus className="h-4 w-4" /> رحلة جديدة</>}
+        <Button onClick={() => setIsAdding(!isAdding)} className={cn("rounded-xl h-12", isAdding && "bg-red-50 text-red-600")}>
+          {isAdding ? "إلغاء" : "رحلة جديدة"}
         </Button>
       </header>
 
       {isAdding && (
-        <Card className="border-primary/10 shadow-2xl rounded-[2.5rem] bg-white/50 backdrop-blur-sm">
+        <Card className="rounded-[2.5rem] shadow-2xl">
           <CardContent className="p-8">
             <form onSubmit={handleAddTrip} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">نقطة الانطلاق</Label>
+                <div className="space-y-2">
+                  <Label>من</Label>
                   <Select onValueChange={setOriginId} value={originId}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-white border-primary/5 font-bold"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectTrigger className="h-14 rounded-2xl"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
                     <SelectContent>
                       {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">وجهة الوصول</Label>
+                <div className="space-y-2">
+                  <Label>إلى</Label>
                   <Select onValueChange={setDestinationId} value={destinationId}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-white border-primary/5 font-bold"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectTrigger className="h-14 rounded-2xl"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
                     <SelectContent>
                       {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">تاريخ السفر</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full h-14 rounded-2xl bg-white border-primary/5 justify-between px-4 font-bold">
-                        {departureDate ? format(departureDate, "PPP", { locale: ar }) : "اختر التاريخ"}
-                        <CalendarIcon className="h-5 w-5 text-primary opacity-30" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 rounded-[2.5rem] border-none shadow-2xl" align="center">
-                      <Calendar selected={departureDate} onSelect={setDepartureDate} locale={ar} disabled={(date) => date < startOfDay(new Date())} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">وقت التحرك</Label>
-                  <Input type="time" value={depTime} onChange={e => setDepTime(e.target.value)} className="h-14 rounded-2xl bg-white border-primary/5 font-black text-right" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">الحافلة المخصصة</Label>
-                  <Select onValueChange={setBusId} value={busId}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-white border-primary/5 font-bold"><SelectValue placeholder="اختر حافلة" /></SelectTrigger>
-                    <SelectContent>
-                      {buses?.map(b => <SelectItem key={b.id} value={b.id}>{b.licensePlate} ({b.model})</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 text-right">
-                  <Label className="text-[10px] font-black opacity-60 mr-1">سعر التذكرة</Label>
-                  <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(e.target.value)} className="h-14 rounded-2xl bg-white border-primary/5 font-black text-right" />
-                </div>
-              </div>
-
-              <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-[1.75rem] font-black text-lg bg-primary shadow-xl">
+              <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-[1.75rem] font-black text-lg shadow-xl">
                 {isSubmitting ? <Loader2 className="animate-spin" /> : "نشر الرحلة الدولية"}
               </Button>
             </form>
@@ -240,7 +178,7 @@ export default function AdminTrips() {
         {isTripsLoading ? (
           <div className="flex justify-center p-20 opacity-20"><Loader2 className="animate-spin h-12 w-12" /></div>
         ) : trips?.map(trip => (
-          <Card key={trip.id} className="border-none shadow-sm ring-1 ring-primary/5 rounded-[2rem] bg-white overflow-hidden">
+          <Card key={trip.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-primary/5">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-5 flex-1">
                 <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/5 shadow-inner">
@@ -249,24 +187,19 @@ export default function AdminTrips() {
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</p>
-                    <Badge variant="outline" className="text-[9px] font-mono h-5 px-1.5 border-primary/10 text-primary">#{trip.id}</Badge>
+                    <Badge variant="outline" className="text-[9px] border-primary/10 text-primary">#{trip.id}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground font-bold">
-                    <span className="flex items-center gap-1.5"><CalendarIcon className="h-3 w-3" /> {format(new Date(trip.departureTime), "PPP", { locale: ar })}</span>
-                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {format(new Date(trip.departureTime), "p", { locale: ar })}</span>
-                    <Badge className="bg-emerald-50 text-emerald-600 border-none h-5">{trip.pricePerSeat} ر.س</Badge>
-                  </div>
+                  <p className="text-[10px] text-muted-foreground font-bold flex items-center gap-3">
+                    <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {format(new Date(trip.departureTime), "PPP", { locale: ar })}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(trip.departureTime), "p", { locale: ar })}</span>
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setSelectedTripForManifest(trip)}
-                      className="rounded-xl h-12 gap-2 border-primary/10 hover:bg-primary/5 font-bold"
-                    >
+                    <Button variant="outline" onClick={() => setSelectedTripForManifest(trip)} className="rounded-xl h-12 gap-2 font-bold">
                       <Users className="h-4 w-4" /> كشف الركاب
                     </Button>
                   </DialogTrigger>
@@ -282,63 +215,43 @@ export default function AdminTrips() {
                             <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="rounded-xl gap-2 font-bold" onClick={() => window.print()}>
-                            <Printer className="h-4 w-4" /> طباعة
-                          </Button>
-                        </div>
+                        <Button variant="outline" className="rounded-xl gap-2 font-bold" onClick={() => window.print()}>
+                          <Printer className="h-4 w-4" /> طباعة
+                        </Button>
                       </DialogHeader>
 
-                      <div className="grid grid-cols-3 gap-6">
-                        <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-1">
-                          <p className="text-[10px] font-black opacity-40 uppercase tracking-widest">إجمالي الركاب</p>
-                          <p className="text-2xl font-black text-primary">{passengersList.length}</p>
-                        </div>
-                        <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-1">
-                          <p className="text-[10px] font-black opacity-40 uppercase tracking-widest">المقاعد المتبقية</p>
-                          <p className="text-2xl font-black text-emerald-700">{trip.availableSeats}</p>
-                        </div>
-                        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 space-y-1">
-                          <p className="text-[10px] font-black opacity-40 uppercase tracking-widest">المحصل المالي</p>
-                          <p className="text-2xl font-black text-amber-700">{passengersList.length * trip.pricePerSeat} ر.س</p>
-                        </div>
-                      </div>
-
                       {isManifestLoading ? (
-                        <div className="flex flex-col items-center justify-center p-20 gap-4 opacity-20">
-                          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                          <p className="text-xs font-bold uppercase tracking-widest">جاري جلب البيانات...</p>
-                        </div>
+                        <div className="flex justify-center p-20"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" /></div>
                       ) : passengersList.length === 0 ? (
                         <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
                           <Users className="h-16 w-16 mx-auto mb-4 opacity-10" />
-                          <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حتى الآن</p>
+                          <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
                         </div>
                       ) : (
                         <div className="rounded-[2rem] border border-primary/5 overflow-hidden shadow-sm">
                           <table className="w-full text-right text-sm">
                             <thead className="bg-primary/5 border-b font-black text-primary">
                               <tr>
-                                <th className="px-6 py-4 text-right">مقعد</th>
-                                <th className="px-6 py-4 text-right">اسم المسافر</th>
-                                <th className="px-6 py-4 text-right">رقم الجواز</th>
-                                <th className="px-6 py-4 text-right">رقم الهاتف</th>
-                                <th className="px-6 py-4 text-right">الحالة</th>
+                                <th className="px-6 py-4">مقعد</th>
+                                <th className="px-6 py-4">اسم المسافر</th>
+                                <th className="px-6 py-4">رقم الجواز</th>
+                                <th className="px-6 py-4">رقم الهاتف</th>
+                                <th className="px-6 py-4">الحالة</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-primary/5">
-                              {passengersList.map((passenger: any, idx: number) => (
+                              {passengersList.map((p: any, idx: number) => (
                                 <tr key={idx} className="hover:bg-primary/5 transition-colors">
-                                  <td className="px-6 py-4"><Badge className="bg-primary text-white font-mono">{passenger.seatNumber}</Badge></td>
-                                  <td className="px-6 py-4 font-black">{passenger.fullName}</td>
-                                  <td className="px-6 py-4 font-mono text-xs opacity-60">{passenger.passportNumber}</td>
-                                  <td className="px-6 py-4 font-bold text-xs"><Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {passenger.phone}</td>
+                                  <td className="px-6 py-4"><Badge className="bg-primary">{p.seatNumber}</Badge></td>
+                                  <td className="px-6 py-4 font-black">{p.fullName}</td>
+                                  <td className="px-6 py-4 font-mono text-xs opacity-60">{p.passportNumber}</td>
+                                  <td className="px-6 py-4 font-bold text-xs"><Smartphone className="h-3 w-3 inline ml-1 opacity-20" /> {p.phone}</td>
                                   <td className="px-6 py-4">
                                     <Badge className={cn(
-                                      "text-[9px] font-black px-3 py-1 border-none",
-                                      passenger.paymentStatus === "Completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                                      "text-[9px] font-black border-none",
+                                      p.paymentStatus === "Completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
                                     )}>
-                                      {passenger.paymentStatus === "Completed" ? "مدفوع" : "دفع عند السفر"}
+                                      {p.paymentStatus === "Completed" ? "مدفوع" : "دفع عند السفر"}
                                     </Badge>
                                   </td>
                                 </tr>
@@ -351,12 +264,7 @@ export default function AdminTrips() {
                   </DialogContent>
                 </Dialog>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => { if(confirm("حذف الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} 
-                  className="text-red-500 rounded-full hover:bg-red-50 h-12 w-12"
-                >
+                <Button variant="ghost" size="icon" onClick={() => { if(confirm("حذف الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} className="text-red-500 rounded-full hover:bg-red-50 h-12 w-12">
                   <Trash2 className="h-5 w-5" />
                 </Button>
               </div>

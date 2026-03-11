@@ -57,7 +57,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث/إنشاء بروفايل المستخدم لربط البيانات
+    // 1. تحديث/إنشاء بروفايل المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -69,8 +69,8 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز في مسار المستخدم
-    const bookingsRef = collection(firestore, "users", user.uid, "bookings");
+    // 2. حفظ الحجز في مجموعة علوية موحدة (أكثر متانة للاستعلامات الإدارية)
+    const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
@@ -101,14 +101,12 @@ function CheckoutContent() {
       });
     }
 
-    // تم إيقاف إرسال البريد بناءً على طلب العميل
-
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `يمكنك الآن عرض وتحميل تذكرتك من صفحة حسابي.`,
+        description: `رقم تتبع الرحلة: ${tripId}`,
       });
     }, 2000);
   };
@@ -127,10 +125,6 @@ function CheckoutContent() {
             <p className="text-3xl font-black font-mono">{tripId}</p>
           </div>
           <CardContent className="p-6 bg-white space-y-4">
-            <div className="flex items-center gap-3 justify-center text-muted-foreground">
-              <UserIcon className="h-4 w-4" />
-              <p className="text-[10px] font-medium">تم تأكيد الحجز بنجاح</p>
-            </div>
             <div className="p-3 rounded-xl bg-muted/30 border border-dashed flex justify-between items-center">
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
@@ -161,9 +155,6 @@ function CheckoutContent() {
             <CardTitle className="text-base font-semibold">ملخص الحجز</CardTitle>
             <CardDescription className="flex flex-col gap-1">
               <span className="flex items-center gap-1 justify-end"><MapPin className="h-3 w-3" /> {boardingPoint} ⬅ {droppingPoint}</span>
-              <span className="flex items-center gap-1 justify-end font-bold text-accent"><Navigation className="h-3 w-3" /> رقم الرحلة للتتبع: {tripId}</span>
-              <span>عدد المسافرين: {passengers.length}</span>
-              <span>المقاعد: {seats.join(", ")}</span>
               <span className="font-bold text-primary mt-1">الإجمالي: {totalAmount} ريال</span>
             </CardDescription>
           </CardHeader>
@@ -176,13 +167,6 @@ function CheckoutContent() {
                 </div>
                 <RadioGroupItem value="card" id="card" className="sr-only" />
               </Label>
-              <Label htmlFor="wallet" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "wallet" ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "hover:bg-muted"}`}>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center"><Wallet className="h-5 w-5 text-blue-600" /></div>
-                  <div className="font-medium text-base text-right">Apple Pay</div>
-                </div>
-                <RadioGroupItem value="wallet" id="wallet" className="sr-only" />
-              </Label>
               <Label htmlFor="cash" className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${paymentMethod === "cash" ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm" : "hover:bg-muted"}`}>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center"><Banknote className="h-5 w-5 text-green-600" /></div>
@@ -194,11 +178,9 @@ function CheckoutContent() {
           </CardContent>
         </Card>
 
-        <div className="pt-2">
-          <Button onClick={handlePay} disabled={isProcessing || isUserLoading} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-            {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
-          </Button>
-        </div>
+        <Button onClick={handlePay} disabled={isProcessing || isUserLoading} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
+        </Button>
       </div>
     </div>
   );
