@@ -28,12 +28,14 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // التحقق مما إذا كان المستخدم مديراً أو موظفاً
+  // التحقق مما إذا كان المستخدم مديراً أو موظفاً معتمداً
   const isAuthorized = useMemo(() => {
     if (!user) return false;
+    // المدير العام أو أي بريد ينتهي بنطاق الشركة
     return user.email === ADMIN_EMAIL || user.email?.endsWith("@alawajan.com");
   }, [user]);
 
+  // استخدام استعلامات منفصلة تتبع صلاحية المستخدم بدقة لتجنب أخطاء Firestore Permission
   const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
@@ -125,8 +127,8 @@ export default function AdminDashboard() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
         <ShieldAlert className="h-16 w-16 text-red-500" />
         <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
-        <p className="text-muted-foreground text-sm">هذه الصفحة مخصصة لمدراء النظام فقط.</p>
-        <Button onClick={() => router.push("/")}>العودة للرئيسية</Button>
+        <p className="text-muted-foreground text-sm">هذه الصفحة مخصصة لمدراء النظام وموظفي الشركة فقط.</p>
+        <Button onClick={() => router.push("/")} className="rounded-xl">العودة للرئيسية</Button>
       </div>
     );
   }
@@ -151,7 +153,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {adminModules.map((module) => (
           <Link key={module.href} href={module.href}>
-            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group">
+            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-2xl">
               <CardContent className="p-6 flex items-center gap-4">
                 <div className={`h-14 w-14 rounded-2xl ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110`}>
                   <module.icon className={`h-7 w-7 ${module.color}`} />
@@ -167,7 +169,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <Card className="border-primary/5 bg-primary/5">
+      <Card className="border-primary/5 bg-primary/5 rounded-[2rem]">
         <CardHeader>
           <CardTitle className="text-sm font-bold flex items-center gap-2 justify-end">
              إحصائيات النظام الحقيقية
