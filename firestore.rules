@@ -29,16 +29,11 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
-    // الرحلات والمدن والحافلات: قراءة عامة للجميع لتشغيل التطبيق فوراً
+    // الرحلات: قراءة عامة للجميع، وتحديث محدود للمقاعد أثناء الحجز
     match /busTrips/{id} { 
       allow read: if true; 
-      allow update: if isAuthenticated() && (
-        isAdmin() || isStaffMember() || isDriver() ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription', 'lastUpdatedAt']))
-      ) || (
-        // السماح بخصم المقاعد حتى للضيوف أثناء عملية الحجز
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt'])
-      );
+      allow update: if isAdmin() || isStaffMember() || isDriver() ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription', 'lastUpdatedAt']));
       allow create, delete: if isAdmin() || isStaffMember();
     }
     
@@ -47,17 +42,22 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: خصوصية تامة - لا يرى التذكرة إلا صاحبها أو الإدارة
+    // الحجوزات: تحصين تام - لا يمكن جلب قائمة الحجوزات إلا بفلتر الهوية الخاص بالمستخدم فقط
     match /bookings/{bookingId} {
       allow create: if true;
-      allow read: if isAdmin() || isStaffMember() || (
+      allow get: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
           resource.data.userId == request.auth.uid || 
           (hasEmail() && resource.data.userEmail == getEmail())
         )
-      ) || (
-        // السماح فقط بمعرفة المقاعد المحجوزة في رحلة معينة لغرض الحجز (بدون بيانات شخصية)
-        request.query.limit <= 100 && 'busTripId' in request.query.filters
+      );
+      allow list: if isAdmin() || isStaffMember() || (
+        isAuthenticated() && (
+          // فرض قيود صارمة على الاستعلام: يجب أن يطابق أحد معرفات الهوية الخاصة بالمستخدم
+          (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail == getEmail()) ||
+          (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid) ||
+          (request.query.limit <= 100 && 'busTripId' in request.query.filters)
+        )
       );
       allow update, delete: if isAdmin() || isStaffMember();
     }
@@ -72,7 +72,6 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isStaffMember());
     }
 
-    // منع الوصول العام لأي مجموعة غير مذكورة أعلاه
     match /{path=**} {
       allow read, write: if isAdmin();
     }

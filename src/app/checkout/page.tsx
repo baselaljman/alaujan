@@ -47,14 +47,13 @@ function CheckoutContent() {
   }, [user, isUserLoading, auth]);
 
   const handlePay = () => {
-    // منع الحجز إذا لم تكتمل هوية المستخدم (حتى لو ضيف) لضمان الخصم الصحيح للمقاعد
     if (!user || isUserLoading) {
-      toast({ variant: "destructive", title: "جاري تهيئة الحجز", description: "يرجى الانتظار ثانية واحدة والمحاولة مرة أخرى" });
+      toast({ variant: "destructive", title: "جاري تهيئة الهوية", description: "يرجى المحاولة مرة أخرى خلال لحظة" });
       return;
     }
     
     if (seats.length === 0) {
-      toast({ variant: "destructive", title: "خطأ", description: "لم يتم تحديد مقاعد صحيحة" });
+      toast({ variant: "destructive", title: "خطأ", description: "لم يتم تحديد مقاعد" });
       return;
     }
 
@@ -63,7 +62,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. إنشاء/تحديث بروفايل المستخدم (Email-Centric)
+    // 1. إنشاء/تحديث بروفايل المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -75,7 +74,7 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز بربط مزدوج (UID للجلسة الحالية + Email للارتباط الدائم)
+    // 2. حفظ الحجز بربط مزدوج (UID + Email)
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -99,7 +98,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة فورياً من الرحلة
+    // 3. خصم المقاعد المتاحة فورياً من الرحلة (حصرياً لحقل availableSeats و updatedAt)
     if (tripId) {
       const tripDocRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripDocRef, {
@@ -112,8 +111,8 @@ function CheckoutContent() {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
-        title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `رقم تتبع الحجز: ${trackingNumber}`,
+        title: "تم الحجز بنجاح",
+        description: `رقم التتبع: ${trackingNumber}`,
       });
     }, 1500);
   };
@@ -136,13 +135,13 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">عدد المقاعد:</span>
               <span className="text-sm font-mono font-bold text-primary">{seats.length}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-bold text-right">تذاكرك مرتبطة الآن ببريدك ({emailInput}). تم خصم المقاعد من الحافلة بنجاح.</p>
+            <p className="text-[10px] text-muted-foreground font-bold text-right">تذاكرك مرتبطة الآن ببريدك ({emailInput}). تم تحديث سعة الحافلة بنجاح.</p>
           </CardContent>
         </Card>
 
         <div className="space-y-3 w-full max-w-xs pt-4">
           <Button className="w-full h-14 rounded-2xl font-bold gap-2" onClick={() => router.push("/profile")}>
-             عرض تذاكري الآن <ArrowRight className="h-4 w-4 rotate-180" />
+             عرض تذاكري الخاصة <ArrowRight className="h-4 w-4 rotate-180" />
           </Button>
           <Button variant="ghost" className="w-full h-12 rounded-xl" onClick={() => router.push("/")}>العودة للرئيسية</Button>
         </div>
@@ -187,7 +186,7 @@ function CheckoutContent() {
         </Card>
 
         <Button onClick={handlePay} disabled={isProcessing || isUserLoading} className="w-full h-16 text-xl font-bold shadow-xl rounded-2xl bg-primary">
-          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "تأكيد الحجز وإصدار التذاكر"}
+          {isProcessing ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : "إتمام الحجز وإصدار التذاكر"}
         </Button>
       </div>
     </div>

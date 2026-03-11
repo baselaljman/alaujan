@@ -69,13 +69,16 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام التذاكر: محمي بفلتر إلزامي لضمان الخصوصية ومنع تسريب بيانات الآخرين
+  // استعلام تذاكر المستخدم الحالي فقط - مطابقة حتمية لضمان الخصوصية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // للمسجلين: ابحث بالبريد الإلكتروني (يجلب كافة التذاكر التاريخية لهذا البريد)
+    // إذا كان المستخدم مديراً، يسمح له برؤية كافة التذاكر (اختياري)
+    // هنا سنبقيه لعرض التذاكر الخاصة فقط لضمان تجربة مستخدم نظيفة
+    
+    // للمسجلين: ابحث بالبريد الإلكتروني الموثق
     if (user.email && !user.isAnonymous) {
       return query(
         bookingsRef, 
@@ -83,7 +86,7 @@ export default function ProfilePage() {
       );
     }
     
-    // للضيوف (Anonymous): ابحث برقم الجلسة UID لعرض التذاكر المحجوزة حالاً
+    // للضيوف أو الحسابات الجديدة: ابحث برقم الجلسة الفريد (UID)
     return query(
       bookingsRef,
       where("userId", "==", user.uid)
@@ -117,7 +120,7 @@ export default function ProfilePage() {
     try {
       const dataUrl = await toPng(element, { backgroundColor: '#ffffff', pixelRatio: 2 });
       const link = document.createElement('a');
-      link.download = `Ticket-${bookingId.slice(-4)}.png`;
+      link.download = `AlAwajan-Ticket-${bookingId.slice(-4)}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -165,12 +168,12 @@ export default function ProfilePage() {
               <div className="flex items-center gap-6">
                 <ShieldCheck className="h-12 w-12" />
                 <div className="text-right">
-                  <h2 className="text-2xl font-black">لوحة الإدارة المركزية</h2>
-                  <p className="text-xs opacity-70">إدارة الرحلات والكشوفات والطلبات</p>
+                  <h2 className="text-2xl font-black">غرفة التحكم المركزية</h2>
+                  <p className="text-xs opacity-70">إدارة الرحلات والركاب والطرود</p>
                 </div>
               </div>
               <Button asChild className="rounded-[1.5rem] bg-white text-primary px-10 h-16 shadow-2xl font-black">
-                <Link href="/admin">دخول اللوحة الآن</Link>
+                <Link href="/admin">دخول لوحة الإدارة</Link>
               </Button>
             </CardContent>
           </Card>
@@ -178,7 +181,7 @@ export default function ProfilePage() {
 
         <section className="space-y-8">
           <div className="flex items-center justify-between px-4 no-print">
-            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري الخاصة</h3>
+            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري الشخصية</h3>
             {hasBookings && <Badge variant="secondary" className="px-4 py-1.5 rounded-xl bg-primary/5 text-primary border-primary/10">{bookings.length} تذكرة</Badge>}
           </div>
           
@@ -192,7 +195,7 @@ export default function ProfilePage() {
                     <div className="p-8 flex items-center justify-between bg-primary/5">
                       <div className="flex items-center gap-3">
                          <Bus className="h-6 w-6 text-primary" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Travel</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Official Ticket</span>
                       </div>
                       <Badge className={cn(
                         "font-black px-4 py-1 rounded-full border-none",
@@ -210,7 +213,7 @@ export default function ProfilePage() {
                          </div>
                          <div className="flex flex-col items-center gap-1 opacity-20">
                            <ArrowLeft className="h-5 w-5" />
-                           <span className="text-[8px] font-bold">رحلة دولية</span>
+                           <span className="text-[8px] font-bold">دولي</span>
                          </div>
                          <div className="flex-1">
                            <p className="text-[10px] font-bold text-muted-foreground mb-1">إلى</p>
@@ -220,11 +223,11 @@ export default function ProfilePage() {
 
                        <div className="grid grid-cols-2 gap-y-6 pt-8 border-t border-dashed border-slate-100">
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground">اسم المسافر الرئيسي</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">المسافر الرئيسي</p>
                              <p className="font-bold text-slate-900">{booking.passengers?.[0]?.fullName || "مسافر العوجان"}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground">المقاعد</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم المقعد</p>
                              <p className="font-black text-primary text-lg">{booking.seatNumbers?.join(', ')}</p>
                           </div>
                           <div>
@@ -234,14 +237,14 @@ export default function ProfilePage() {
                           <div className="text-left">
                              <p className="text-[10px] font-bold text-muted-foreground">تاريخ الحجز</p>
                              <p className="font-bold text-slate-700 text-xs">
-                               {booking.createdAt?.toDate ? format(booking.createdAt.toDate(), "PPP", { locale: ar }) : booking.bookingDate}
+                               {booking.bookingDate ? format(new Date(booking.bookingDate), "PPP", { locale: ar }) : "قيد المعالجة"}
                              </p>
                           </div>
                        </div>
 
                        <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
                           <div className="space-y-1">
-                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">E-Ticket Identifier</p>
+                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Digital Boarding Pass</p>
                              <p className="text-xs font-mono font-bold text-slate-400">REF: {booking.trackingNumber}</p>
                           </div>
                           <QrCode className="h-14 w-14 text-slate-800" />
@@ -253,7 +256,7 @@ export default function ProfilePage() {
                     <Button 
                       variant="outline"
                       onClick={() => window.print()} 
-                      className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2 hover:bg-primary/5"
+                      className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2"
                     >
                       <Printer className="h-4 w-4" /> طباعة
                     </Button>
@@ -263,7 +266,7 @@ export default function ProfilePage() {
                       className="rounded-full h-12 px-6 bg-slate-900 text-white font-black gap-2"
                     >
                       {isDownloading === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
-                      تحميل كصورة
+                      تحميل الصورة
                     </Button>
                   </div>
                 </div>
@@ -272,9 +275,9 @@ export default function ProfilePage() {
           ) : (
             <div className="text-center p-24 bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 no-print">
               <TicketIcon className="h-16 w-16 text-slate-100 mx-auto mb-6" />
-              <p className="text-sm text-slate-400 font-black">لا توجد حجوزات نشطة مرتبطة بك حالياً</p>
+              <p className="text-sm text-slate-400 font-black">لا توجد حجوزات مرتبطة بحسابك حالياً</p>
               <Button asChild variant="link" className="mt-4 text-primary font-bold">
-                 <Link href="/">ابحث عن رحلة الآن</Link>
+                 <Link href="/">ابدأ حجز رحلتك الأولى</Link>
               </Button>
             </div>
           )}
@@ -288,8 +291,8 @@ export default function ProfilePage() {
                   <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center mb-3">
                     <UserCheck className="h-6 w-6 text-white" />
                   </div>
-                  <h2 className="text-xl font-black text-primary">حفظ تذاكرك للأبد</h2>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-1 text-center">قم بإنشاء حساب ببريدك الإلكتروني لتجد تذاكرك في أي جهاز آخر.</p>
+                  <h2 className="text-xl font-black text-primary">تأمين تذاكرك للأبد</h2>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1 text-center">قم بإنشاء حساب ببريدك الإلكتروني لتجد تذاكرك محفوظة في أي جهاز آخر.</p>
                 </div>
                 
                 <form onSubmit={handleAuthAction} className="space-y-4">
@@ -304,7 +307,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <Button type="submit" className="w-full h-14 rounded-xl text-base font-black shadow-lg">
-                    {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'إنشاء حسابي الآن' : 'استعادة كلمة المرور'}
+                    {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'اشترك الآن' : 'استعادة كلمة المرور'}
                   </Button>
                 </form>
                 <div className="mt-6 text-center">
@@ -322,7 +325,7 @@ export default function ProfilePage() {
         {!isGuest && (
           <div className="pt-10 no-print">
             <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-red-600 border-red-50 font-black hover:bg-red-50 hover:border-red-100 transition-colors">
-              <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من النظام
+              <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج
             </Button>
           </div>
         )}
