@@ -151,11 +151,9 @@ export default function AdminTrips() {
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 rounded-[2rem] shadow-2xl border-none" align="center" sideOffset={10}>
                       <Calendar
-                        mode="single"
                         selected={departureDate}
                         onSelect={setDepartureDate}
                         locale={ar}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
@@ -167,7 +165,7 @@ export default function AdminTrips() {
                       type="time" 
                       value={depTime} 
                       onChange={e => setDepTime(e.target.value)} 
-                      className="h-14 rounded-2xl bg-slate-50 border-primary/5 pl-10 font-bold"
+                      className="h-14 rounded-2xl bg-slate-50 border-primary/5 pl-10 font-bold text-right"
                     />
                     <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   </div>
