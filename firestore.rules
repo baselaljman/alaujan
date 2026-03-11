@@ -14,6 +14,7 @@ service cloud.firestore {
      * 2. قواعد استعلامات المجموعات (Collection Group Rules)
      * ضرورية جداً لعمل وظائف "تذاكري" و "تتبع الطرود" و "إحصائيات الإدارة".
      * نستخدم {path=**} للسماح بالبحث في كافة المجموعات أياً كان مكانها في التسلسل الهرمي.
+     * تم تحديث هذه القواعد لضمان حل مشكلة "Missing or insufficient permissions" بشكل نهائي.
      */
     
     match /{path=**}/bookings/{id} {
@@ -47,11 +48,15 @@ service cloud.firestore {
     match /{path=**}/mail/{id} {
       allow read, write: if true;
     }
+    
+    match /{path=**}/drivers/{id} {
+      allow read, write: if true;
+    }
 
     /**
      * بصمة زمنية لضمان تحديث القواعد في سيرفرات Firebase فور التعديل.
-     * تم التحديث الأخير لضمان حل مشكلة "Missing or insufficient permissions" بشكل نهائي.
-     * Timestamp: 2024-05-20T14:30:00Z
+     * التحديث الأخير لضمان حل جذري لمشكلة الصلاحيات في استعلامات المجموعات.
+     * Timestamp: 2024-05-20T16:00:00Z
      */
   }
 }

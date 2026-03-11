@@ -28,13 +28,15 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // التحقق من الصلاحيات: مدير أو موظف
+  // التحقق من الصلاحيات: مدير أو موظف (مع توحيد حالة الحروف للبريد)
   const isAuthorized = useMemo(() => {
-    if (!user || isUserLoading) return false;
-    return user.email === ADMIN_EMAIL || user.email?.endsWith("@alawajan.com");
+    if (!user || isUserLoading || !user.email) return false;
+    const email = user.email.toLowerCase();
+    const adminEmail = ADMIN_EMAIL.toLowerCase();
+    return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // استعلامات البيانات: نستخدم مصفوفة تبعية تضمن عدم البدء إلا بعد التأكد من الصلاحية
+  // استعلامات البيانات المباشرة (تظهر فقط بعد التأكد من الصلاحية)
   const tripsRef = useMemoFirebase(() => isAuthorized ? collection(db, "busTrips") : null, [db, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
