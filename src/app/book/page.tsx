@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, Package, Plus, Minus, Loader2, CreditCard, ShieldCheck, Send, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useAuth, setupRecaptcha, sendOtpToPhone } from "@/firebase";
-import { doc, collection, query, where } from "firebase/firestore";
+import { doc, collection, query, where, limit } from "firebase/firestore";
 import { ConfirmationResult } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 
@@ -35,9 +35,14 @@ function BookTripContent() {
   const tripRef = useMemoFirebase(() => (tripId ? doc(firestore, "busTrips", tripId) : null), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
 
+  // استعلام المقاعد المحجوزة - أضفنا حداً أقصى للتوافق مع قواعد الحماية وضمان الأداء
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !tripId) return null;
-    return query(collection(firestore, "bookings"), where("busTripId", "==", tripId));
+    return query(
+      collection(firestore, "bookings"), 
+      where("busTripId", "==", tripId),
+      limit(100)
+    );
   }, [firestore, tripId]);
   
   const { data: allBookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
@@ -46,7 +51,10 @@ function BookTripContent() {
     if (!allBookings) return new Set<number>();
     const taken = new Set<number>();
     allBookings.forEach(booking => {
-      booking.seatNumbers?.forEach((s: string) => taken.add(parseInt(s)));
+      // نتحقق فقط من الحجوزات غير الملغاة
+      if (booking.status !== 'Cancelled') {
+        booking.seatNumbers?.forEach((s: string) => taken.add(parseInt(s)));
+      }
     });
     return taken;
   }, [allBookings]);
@@ -80,7 +88,10 @@ function BookTripContent() {
     if (selectedSeats.includes(seatId)) {
       setSelectedSeats(selectedSeats.filter(s => s !== seatId));
     } else {
-      if (selectedSeats.length >= 5) return;
+      if (selectedSeats.length >= 5) {
+        toast({ variant: "destructive", title: "تنبيه", description: "الحد الأقصى هو 5 مقاعد للحجز الواحد" });
+        return;
+      }
       setSelectedSeats([...selectedSeats, seatId].sort((a, b) => a - b));
     }
   };

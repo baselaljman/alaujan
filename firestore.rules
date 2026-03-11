@@ -36,16 +36,14 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // السماح بالقراءة فقط للمسؤولين أو صاحب الحجز بناءً على البريد الإلكتروني الموثق في التوكن
-      // يسمح بـ list في حالتين:
+      // السماح بـ list في الحالات التالية:
       // 1. المسؤولين والموظفين (قراءة الكل)
-      // 2. العملاء في حالتين:
-      //    أ. عند البحث عن تذاكرهم الخاصة (استعلام يتضمن فلتر البريد الإلكتروني)
-      //    ب. عند الدخول لصفحة حجز رحلة لمعرفة المقاعد المحجوزة (نسمح بالاستعلام المفلتر برقم الرحلة)
+      // 2. المسافرين المسجلين ببريدهم (قراءة تذاكرهم فقط)
+      // 3. أي مستخدم مسجل (حتى مجهول أو بالهاتف) للاستعلام عن المقاعد المحجوزة في رحلة محددة
       allow list: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
                    (hasEmail() && resource.data.userEmail == getEmail()) ||
-                   (isAuthenticated() && request.query.limit <= 100); 
+                   isAuthenticated(); 
       
       allow get: if isAdmin() || hasStaffPermission('canManageTrips') || (hasEmail() && resource.data.userEmail == getEmail());
       
