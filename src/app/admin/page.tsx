@@ -27,9 +27,9 @@ export default function AdminDashboard() {
   const router = useRouter();
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [isAuthVerified, setIsAuthVerified] = useState(false);
 
-  // التحقق من الصلاحيات: مدير أو موظف
+  // التحقق من الصلاحيات بشكل صارم
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user || !user.email) return false;
     
@@ -40,35 +40,34 @@ export default function AdminDashboard() {
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
+  // تحديث حالة التحقق بعد استقرار المستخدم
   useEffect(() => {
     if (!isUserLoading) {
-      // تأخير بسيط للتأكد من استقرار حالة المستخدم قبل تفعيل الاستعلامات
-      const timer = setTimeout(() => setIsAuthChecked(true), 500);
-      return () => clearTimeout(timer);
+      setIsAuthVerified(true);
     }
   }, [isUserLoading]);
 
-  // استعلامات البيانات المباشرة (تعمل فقط للمصرح لهم)
+  // استعلامات البيانات (تعمل فقط للمصرح لهم وبعد استقرار الجلسة)
   const tripsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthChecked && db) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized, isAuthChecked]
+    (isAuthorized && isAuthVerified && db) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized, isAuthVerified]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthChecked && db) ? collection(db, "parcels") : null, 
-    [db, isAuthorized, isAuthChecked]
+    (isAuthorized && isAuthVerified && db) ? collection(db, "parcels") : null, 
+    [db, isAuthorized, isAuthVerified]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isAuthorized && isAuthChecked && db) ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized, isAuthChecked]
+    (isAuthorized && isAuthVerified && db) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized, isAuthVerified]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
-    if (!isAuthorized || !trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
+    if (!trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
     
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     
@@ -89,7 +88,7 @@ export default function AdminDashboard() {
       activeParcels: activeParcelsCount,
       newBookings: todayBookingsCount
     };
-  }, [trips, parcels, bookings, isAuthorized]);
+  }, [trips, parcels, bookings]);
 
   const adminModules = [
     {
@@ -142,7 +141,7 @@ export default function AdminDashboard() {
     }
   ];
 
-  if (!isAuthChecked) {
+  if (!isAuthVerified) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />

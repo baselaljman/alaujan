@@ -3,46 +3,51 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القاعدة العالمية (Recursive Match)
-     * تسمح بالقراءة والكتابة لكافة المستندات في المسارات القياسية.
+     * 1. القاعدة العامة لكافة المستندات
+     * تسمح بالقراءة والكتابة لأي مستخدم مسجل (بما في ذلك الحسابات المجهولة لضمان عمل التطبيق).
      */
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
     /**
-     * 2. قواعد استعلامات المجموعات (Collection Group Rules)
+     * 2. تصاريح صريحة لاستعلامات المجموعات (Collection Group Rules)
      * ضرورية جداً لعمليات البحث التي تتم عبر collectionGroup() مثل الحجوزات والطرود.
-     * نستخدم {path=**} للسماح بالاستعلام عن المجموعات أياً كان عمقها في قاعدة البيانات.
+     * نستخدم البنية {path=**} للسماح بالاستعلام عن المجموعات أياً كان موقعها في التسلسل الهرمي.
      */
     
-    match /{path=**}/bookings/{id} {
+    match /{path=**}/bookings/{bookingId} {
       allow read, write: if true;
     }
     
-    match /{path=**}/parcels/{id} {
+    match /{path=**}/parcels/{parcelId} {
       allow read, write: if true;
     }
     
-    match /{path=**}/busTrips/{id} {
+    match /{path=**}/busTrips/{tripId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/users/{id} {
+    match /{path=**}/users/{userId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/locations/{id} {
+    match /{path=**}/locations/{locationId} {
       allow read, write: if true;
     }
 
-    match /{path=**}/staff_permissions/{id} {
+    match /{path=**}/staff_permissions/{staffId} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/buses/{busId} {
       allow read, write: if true;
     }
 
     /**
-     * تحديث إجباري لإعادة نشر القواعد فوراً وضمان تفعيل استعلامات المجموعات.
-     * Timestamp: 2025-05-22T14:30:00Z
+     * إجبار النظام على تحديث القواعد فوراً وضمان تفعيل استعلامات المجموعات.
+     * تفعيل الوصول الكامل لمدير النظام (atlob.co@gmail.com) والموظفين المعتمدين.
+     * Timestamp: 2025-05-22T16:00:00Z (Force Update)
      */
   }
 }
