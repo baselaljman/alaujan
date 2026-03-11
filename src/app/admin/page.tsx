@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react";
@@ -14,27 +13,33 @@ import {
   LayoutDashboard,
   Loader2,
   Users,
-  ShieldAlert,
-  UserCheck
+  ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
+
+const ADMIN_EMAIL = "atlob.co@gmail.com";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const firestore = useFirestore();
+  const { user } = useUser();
 
-  const tripsRef = useMemoFirebase(() => collection(firestore, "busTrips"), [firestore]);
+  // التحقق مما إذا كان المستخدم مديراً أو موظفاً قبل تفعيل الاستعلامات لتجنب أخطاء الصلاحيات
+  const isAuthorized = useMemo(() => {
+    return user?.email === ADMIN_EMAIL || user?.email?.endsWith("@alawajan.com");
+  }, [user]);
+
+  const tripsRef = useMemoFirebase(() => isAuthorized ? collection(firestore, "busTrips") : null, [firestore, isAuthorized]);
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
-  const parcelsRef = useMemoFirebase(() => collection(firestore, "parcels"), [firestore]);
+  const parcelsRef = useMemoFirebase(() => isAuthorized ? collection(firestore, "parcels") : null, [firestore, isAuthorized]);
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
-  // استخدام collectionGroup لجلب جميع الحجوزات من كافة مجموعات المستخدمين الفرعية لإحصائيات المدير
-  const bookingsRef = useMemoFirebase(() => collectionGroup(firestore, "bookings"), [firestore]);
+  const bookingsRef = useMemoFirebase(() => isAuthorized ? collectionGroup(firestore, "bookings") : null, [firestore, isAuthorized]);
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
   const stats = useMemo(() => {
@@ -119,7 +124,7 @@ export default function AdminDashboard() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
             <LayoutDashboard className="h-6 w-6 text-white" />
           </div>
-          <div>
+          <div className="text-right">
             <h1 className="text-2xl font-bold font-headline text-primary">لوحة الإدارة</h1>
             <p className="text-xs text-muted-foreground">إدارة نظام العوجان للسياحة والسفر</p>
           </div>
@@ -150,9 +155,9 @@ export default function AdminDashboard() {
 
       <Card className="border-primary/5 bg-primary/5">
         <CardHeader>
-          <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 justify-end">
+             إحصائيات النظام الحقيقية
             <Settings className="h-4 w-4" />
-            إحصائيات النظام الحقيقية
           </CardTitle>
         </CardHeader>
         <CardContent>

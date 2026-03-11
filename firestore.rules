@@ -2,14 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. السماح بالوصول الكامل لكافة المستندات (لأغراض التطوير الحالية)
+    // 1. القاعدة العامة: السماح بالوصول الكامل لجميع المستندات والمجموعات
+    // تم استخدام {document=**} لتغطية كافة المجموعات والمجموعات الفرعية
     match /{document=**} {
       allow read, write: if true;
     }
     
-    // 2. السماح الصريح باستعلامات المجموعات (Collection Group Queries)
-    // هذا الجزء ضروري جداً لعمل وظيفة "البحث عن التذاكر عبر البريد" و "إحصائيات المدير"
-    // حيث يقوم بالبحث في كافة المجموعات التي تحمل نفس الاسم بغض النظر عن موقعها
+    // 2. السماح الصريح لاستعلامات المجموعات (Collection Group Queries)
+    // هذا الجزء حيوي جداً لعمل وظيفة "البحث عن التذاكر" و "إحصائيات الإدارة"
+    // حيث يسمح بالاستعلام عن أي مجموعة تسمى 'bookings' أو 'parcels' في أي مكان في القاعدة
     
     match /{path=**}/bookings/{bookingId} {
       allow read, write: if true;
@@ -24,6 +25,10 @@ service cloud.firestore {
     }
 
     match /{path=**}/staff_permissions/{staffId} {
+      allow read, write: if true;
+    }
+
+    match /{path=**}/drivers/{driverId} {
       allow read, write: if true;
     }
   }
