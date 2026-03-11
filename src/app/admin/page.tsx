@@ -22,6 +22,7 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebas
 import { collection, collectionGroup } from "firebase/firestore";
 import { format } from "date-fns";
 
+// قائمة المدراء المعتمدين رسمياً
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
 
 export default function AdminDashboard() {
@@ -40,15 +41,15 @@ export default function AdminDashboard() {
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير بدء الاستعلامات لضمان استقرار القواعد والتحقق
+  // تأخير بدء الاستعلامات لضمان استقرار القواعد والتحقق وتجنب أخطاء Permissions المبكرة
   useEffect(() => {
     if (!isUserLoading && isAuthorized) {
-      const timer = setTimeout(() => setIsReady(true), 1500);
+      const timer = setTimeout(() => setIsReady(true), 2000);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isAuthorized]);
 
-  // استعلامات البيانات - لا تبدأ إلا إذا كان المستخدم مخولاً والصفحة جاهزة
+  // استعلامات البيانات - لا تبدأ إلا إذا كان المستخدم مخولاً والصفحة جاهزة تماماً
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]
@@ -86,8 +87,8 @@ export default function AdminDashboard() {
           <ShieldAlert className="absolute inset-0 m-auto h-5 w-5 text-primary animate-pulse" />
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">جاري التحقق من التراخيص</h2>
-          <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">Initializing Secure Admin Protocol...</p>
+          <h2 className="text-xl font-bold text-slate-900">جاري التحقق من التراخيص الأمنية</h2>
+          <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">Establishing Secure Admin Session...</p>
         </div>
       </div>
     );
@@ -134,7 +135,7 @@ export default function AdminDashboard() {
           </div>
           <div className="text-right">
             <h1 className="text-2xl font-black text-primary leading-none">لوحة الإدارة</h1>
-            <p className="text-[10px] text-muted-foreground font-black mt-1.5 uppercase tracking-widest">Terminal Root Access</p>
+            <p className="text-[10px] text-muted-foreground font-black mt-1.5 uppercase tracking-widest">Al-Awajan Command Center</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={() => router.push("/")} className="rounded-xl h-12 px-6 border-primary/10 font-bold hover:bg-primary/5">

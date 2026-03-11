@@ -40,6 +40,7 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // Avoid starting listeners if the reference is not yet ready or authorized
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -62,7 +63,7 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // تحسين استخراج المسار للبلاغات والأخطاء لتجنب تعليق النظام بمسارات وهمية
+        // Extract a safe path for reporting
         let path: string = "collection-group-query";
         try {
           const q = memoizedTargetRefOrQuery as any;
@@ -70,12 +71,12 @@ export function useCollection<T = any>(
           else if (q._query?.path) path = q._query.path.toString();
           else if (q._query?.collectionGroup) path = `group:${q._query.collectionGroup}`;
         } catch (e) {
-          // ignore error in path extraction
+          // ignore
         }
 
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: path,
+          path: path || "unknown-collection",
         });
 
         setError(contextualError);
