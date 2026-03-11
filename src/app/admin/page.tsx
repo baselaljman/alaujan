@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   Loader2,
   Users,
-  ShieldAlert
+  ShieldAlert,
+  Lock
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -29,27 +30,30 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق من الصلاحيات بشكل صارم ومستقر
+  // منطق التحقق من الصلاحية - مبسط ومستقر
   const isAuthorized = useMemo(() => {
     if (isUserLoading) return false;
     if (!user || !user.email) return false;
     
     const email = user.email.toLowerCase();
-    const adminEmail = ADMIN_EMAIL.toLowerCase();
-    
-    // السماح للمدير العام أو أي إيميل ينتهي بنطاق الشركة
-    return email === adminEmail || email.endsWith("@alawajan.com");
+    // السماح للمدير أو أي بريد رسمي للشركة
+    return email === ADMIN_EMAIL.toLowerCase() || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير تفعيل الاستعلامات لضمان استقرار الهوية
+  // تفعيل الحالة "جاهز" فقط بعد استقرار جلسة المستخدم والتحقق من الصلاحية
   useEffect(() => {
-    if (!isUserLoading && isAuthorized) {
-      const timer = setTimeout(() => setIsReady(true), 500);
-      return () => clearTimeout(timer);
+    if (!isUserLoading) {
+      if (isAuthorized) {
+        const timer = setTimeout(() => setIsReady(true), 800);
+        return () => clearTimeout(timer);
+      } else if (user) {
+        // إذا كان المستخدم مسجل دخول ولكن غير مخول، ننتظر قليلاً ثم نظهر رسالة المنع
+        setIsReady(true);
+      }
     }
-  }, [isUserLoading, isAuthorized]);
+  }, [isUserLoading, isAuthorized, user]);
 
-  // استعلامات البيانات - يتم تفعيلها فقط بعد الاستقرار التام للجلسة والصلاحيات والجاهزية
+  // استعلامات البيانات - لا تبدأ أبداً إلا إذا كان المستخدم مخولاً والصفحة جاهزة
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]
@@ -70,171 +74,117 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     if (!trips || !parcels || !bookings) return { todayTrips: 0, activeParcels: 0, newBookings: 0 };
-    
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    
-    const todayTripsCount = trips.filter(t => 
-      t.departureTime && t.departureTime.startsWith(todayStr)
-    ).length;
-
-    const activeParcelsCount = parcels.filter(p => 
-      p.status !== "Delivered"
-    ).length;
-
-    const todayBookingsCount = bookings.filter(b => 
-      b.bookingDate && b.bookingDate.startsWith(todayStr)
-    ).length;
-
     return {
-      todayTrips: todayTripsCount,
-      activeParcels: activeParcelsCount,
-      newBookings: todayBookingsCount
+      todayTrips: trips.filter(t => t.departureTime?.startsWith(todayStr)).length,
+      activeParcels: parcels.filter(p => p.status !== "Delivered").length,
+      newBookings: bookings.filter(b => b.bookingDate?.startsWith(todayStr)).length
     };
   }, [trips, parcels, bookings]);
 
-  const adminModules = [
-    {
-      title: "إدارة الرحلات",
-      description: "إضافة وتعديل وحذف الرحلات الدولية",
-      icon: Calendar,
-      href: "/admin/trips",
-      color: "text-blue-600",
-      bgColor: "bg-blue-50"
-    },
-    {
-      title: "إدارة المدن والمحطات",
-      description: "إضافة وجهات جديدة ونقاط توقف",
-      icon: MapPin,
-      href: "/admin/locations",
-      color: "text-emerald-600",
-      bgColor: "bg-emerald-50"
-    },
-    {
-      title: "إدارة الحافلات",
-      description: "إدارة أسطول الحافلات والمواصفات",
-      icon: Bus,
-      href: "/admin/buses",
-      color: "text-amber-600",
-      bgColor: "bg-emerald-50"
-    },
-    {
-      title: "إدارة السائقين",
-      description: "إضافة السائقين وربطهم بالحافلات",
-      icon: Users,
-      href: "/admin/drivers",
-      color: "text-indigo-600",
-      bgColor: "bg-indigo-50"
-    },
-    {
-      title: "إدارة الطرود",
-      description: "تسجيل وتتبع الشحنات الجديدة",
-      icon: Package,
-      href: "/admin/parcels",
-      color: "text-purple-600",
-      bgColor: "bg-purple-50"
-    },
-    {
-      title: "الموظفين والصلاحيات",
-      description: "منح صلاحيات التعديل للموظفين",
-      icon: ShieldAlert,
-      href: "/admin/staff",
-      color: "text-red-600",
-      bgColor: "bg-red-50"
-    }
-  ];
-
-  if (isUserLoading || (!isReady && isAuthorized)) {
+  // واجهة التحميل الأولية
+  if (isUserLoading || !isReady) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground font-bold">جاري التحقق من الهوية والصلاحيات...</p>
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 animate-pulse">
+        <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-bold text-primary">جاري تهيئة لوحة الإدارة</h2>
+          <p className="text-xs text-muted-foreground font-medium">التحقق من التراخيص الأمنية وقواعد البيانات...</p>
+        </div>
       </div>
     );
   }
 
+  // واجهة المنع في حال عدم وجود صلاحيات
   if (!isAuthorized) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4 animate-in fade-in duration-500">
-        <div className="h-20 w-20 rounded-full bg-red-50 flex items-center justify-center border-2 border-red-100 shadow-inner">
-          <ShieldAlert className="h-10 w-10 text-red-500" />
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 animate-in fade-in duration-700 px-6">
+        <div className="h-24 w-24 rounded-[2rem] bg-red-50 flex items-center justify-center border-2 border-red-100 shadow-xl">
+          <Lock className="h-12 w-12 text-red-500" />
         </div>
-        <h1 className="text-xl font-bold">غير مصرح لك بالدخول</h1>
-        <p className="text-muted-foreground text-sm max-w-xs">عذراً، هذه المنطقة مخصصة لإدارة الشركة فقط. يرجى تسجيل الدخول بحساب المدير: {ADMIN_EMAIL}</p>
-        <Button onClick={() => router.push("/")} className="rounded-xl h-12 px-8">العودة للرئيسية</Button>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">منطقة محظورة</h1>
+          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            عذراً، يتطلب الوصول لهذه المنطقة صلاحيات "المدير العام". الحساب الحالي ({user?.email}) غير مدرج في قائمة المسؤولين.
+          </p>
+        </div>
+        <div className="flex flex-col w-full gap-3">
+          <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl font-bold bg-primary shadow-lg">تبديل الحساب</Button>
+          <Button variant="ghost" onClick={() => router.push("/")} className="h-12 rounded-xl text-muted-foreground">العودة للرئيسية</Button>
+        </div>
       </div>
     );
   }
+
+  const adminModules = [
+    { title: "إدارة الرحلات", description: "إضافة وتعديل الرحلات الدولية", icon: Calendar, href: "/admin/trips", color: "text-blue-600", bgColor: "bg-blue-50" },
+    { title: "إدارة المدن", description: "إضافة وجهات ومحطات جديدة", icon: MapPin, href: "/admin/locations", color: "text-emerald-600", bgColor: "bg-emerald-50" },
+    { title: "إدارة الحافلات", description: "إدارة الأسطول والمواصفات", icon: Bus, href: "/admin/buses", color: "text-amber-600", bgColor: "bg-amber-50" },
+    { title: "إدارة السائقين", description: "تسجيل السائقين وربط المهام", icon: Users, href: "/admin/drivers", color: "text-indigo-600", bgColor: "bg-indigo-50" },
+    { title: "إدارة الطرود", description: "تسجيل وتتبع الشحنات", icon: Package, href: "/admin/parcels", color: "text-purple-600", bgColor: "bg-purple-50" },
+    { title: "الموظفين", description: "إدارة صلاحيات الوصول", icon: ShieldAlert, href: "/admin/staff", color: "text-red-600", bgColor: "bg-red-50" }
+  ];
 
   const isStatsLoading = isTripsLoading || isParcelsLoading || isBookingsLoading;
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg">
-            <LayoutDashboard className="h-6 w-6 text-white" />
+    <div className="space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <header className="flex items-center justify-between bg-white p-4 rounded-[2rem] shadow-sm border border-primary/5">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+            <LayoutDashboard className="h-7 w-7 text-white" />
           </div>
           <div className="text-right">
-            <h1 className="text-2xl font-bold font-headline text-primary">لوحة الإدارة</h1>
-            <p className="text-xs text-muted-foreground">إدارة نظام العوجان للسياحة والسفر</p>
+            <h1 className="text-xl font-bold text-primary leading-none">لوحة الإدارة</h1>
+            <p className="text-[10px] text-muted-foreground font-bold mt-1">نظام العوجان للسفر | المجلد الرئيسي</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.push("/")} className="rounded-xl">
-          <ChevronLeft className="h-4 w-4 ml-1" /> العودة للتطبيق
+        <Button variant="outline" size="sm" onClick={() => router.push("/")} className="rounded-xl h-10 border-primary/10">
+          <ChevronLeft className="h-4 w-4 ml-1" /> خروج
         </Button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {adminModules.map((module) => (
           <Link key={module.href} href={module.href}>
-            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-2xl border-primary/5">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className={`h-14 w-14 rounded-2xl ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm`}>
-                  <module.icon className={`h-7 w-7 ${module.color}`} />
+            <Card className="hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer group rounded-[2rem] border-primary/5 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-xl">
+              <CardContent className="p-6 flex items-center gap-5">
+                <div className={`h-16 w-16 rounded-[1.5rem] ${module.bgColor} flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border border-white/50`}>
+                  <module.icon className={`h-8 w-8 ${module.color}`} />
                 </div>
                 <div className="flex-1 text-right">
-                  <h3 className="font-bold text-lg">{module.title}</h3>
-                  <p className="text-xs text-muted-foreground">{module.description}</p>
+                  <h3 className="font-bold text-lg text-slate-900 leading-none">{module.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1.5">{module.description}</p>
                 </div>
-                <ChevronLeft className="h-5 w-5 text-muted-foreground opacity-50" />
+                <ChevronLeft className="h-5 w-5 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity" />
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
 
-      <Card className="border-primary/5 bg-primary/5 rounded-[2rem] overflow-hidden">
-        <CardHeader className="py-4 bg-primary/10">
-          <CardTitle className="text-xs font-bold flex items-center gap-2 justify-end text-primary">
-             إحصائيات النظام المباشرة
+      <Card className="border-none bg-slate-900 text-white rounded-[2.5rem] overflow-hidden shadow-2xl">
+        <CardHeader className="py-5 border-b border-white/5">
+          <CardTitle className="text-xs font-black flex items-center gap-2 justify-end opacity-70 uppercase tracking-widest">
+             الإحصائيات التشغيلية المباشرة
             <Settings className="h-4 w-4" />
           </CardTitle>
         </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white p-4 rounded-2xl border shadow-sm">
-              <p className="text-[10px] font-bold text-muted-foreground mb-1">رحلات اليوم</p>
-              {isStatsLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-              ) : (
-                <p className="text-xl font-black text-primary">{stats.todayTrips}</p>
-              )}
+        <CardContent className="pt-8 pb-10">
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold opacity-50 uppercase">رحلات اليوم</p>
+              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto opacity-20" /> : <p className="text-3xl font-black">{stats.todayTrips}</p>}
             </div>
-            <div className="bg-white p-4 rounded-2xl border shadow-sm">
-              <p className="text-[10px] font-bold text-muted-foreground mb-1">طرود نشطة</p>
-              {isStatsLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-              ) : (
-                <p className="text-xl font-black text-primary">{stats.activeParcels}</p>
-              )}
+            <div className="space-y-2 border-x border-white/10">
+              <p className="text-[10px] font-bold opacity-50 uppercase">طرود نشطة</p>
+              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto opacity-20" /> : <p className="text-3xl font-black">{stats.activeParcels}</p>}
             </div>
-            <div className="bg-white p-4 rounded-2xl border shadow-sm">
-              <p className="text-[10px] font-bold text-muted-foreground mb-1">حجوزات اليوم</p>
-              {isStatsLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-              ) : (
-                <p className="text-xl font-black text-primary">{stats.newBookings}</p>
-              )}
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold opacity-50 uppercase">حجوزات اليوم</p>
+              {isStatsLoading ? <Loader2 className="h-5 w-5 animate-spin mx-auto opacity-20" /> : <p className="text-3xl font-black">{stats.newBookings}</p>}
             </div>
           </div>
         </CardContent>
