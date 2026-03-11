@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,12 @@ import {
   Bus, 
   Loader2, 
   User as UserIcon,
-  KeyRound,
-  Settings,
   ShieldCheck,
   Download,
   QrCode,
   ArrowLeft,
-  Printer
+  Printer,
+  Mail
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,8 +33,7 @@ import {
   useAuth,
   initiateEmailSignIn,
   initiateEmailSignUp,
-  initiatePasswordReset,
-  initiateUpdatePassword
+  initiatePasswordReset
 } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
@@ -60,13 +58,6 @@ export default function ProfilePage() {
 
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const staffQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.email) return null;
-    return query(collection(firestore, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
-  }, [firestore, user?.email]);
-  const { data: staffData } = useCollection(staffQuery);
-  const isStaff = staffData && staffData.length > 0;
-  
   const isAdmin = useMemo(() => {
     if (!user?.email) return false;
     const email = user.email.toLowerCase();
@@ -79,10 +70,18 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
+  // استعلام الحجوزات: البحث بالبريد الإلكتروني لضمان بقاء التذاكر مرتبطة بالهوية
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid || user.isAnonymous) return null;
+    if (!firestore || !user) return null;
+    
+    // إذا كان المستخدم مسجلاً ببريد إلكتروني، نبحث عبر البريد (لضمان بقاء التذاكر)
+    if (user.email) {
+      return query(collection(firestore, "bookings"), where("userEmail", "==", user.email.toLowerCase()));
+    }
+    
+    // إذا كان مجهولاً، نبحث بـ userId كحل مؤقت لحين تسجيله
     return query(collection(firestore, "bookings"), where("userId", "==", user.uid));
-  }, [firestore, user?.uid, user?.isAnonymous]);
+  }, [firestore, user?.uid, user?.email]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
@@ -135,6 +134,7 @@ export default function ProfilePage() {
           <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl">
             <CardContent className="p-8">
               <h1 className="text-2xl font-black text-center mb-8 text-primary">بوابة العوجان للسفر</h1>
+              <p className="text-center text-xs text-muted-foreground mb-6">سجل دخولك ببريدك الإلكتروني المستخدم في الحجز لاستعادة تذاكرك دائماً.</p>
               <form onSubmit={handleAuthAction} className="space-y-6">
                 <div className="space-y-2">
                   <Label>البريد الإلكتروني</Label>
@@ -147,12 +147,15 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <Button type="submit" className="w-full h-16 rounded-2xl text-lg font-black shadow-xl">
-                  {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'تسجيل حساب جديد' : 'استعادة كلمة المرور'}
+                  {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'إنشاء حساب جديد' : 'استعادة كلمة المرور'}
                 </Button>
               </form>
               <div className="mt-8 text-center flex flex-col gap-3">
                 {authMode === 'login' ? (
-                  <button onClick={() => setAuthMode('register')} className="text-primary text-sm font-black underline">اشترك الآن</button>
+                  <>
+                    <button onClick={() => setAuthMode('register')} className="text-primary text-sm font-black underline">ليس لديك حساب؟ اشترك الآن</button>
+                    <button onClick={() => setAuthMode('forgot')} className="text-muted-foreground text-xs">نسيت كلمة المرور؟</button>
+                  </>
                 ) : (
                   <button onClick={() => setAuthMode('login')} className="text-primary text-sm font-black underline">لديك حساب؟ سجل دخولك</button>
                 )}
@@ -169,15 +172,17 @@ export default function ProfilePage() {
               </Avatar>
               <div className="flex-1 text-center md:text-right space-y-2">
                 <h2 className="text-2xl font-black text-slate-900">{profile?.firstName || "مسافر"} {profile?.lastName || "العوجان"}</h2>
-                <p className="text-slate-500 font-bold text-sm">{user.email}</p>
+                <div className="flex items-center justify-center md:justify-end gap-2 text-slate-500 font-bold text-sm">
+                  <Mail className="h-3 w-3" /> {user.email}
+                </div>
                 <div className="flex items-center justify-center md:justify-end gap-2 mt-2">
-                  <Badge className="bg-primary px-5 py-2 rounded-full">{isAdmin ? "المدير العام" : isStaff ? "موظف معتمد" : "عضو مسجل"}</Badge>
+                  <Badge className="bg-primary px-5 py-2 rounded-full">{isAdmin ? "المدير العام" : "عضو معتمد"}</Badge>
                 </div>
               </div>
             </div>
           </section>
 
-          {(isAdmin || isStaff) && (
+          {isAdmin && (
             <Card className="bg-primary text-primary-foreground shadow-2xl rounded-[3rem] no-print">
               <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="flex items-center gap-6">

@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, User as UserIcon, Loader2, MapPin, Navigation } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
+import { useFirestore, useUser, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
 
 function CheckoutContent() {
@@ -27,7 +27,7 @@ function CheckoutContent() {
   const tripId = searchParams.get("tripId") || "";
   const seats = searchParams.get("seats")?.split(",") || [];
   const totalAmount = Number(searchParams.get("total") || 0);
-  const email = searchParams.get("email") || "";
+  const email = searchParams.get("email")?.toLowerCase() || "";
   const phone = searchParams.get("phone") || "";
   const extraBags = Number(searchParams.get("extraBags") || 0);
   const boardingPoint = searchParams.get("boardingPoint") || "";
@@ -57,11 +57,11 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث/إنشاء بروفايل المستخدم
+    // 1. تحديث/إنشاء بروفايل المستخدم (يرتبط بالـ UID الحالي)
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
-      email: email.toLowerCase(),
+      email: email,
       phoneNumber: phone,
       firstName: passengers[0]?.fullName.split(' ')[0] || "مسافر",
       lastName: passengers[0]?.fullName.split(' ').slice(1).join(' ') || "العوجان",
@@ -69,13 +69,13 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز في مجموعة علوية موحدة (أكثر متانة للاستعلامات الإدارية)
+    // 2. حفظ الحجز في مجموعة علوية موحدة - الربط الأساسي بالبريد الإلكتروني
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
       busTripId: tripId,
       userId: user.uid,
-      userEmail: email.toLowerCase(),
+      userEmail: email, // الحقل الأهم لاستعادة الحجز لاحقاً
       userPhone: phone,
       numberOfSeats: seats.length,
       seatNumbers: seats,
@@ -129,6 +129,7 @@ function CheckoutContent() {
               <span className="text-[10px] font-bold">رقم الحجز:</span>
               <span className="text-sm font-mono font-bold text-primary">{generatedTicketId}</span>
             </div>
+            <p className="text-[10px] text-muted-foreground font-bold">يرجى تسجيل الدخول بنفس البريد ({email}) لإدارة تذاكرك في أي وقت.</p>
           </CardContent>
         </Card>
 
