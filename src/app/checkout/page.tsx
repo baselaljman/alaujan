@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, Mail, Loader2, MapPin, Navigation } from "lucide-react";
+import { CreditCard, Wallet, Banknote, CheckCircle2, ArrowRight, User as UserIcon, Loader2, MapPin, Navigation } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, useAuth, initiateAnonymousSignIn } from "@/firebase";
 import { collection, doc, serverTimestamp, increment } from "firebase/firestore";
@@ -57,7 +57,7 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. تحديث/إنشاء بروفايل المستخدم لربط البريد
+    // 1. تحديث/إنشاء بروفايل المستخدم لربط البيانات
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -101,36 +101,14 @@ function CheckoutContent() {
       });
     }
 
-    // 4. إرسال الإيميل (عبر مجموعة mail المتوافقة مع إضافة Trigger Email)
-    const mailRef = collection(firestore, "mail");
-    addDocumentNonBlocking(mailRef, {
-      to: email.toLowerCase(),
-      message: {
-        subject: `تأكيد حجزك في العوجان للسفر - ${trackingNumber}`,
-        html: `
-          <div dir="rtl" style="font-family: Arial, sans-serif; text-align: right; border: 1px solid #e2e8f0; border-radius: 15px; padding: 20px; color: #003d2d;">
-            <h1 style="color: #003d2d; border-bottom: 2px solid #003d2d; padding-bottom: 10px;">العوجان للسياحة والسفر</h1>
-            <p>مرحباً بك، تم تأكيد حجزك الدولي بنجاح.</p>
-            <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; margin: 20px 0;">
-              <p><strong>رقم تتبع الرحلة (للتتبع المباشر):</strong> <span style="color: #d97706; font-family: monospace;">${tripId}</span></p>
-              <p><strong>رقم الحجز:</strong> ${trackingNumber}</p>
-              <p><strong>المسار:</strong> ${boardingPoint} ⬅ ${droppingPoint}</p>
-              <p><strong>عدد المقاعد:</strong> ${seats.length} (${seats.join(", ")})</p>
-              <p><strong>المبلغ الإجمالي:</strong> ${totalAmount} ريال سعودي</p>
-            </div>
-            <p style="font-size: 12px; color: #64748b;">يمكنك دائماً الدخول إلى حسابك في التطبيق لتحميل التذكرة كصورة وإبرازها عند الركوب.</p>
-            <p style="text-align: center; margin-top: 30px;">نتمنى لك رحلة سعيدة!</p>
-          </div>
-        `
-      }
-    });
+    // تم إيقاف إرسال البريد بناءً على طلب العميل
 
     setTimeout(() => {
       setIsProcessing(false);
       setIsSuccess(true);
       toast({
         title: "تم تأكيد الحجز الدولي بنجاح",
-        description: `تم إرسال التذكرة إلى بريدك الإلكتروني: ${email}`,
+        description: `يمكنك الآن عرض وتحميل تذكرتك من صفحة حسابي.`,
       });
     }, 2000);
   };
@@ -150,8 +128,8 @@ function CheckoutContent() {
           </div>
           <CardContent className="p-6 bg-white space-y-4">
             <div className="flex items-center gap-3 justify-center text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <p className="text-[10px] font-medium">تم إرسال التذكرة إلى {email}</p>
+              <UserIcon className="h-4 w-4" />
+              <p className="text-[10px] font-medium">تم تأكيد الحجز بنجاح</p>
             </div>
             <div className="p-3 rounded-xl bg-muted/30 border border-dashed flex justify-between items-center">
               <span className="text-[10px] font-bold">رقم الحجز:</span>
