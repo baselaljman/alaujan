@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
   Ticket as TicketIcon, 
-  ChevronLeft, 
   Bus, 
   Loader2, 
   User as UserIcon,
@@ -86,7 +85,6 @@ export default function ProfilePage() {
     }
     
     // 2. إذا كان ضيفاً (الهوية الفورية) نستخدم رقم جلسته UID
-    // هذا يضمن ظهور تذاكره التي حجزها للتو كضيف
     if (user.isAnonymous || !user.email) {
       return query(
         bookingsRef,
