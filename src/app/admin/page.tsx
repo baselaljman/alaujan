@@ -28,9 +28,10 @@ export default function AdminDashboard() {
   const db = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // التحقق من الصلاحيات بناءً على البريد الإلكتروني (بأحرف صغيرة دائماً)
+  // التحقق من الصلاحيات بشكل صارم ومستقر
   const isAuthorized = useMemo(() => {
-    if (isUserLoading || !user || !user.email) return false;
+    if (isUserLoading) return false;
+    if (!user || !user.email) return false;
     
     const email = user.email.toLowerCase();
     const adminEmail = ADMIN_EMAIL.toLowerCase();
@@ -39,22 +40,22 @@ export default function AdminDashboard() {
     return email === adminEmail || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // استعلامات البيانات - يتم تفعيلها فقط بعد التأكد من الصلاحيات واستقرار الجلسة تماماً
+  // استعلامات البيانات - يتم تفعيلها فقط بعد الاستقرار التام للجلسة والصلاحيات
   const tripsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db && user) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized, isUserLoading, user]
+    (isAuthorized && !isUserLoading && db) ? collection(db, "busTrips") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db && user) ? collection(db, "parcels") : null, 
-    [db, isAuthorized, isUserLoading, user]
+    (isAuthorized && !isUserLoading && db) ? collection(db, "parcels") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isAuthorized && !isUserLoading && db && user) ? collectionGroup(db, "bookings") : null, 
-    [db, isAuthorized, isUserLoading, user]
+    (isAuthorized && !isUserLoading && db) ? collectionGroup(db, "bookings") : null, 
+    [db, isAuthorized, isUserLoading]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 

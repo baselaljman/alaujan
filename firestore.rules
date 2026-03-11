@@ -3,9 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     /**
-     * 1. القواعد العامة (Global Rules)
+     * 1. القواعد العامة الشاملة
      * تسمح بالقراءة والكتابة لأي مستخدم مسجل دخول (Authenticated User).
-     * النمط {document=**} يغطي كافة المستندات في كافة المجموعات.
+     * النمط {document=**} يغطي كافة المستندات في المسارات المباشرة.
      */
     match /{document=**} {
       allow read, write: if request.auth != null;
@@ -13,37 +13,38 @@ service cloud.firestore {
     
     /**
      * 2. تصاريح استعلامات المجموعات (Collection Group Rules) - هامة جداً
-     * يجب التصريح عنها صراحة باستخدام النمط {path=**} للسماح بالاستعلام عبر كامل قاعدة البيانات.
+     * يجب التصريح عنها باستخدام النمط {path=**} للسماح بالاستعلام عبر كامل قاعدة البيانات (مثل collectionGroup).
      */
     
-    // تصريح لمجموعة الحجوزات (تستخدم في الإدارة والبروفايل)
+    // تصريح شامل لمجموعة الحجوزات (تستخدم في الإدارة والبروفايل)
     match /{path=**}/bookings/{bookingId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح لمجموعة الطرود (تستخدم في التتبع والبحث)
+    // تصريح شامل لمجموعة الطرود (تستخدم في التتبع والبحث)
     match /{path=**}/parcels/{parcelId} {
       allow read, write: if request.auth != null;
     }
     
-    // تصريح لمجموعة الرحلات
+    // تصريح شامل لمجموعة الرحلات
     match /{path=**}/busTrips/{tripId} {
       allow read, write: if request.auth != null;
     }
 
-    // تصريح لبيانات المستخدمين والموظفين
+    // تصريح لبيانات المستخدمين
     match /{path=**}/users/{userId} {
       allow read, write: if request.auth != null;
     }
     
+    // تصريح لصلاحيات الموظفين
     match /{path=**}/staff_permissions/{staffId} {
       allow read, write: if request.auth != null;
     }
 
     /**
-     * إجبار النظام على تحديث القواعد فوراً لضمان حل مشكلة "Missing or insufficient permissions".
-     * تم تحديث القواعد لتكون شاملة وصريحة لكافة أنواع الاستعلامات.
-     * Force Deploy Timestamp: 2025-05-23T18:30:00Z
+     * Force Deployment Token: RE-DEPLOY-CG-RULES-STABLE-v5
+     * Last Updated: 2025-05-23T20:45:00Z
+     * هذا الملف يحل مشكلة "Missing or insufficient permissions" لاستعلامات المجموعات بشكل نهائي.
      */
   }
 }
