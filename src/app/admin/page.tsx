@@ -20,7 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { format } from "date-fns";
 
 const ADMIN_EMAILS = ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
@@ -31,37 +31,47 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const [isReady, setIsReady] = useState(false);
 
-  // التحقق الصارم من الصلاحيات للمديرين المعتمدين
+  // التحقق الموحد من الصلاحيات (جذري أو موظف)
   const isAuthorized = useMemo(() => {
     if (isUserLoading || !user?.email) return false;
     const email = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === email) || email.endsWith("@alawajan.com");
   }, [user, isUserLoading]);
 
-  // تأخير الاستعلامات لضمان استقرار الجلسة تماماً (يمنع أخطاء Permissions المؤقتة عند التحميل)
+  // التحقق من صلاحيات الموظفين الإضافية
+  const staffQuery = useMemoFirebase(() => {
+    if (!db || !user?.email) return null;
+    return query(collection(db, "staff_permissions"), where("email", "==", user.email.toLowerCase()));
+  }, [db, user?.email]);
+  
+  const { data: staffData, isLoading: isStaffLoading } = useCollection(staffQuery);
+  const isStaff = staffData && staffData.length > 0;
+
+  const canAccess = isAuthorized || isStaff;
+
   useEffect(() => {
-    if (!isUserLoading && isAuthorized) {
+    if (!isUserLoading && !isStaffLoading && canAccess) {
       const timer = setTimeout(() => setIsReady(true), 1000);
       return () => clearTimeout(timer);
     }
-  }, [isUserLoading, isAuthorized]);
+  }, [isUserLoading, isStaffLoading, canAccess]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية التامة للمدير
+  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح
   const tripsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
-    [db, isAuthorized, isReady]
+    (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
+    [db, canAccess, isReady]
   );
   const { data: trips, isLoading: isTripsLoading } = useCollection(tripsRef);
 
   const parcelsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collection(db, "parcels") : null, 
-    [db, isAuthorized, isReady]
+    (isReady && canAccess && db) ? collection(db, "parcels") : null, 
+    [db, canAccess, isReady]
   );
   const { data: parcels, isLoading: isParcelsLoading } = useCollection(parcelsRef);
 
   const bookingsRef = useMemoFirebase(() => 
-    (isReady && isAuthorized && db) ? collection(db, "bookings") : null, 
-    [db, isAuthorized, isReady]
+    (isReady && canAccess && db) ? collection(db, "bookings") : null, 
+    [db, canAccess, isReady]
   );
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsRef);
 
@@ -75,8 +85,7 @@ export default function AdminDashboard() {
     };
   }, [trips, parcels, bookings]);
 
-  // واجهة التحميل أثناء فحص التراخيص
-  if (isUserLoading || (isAuthorized && !isReady)) {
+  if (isUserLoading || isStaffLoading || (canAccess && !isReady)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6">
         <div className="h-20 w-20 rounded-3xl bg-primary/5 flex items-center justify-center relative">
@@ -84,24 +93,23 @@ export default function AdminDashboard() {
           <ShieldAlert className="absolute inset-0 m-auto h-5 w-5 text-primary animate-pulse" />
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-xl font-bold text-slate-900">جاري التحقق من التراخيص</h2>
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Establishing Secure Session...</p>
+          <h2 className="text-xl font-bold text-slate-900">جاري تأمين الجلسة</h2>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Verifying Identity...</p>
         </div>
       </div>
     );
   }
 
-  // واجهة حظر الدخول لغير المديرين
-  if (!isAuthorized) {
+  if (!canAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center space-y-6 px-6">
         <div className="h-24 w-24 rounded-[2.5rem] bg-red-50 flex items-center justify-center border border-red-100 shadow-xl">
           <Lock className="h-12 w-12 text-red-500" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-black text-slate-900">دخول محظور</h1>
+          <h1 className="text-2xl font-black text-slate-900">دخول غير مصرح</h1>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            هذه المنطقة مخصصة للإدارة فقط. حسابك الحالي لا يملك الصلاحيات الكافية.
+            عذراً، لا تملك الصلاحيات الكافية لدخول لوحة الإدارة. يرجى تسجيل الدخول بحساب مسؤول.
           </p>
         </div>
         <Button onClick={() => router.push("/profile")} className="h-14 rounded-2xl px-10 font-bold shadow-lg">تبديل الحساب</Button>

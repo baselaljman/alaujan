@@ -70,17 +70,23 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام الحجوزات: البحث بالبريد الإلكتروني لضمان بقاء التذاكر مرتبطة بالهوية
+  // استعلام الحجوزات: البحث بالبريد الإلكتروني أولاً لضمان ربط التذاكر بالهوية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
-    // إذا كان المستخدم مسجلاً ببريد إلكتروني، نبحث عبر البريد (لضمان بقاء التذاكر)
+    // إذا كان للمستخدم بريد إلكتروني، نعتمد عليه كهوية مطلقة
     if (user.email) {
-      return query(collection(firestore, "bookings"), where("userEmail", "==", user.email.toLowerCase()));
+      return query(
+        collection(firestore, "bookings"), 
+        where("userEmail", "==", user.email.toLowerCase())
+      );
     }
     
-    // إذا كان مجهولاً، نبحث بـ userId كحل مؤقت لحين تسجيله
-    return query(collection(firestore, "bookings"), where("userId", "==", user.uid));
+    // في حال الحجز كضيف (Anonymous)، نعتمد على UID مؤقتاً
+    return query(
+      collection(firestore, "bookings"), 
+      where("userId", "==", user.uid)
+    );
   }, [firestore, user?.uid, user?.email]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
@@ -123,7 +129,12 @@ export default function ProfilePage() {
     window.print();
   };
 
-  if (isUserLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary opacity-20" /></div>;
+  if (isUserLoading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <Loader2 className="animate-spin h-10 w-10 text-primary opacity-20" />
+      <p className="text-[10px] font-bold text-muted-foreground animate-pulse">جاري التحميل...</p>
+    </div>
+  );
 
   const isGuest = !user || user.isAnonymous;
 
