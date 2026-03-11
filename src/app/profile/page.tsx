@@ -89,9 +89,11 @@ export default function ProfilePage() {
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // استعلام مجموعة الحجوزات للعثور على تذاكر المستخدم ببريده
     if (user.email) {
       return query(collectionGroup(firestore, "bookings"), where("userEmail", "==", user.email.toLowerCase()));
     }
+    // للمستخدمين المجهولين، نبحث في مسارهم الخاص فقط
     return collection(firestore, "users", user.uid, "bookings");
   }, [firestore, user, user?.email]);
   

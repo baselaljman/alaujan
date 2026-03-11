@@ -44,16 +44,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isUserLoading) {
       if (isAuthorized) {
-        const timer = setTimeout(() => setIsReady(true), 800);
+        const timer = setTimeout(() => setIsReady(true), 1500); // زيادة وقت الانتظار لضمان استقرار القواعد
         return () => clearTimeout(timer);
       } else if (user) {
         // إذا كان المستخدم مسجل دخول ولكن غير مخول، ننتظر قليلاً ثم نظهر رسالة المنع
-        setIsReady(true);
+        const timer = setTimeout(() => setIsReady(true), 800);
+        return () => clearTimeout(timer);
       }
     }
   }, [isUserLoading, isAuthorized, user]);
 
-  // استعلامات البيانات - لا تبدأ أبداً إلا إذا كان المستخدم مخولاً والصفحة جاهزة
+  // استعلامات البيانات - لا تبدأ أبداً إلا إذا كان المستخدم مخولاً والصفحة جاهزة 100%
   const tripsRef = useMemoFirebase(() => 
     (isReady && isAuthorized && db) ? collection(db, "busTrips") : null, 
     [db, isAuthorized, isReady]

@@ -62,14 +62,15 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        // تحسين استخراج المسار للبلاغات والأخطاء لتجنب تعليق النظام
-        let path: string = "collection-group-query";
+        // تحسين استخراج المسار للبلاغات والأخطاء لتجنب تعليق النظام بمسارات وهمية
+        let path: string = "root-or-group-query";
         try {
           const q = memoizedTargetRefOrQuery as any;
           if (q.path) path = q.path;
           else if (q._query?.path) path = q._query.path.toString();
+          else if (q._query?.collectionGroup) path = `group:${q._query.collectionGroup}`;
         } catch (e) {
-          // ignore
+          // ignore error in path extraction
         }
 
         const contextualError = new FirestorePermissionError({
