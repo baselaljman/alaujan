@@ -15,7 +15,8 @@ import {
   Loader2,
   Users,
   ShieldAlert,
-  Lock
+  Lock,
+  ChevronRight
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -51,12 +52,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!isUserLoading && !isStaffLoading && canAccess) {
-      const timer = setTimeout(() => setIsReady(true), 1000);
+      const timer = setTimeout(() => setIsReady(true), 500);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isStaffLoading, canAccess]);
 
-  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح
+  // استعلامات البيانات - مشروطة بالجاهزية التامة والتصريح الصريح
+  // هذا يمنع حدوث أخطاء Missing Permissions عند تغير حالة تسجيل الدخول
   const tripsRef = useMemoFirebase(() => 
     (isReady && canAccess && db) ? collection(db, "busTrips") : null, 
     [db, canAccess, isReady]

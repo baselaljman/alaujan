@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useEffect, useState } from "react";
@@ -34,8 +35,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isStaff = staffData && staffData.length > 0;
 
   useEffect(() => {
+    // ننتظر حتى ينتهي التحميل تماماً وتستقر الجلسة
     if (!isUserLoading && !isStaffLoading) {
-      const timer = setTimeout(() => setIsReady(true), 1000);
+      const timer = setTimeout(() => setIsReady(true), 800);
       return () => clearTimeout(timer);
     }
   }, [isUserLoading, isStaffLoading]);
@@ -82,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             variant="ghost" 
             size="sm" 
             onClick={() => router.push("/admin")}
-            className="mb-2 gap-2 text-muted-foreground hover:text-primary transition-colors"
+            className="mb-2 gap-2 text-muted-foreground hover:text-primary transition-colors no-print"
           >
             <ChevronRight className="h-4 w-4" /> العودة للوحة الإدارة
           </Button>

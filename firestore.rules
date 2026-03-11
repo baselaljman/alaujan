@@ -40,7 +40,7 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow create: if isAuthenticated();
       
-      // المديرين يرون الكل، والمسافر يرى تذاكره فقط (عبر UID أو البريد)
+      // المدير والموظف يرون الكل، والمسافر يرى تذاكره فقط (عبر UID أو البريد)
       allow read: if isAdmin() || 
                    hasStaffPermission('canManageTrips') || 
                    (isAuthenticated() && (
