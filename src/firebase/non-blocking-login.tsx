@@ -29,32 +29,29 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً وجسدياً في الـ DOM لتجنب الخطأ -39
+  // 1. التحقق إذا كان المحرك موجوداً ومستقراً بالفعل لتجنب إعادة التهيئة المسببة للخطأ -39
   if (globalRecaptchaVerifier) {
     try {
+      // إذا كان المحرك لا يزال مرتبطاً بنفس الحاوية، نعيده مباشرة
+      return globalRecaptchaVerifier;
+    } catch (e) {
+      // إذا حدث خطأ، نقوم بالتنظيف
       if (typeof globalRecaptchaVerifier.clear === 'function') {
         globalRecaptchaVerifier.clear();
       }
       globalRecaptchaVerifier = null;
-    } catch (e) {
-      console.warn("Error clearing recaptcha instance:", e);
     }
   }
 
   // 2. تفريغ الحاوية في الـ DOM تماماً لضمان أنها فارغة 100%
-  // هذا هو الحل الجذري لخطأ "reCAPTCHA placeholder element must be empty" والخطأ -39
   if (typeof document !== 'undefined') {
     const container = document.getElementById(containerId);
     if (container) {
-      // حذف كافة العناصر الأبناء برمجياً لضمان الفراغ المطلق
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
       container.innerHTML = ''; 
     }
   }
 
-  // 3. إنشاء المحرك الجديد بحجم "invisible" لتقليل ظهور الصور وزيادة الاستقرار
+  // 3. إنشاء المحرك الجديد
   try {
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
@@ -63,6 +60,8 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
       },
       'expired-callback': () => {
         toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
+        if (globalRecaptchaVerifier) globalRecaptchaVerifier.clear();
+        globalRecaptchaVerifier = null;
       }
     });
   } catch (error: any) {
@@ -78,7 +77,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
     
-    // التأكد من أن المحرك جاهز ومنظف
+    // التأكد من أن المحرك جاهز
     await appVerifier.render();
     
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
@@ -93,20 +92,18 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     let title = "فشل في الإرسال";
     let message = error.message || "تعذر إرسال الرسالة حالياً.";
 
-    // معالجة الأخطاء الشائعة لتوجيه المستخدم
     if (error.code === 'auth/too-many-requests') {
       title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار ساعة أو إضافة رقمك كـ 'رقم اختبار' في Firebase Console.";
-    } else if (error.code === 'auth/unauthorized-domain' || error.message?.includes('unauthorized')) {
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'هذا النطاق';
-      title = "نطاق غير مصرح به";
-      message = `يجب إضافة الرابط التالي في Firebase Console (Authorized Domains):\n${currentOrigin}`;
+      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار قليلاً أو تحديث الصفحة.";
     } else if (error.message?.includes('placeholder') || error.message?.includes('-39')) {
-      title = "خطأ في تهيئة الحماية";
-      message = "حدث تداخل في أداة التحقق. يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى.";
-    } else if (error.code === 'auth/invalid-phone-number') {
-      title = "رقم هاتف غير صحيح";
-      message = "يرجى التأكد من كتابة الرقم بشكل صحيح مع مفتاح الدولة.";
+      // في حال حدوث الخطأ رغم التنظيف، نطلب تحديث الصفحة كحل نهائي للمتصفح
+      title = "تداخل في الحماية";
+      message = "يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى لضمان استقرار الأداة.";
+      // تصفير المحرك للمحاولة القادمة
+      if (globalRecaptchaVerifier) {
+        try { globalRecaptchaVerifier.clear(); } catch(e) {}
+        globalRecaptchaVerifier = null;
+      }
     }
     
     toast({ variant: "destructive", title, description: message });

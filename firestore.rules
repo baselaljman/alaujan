@@ -29,10 +29,9 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
-    // الرحلات: قراءة عامة للجميع لتمكين الحجز
+    // الرحلات: قراءة عامة وتحديث سعة المقاعد عند الحجز
     match /busTrips/{id} { 
       allow read: if true; 
-      // السماح بتحديث المقاعد المتاحة والموقع المباشر
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription']);
       allow create, delete: if isAdmin() || isStaffMember();
     }
@@ -42,7 +41,7 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: حماية خصوصية مطلقة
+    // الحجوزات: حماية الخصوصية المطلقة مع السماح بالبحث بالبريد أو المعرف
     match /bookings/{bookingId} {
       allow create: if true;
       // السماح بجلب تذكرة محددة لصاحبها أو المسؤول

@@ -36,7 +36,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, limit } from "firebase/firestore";
+import { collection, query, where, doc, limit, orderBy } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -71,14 +71,14 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام التذاكر الحصري والمحمي لضمان الخصوصية
+  // استعلام التذاكر الحصري: يبحث بالبريد الإلكتروني وبالـ UID لضمان ظهور التذاكر فوراً
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = user.email?.toLowerCase().trim();
 
-    // نعتمد على الفلترة الصارمة بالبريد أو المعرف لضمان عدم ظهور تذاكر الآخرين نهائياً
+    // إذا كان للمستخدم بريد إلكتروني، نبحث به كأولوية لضمان استرجاع التذاكر حتى لو تغير الـ UID (بعد التسجيل)
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -87,6 +87,7 @@ export default function ProfilePage() {
       );
     }
     
+    // للضيوف، نبحث عن التذاكر المرتبطة بـ UID الجلسة الحالية
     return query(
       bookingsRef,
       where("userId", "==", user.uid),
