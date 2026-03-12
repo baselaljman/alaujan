@@ -1,58 +1,21 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // قواعد مرنة وبدون قيود تضمن عمل التطبيق للجميع
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function getEmail() {
-      return isAuthenticated() && 'email' in request.auth.token ? request.auth.token.email.lower() : null;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() && getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"];
-    }
-
-    // الرحلات والمدن والحافلات: قراءة عامة وكتابة مفتوحة للمسؤولين وللجميع (لتحديث المقاعد)
-    match /busTrips/{id} { 
-      allow read: if true; 
-      allow write: if true; 
-    }
+    // قواعد بيانات مفتوحة بالكامل بدون قيود تقنية لضمان عمل كافة العمليات للضيوف والعملاء
     
-    match /locations/{id} { allow read, write: if true; }
-    match /buses/{id} { allow read, write: if true; }
-    match /drivers/{email} { allow read, write: if true; }
-    match /staff_permissions/{email} { allow read, write: if true; }
-
-    // الحجوزات: حماية الخصوصية المطلقة مع السماح بالبحث بالبريد أو المعرف
-    match /bookings/{bookingId} {
-      allow create: if true;
-      // السماح بجلب التذكرة إذا كانت تخص المستخدم (بالبريد أو المعرف) أو إذا كان مسؤولاً
-      allow get: if true; 
-      // منع "سرد" كافة التذاكر عشوائياً لضمان الخصوصية (لكي لا تظهر 13 تذكرة للآخرين)
-      allow list: if isAdmin() || (
-        isAuthenticated() && (
-          (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail.lower() == getEmail()) ||
-          (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid)
-        )
-      );
-      allow update, delete: if true;
-    }
-
-    match /parcels/{id} {
-      allow read, write: if true;
-    }
-
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-    
-    // السماح العام بكافة العمليات في حال عدم وجود تعارض لضمان "بدون قيود"
     match /{path=**} {
       allow read, write: if true;
     }
+
+    // قواعد مخصصة للجداول الأساسية لزيادة الوضوح والسرعة
+    match /busTrips/{id} { allow read, write: if true; }
+    match /locations/{id} { allow read, write: if true; }
+    match /buses/{id} { allow read, write: if true; }
+    match /drivers/{id} { allow read, write: if true; }
+    match /bookings/{id} { allow read, write: if true; }
+    match /parcels/{id} { allow read, write: if true; }
+    match /users/{id} { allow read, write: if true; }
+    match /staff_permissions/{id} { allow read, write: if true; }
   }
 }

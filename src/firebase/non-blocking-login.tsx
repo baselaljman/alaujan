@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Auth,
@@ -14,35 +13,29 @@ import {
 } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
-/** 
- * تخزين موثق Recaptcha بشكل عالمي للسماح بتنظيفه 
- */
 let globalRecaptchaVerifier: any = null;
 
-/** Initiate anonymous sign-in (non-blocking). */
+/** تهيئة تسجيل الدخول المجهول لتأمين الجلسة */
 export function initiateAnonymousSignIn(authInstance: Auth): void {
   signInAnonymously(authInstance).catch(error => {
-    // ignore
+    // فشل صامت لا يؤثر على المستخدم
   });
 }
 
-/** Setup Recaptcha Verifier with robust cleanup to fix Error -39 */
+/** تهيئة reCAPTCHA مع تنظيف شامل للمتصفح لمنع خطأ الإرسال وتداخل المحركات */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // تنظيف أي نسخة قديمة لتجنب تداخل الحماية
-  if (globalRecaptchaVerifier) {
-    try {
-      if (typeof globalRecaptchaVerifier.clear === 'function') {
-        globalRecaptchaVerifier.clear();
-      }
-    } catch (e) {}
-    globalRecaptchaVerifier = null;
+  if (typeof document === 'undefined') return null as any;
+
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = ''; 
   }
 
-  if (typeof document !== 'undefined') {
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = ''; 
-    }
+  if (globalRecaptchaVerifier) {
+    try {
+      globalRecaptchaVerifier.clear();
+    } catch (e) {}
+    globalRecaptchaVerifier = null;
   }
 
   try {
@@ -61,21 +54,26 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   return globalRecaptchaVerifier;
 }
 
-/** Send OTP to Phone */
+/** إرسال رمز التحقق للهاتف مع معالجة الأخطاء الذكية */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
-    const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    await appVerifier.render();
+    let finalPhone = phoneNumber.trim();
+    if (!finalPhone.startsWith('+')) {
+      finalPhone = `+${finalPhone.replace(/^0+/, '')}`;
+    }
+
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
-    toast({ title: "تم إرسال الرمز بنجاح" });
+    toast({ title: "تم إرسال الرمز بنجاح", description: "يرجى التحقق من رسائل SMS" });
     return result;
   } catch (error: any) {
-    toast({ variant: "destructive", title: "فشل في الإرسال", description: "يرجى تحديث الصفحة والمحاولة مرة أخرى." });
+    let msg = "فشل في الإرسال، يرجى تحديث الصفحة والمحاولة مرة أخرى.";
+    if (error.code === 'auth/too-many-requests') msg = "محاولات كثيرة جداً، يرجى الانتظار قليلاً.";
+    
+    toast({ variant: "destructive", title: "فشل في الإرسال", description: msg });
     throw error;
   }
 }
 
-/** Initiate email/password sign-up (non-blocking). */
 export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
   createUserWithEmailAndPassword(authInstance, email, password)
     .then(() => {
@@ -86,7 +84,6 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
     });
 }
 
-/** Initiate email/password sign-in (non-blocking). */
 export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
   signInWithEmailAndPassword(authInstance, email, password)
     .then(() => {
@@ -97,7 +94,6 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
     });
 }
 
-/** Send password reset email. */
 export function initiatePasswordReset(authInstance: Auth, email: string): void {
   sendPasswordResetEmail(authInstance, email)
     .then(() => {
@@ -108,7 +104,6 @@ export function initiatePasswordReset(authInstance: Auth, email: string): void {
     });
 }
 
-/** Update user password. */
 export function initiateUpdatePassword(user: User, newPassword: string): void {
   updatePassword(user, newPassword)
     .then(() => {

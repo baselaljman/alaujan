@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from "react";
@@ -75,9 +74,9 @@ export default function ProfilePage() {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
-    const userEmail = user.email?.toLowerCase().trim();
+    const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
-    // جلب التذاكر المرتبطة بالبريد أو المعرف لضمان الخصوصية
+    // البحث عن التذاكر باستخدام البريد الإلكتروني أو المعرف لضمان ظهور تذاكر الضيوف فوراً
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -91,7 +90,7 @@ export default function ProfilePage() {
       where("userId", "==", user.uid),
       limit(100)
     );
-  }, [firestore, user?.uid, user?.email]);
+  }, [firestore, user, profile?.email]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 
