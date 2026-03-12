@@ -16,7 +16,6 @@ import { toast } from '@/hooks/use-toast';
 
 /** 
  * تخزين موثق Recaptcha بشكل عالمي للسماح بتنظيفه 
- * وتجنب الخطأ -39 والخطأ placeholder must be empty
  */
 let globalRecaptchaVerifier: any = null;
 
@@ -27,23 +26,18 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
   });
 }
 
-/** Setup Recaptcha Verifier */
+/** Setup Recaptcha Verifier with robust cleanup to fix Error -39 */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. التحقق إذا كان المحرك موجوداً ومستقراً بالفعل لتجنب إعادة التهيئة المسببة للخطأ -39
+  // تنظيف أي نسخة قديمة لتجنب تداخل الحماية
   if (globalRecaptchaVerifier) {
     try {
-      // إذا كان المحرك لا يزال مرتبطاً بنفس الحاوية، نعيده مباشرة
-      return globalRecaptchaVerifier;
-    } catch (e) {
-      // إذا حدث خطأ، نقوم بالتنظيف
       if (typeof globalRecaptchaVerifier.clear === 'function') {
         globalRecaptchaVerifier.clear();
       }
-      globalRecaptchaVerifier = null;
-    }
+    } catch (e) {}
+    globalRecaptchaVerifier = null;
   }
 
-  // 2. تفريغ الحاوية في الـ DOM تماماً لضمان أنها فارغة 100%
   if (typeof document !== 'undefined') {
     const container = document.getElementById(containerId);
     if (container) {
@@ -51,21 +45,16 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     }
   }
 
-  // 3. إنشاء المحرك الجديد
   try {
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': () => {
-        // reCAPTCHA solved
-      },
+      'callback': () => {},
       'expired-callback': () => {
-        toast({ title: "انتهت صلاحية التحقق", description: "يرجى إعادة المحاولة" });
         if (globalRecaptchaVerifier) globalRecaptchaVerifier.clear();
         globalRecaptchaVerifier = null;
       }
     });
   } catch (error: any) {
-    console.error("Failed to construct RecaptchaVerifier:", error);
     throw error;
   }
   
@@ -76,37 +65,12 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-    
-    // التأكد من أن المحرك جاهز
     await appVerifier.render();
-    
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
-    
-    toast({ 
-      title: "تم إرسال الرمز بنجاح", 
-      description: "ستصلك رسالة نصية (SMS) خلال لحظات." 
-    });
-    
+    toast({ title: "تم إرسال الرمز بنجاح" });
     return result;
   } catch (error: any) {
-    let title = "فشل في الإرسال";
-    let message = error.message || "تعذر إرسال الرسالة حالياً.";
-
-    if (error.code === 'auth/too-many-requests') {
-      title = "تم حظر الرقم مؤقتاً";
-      message = "لقد قمت بمحاولات كثيرة جداً. يرجى الانتظار قليلاً أو تحديث الصفحة.";
-    } else if (error.message?.includes('placeholder') || error.message?.includes('-39')) {
-      // في حال حدوث الخطأ رغم التنظيف، نطلب تحديث الصفحة كحل نهائي للمتصفح
-      title = "تداخل في الحماية";
-      message = "يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى لضمان استقرار الأداة.";
-      // تصفير المحرك للمحاولة القادمة
-      if (globalRecaptchaVerifier) {
-        try { globalRecaptchaVerifier.clear(); } catch(e) {}
-        globalRecaptchaVerifier = null;
-      }
-    }
-    
-    toast({ variant: "destructive", title, description: message });
+    toast({ variant: "destructive", title: "فشل في الإرسال", description: "يرجى تحديث الصفحة والمحاولة مرة أخرى." });
     throw error;
   }
 }

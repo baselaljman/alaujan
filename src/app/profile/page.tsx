@@ -71,26 +71,25 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام تذاكر حصري وآمن: يبحث بالبريد الإلكتروني (المسجل) أو الـ UID (للضيف)
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = user.email?.toLowerCase().trim();
 
-    // نستخدم استعلاماً واحداً محدداً لضمان الخصوصية والقبول من قبل قواعد الحماية
+    // جلب التذاكر المرتبطة بالبريد أو المعرف لضمان الخصوصية
     if (userEmail) {
       return query(
         bookingsRef, 
         where("userEmail", "==", userEmail),
-        limit(50)
+        limit(100)
       );
     }
     
     return query(
       bookingsRef,
       where("userId", "==", user.uid),
-      limit(50)
+      limit(100)
     );
   }, [firestore, user?.uid, user?.email]);
   
