@@ -33,7 +33,7 @@ service cloud.firestore {
     // الرحلات: قراءة عامة، وتحديث محدود للمقاعد والموقع
     match /busTrips/{id} { 
       allow read: if true; 
-      // السماح للجميع بتحديث عدد المقاعد المتاحة عند الحجز لضمان الخصم التلقائي
+      // السماح بتحديث عدد المقاعد المتاحة والموقع المباشر
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription']);
       allow create, delete: if isAdmin() || isStaffMember();
     }
@@ -43,7 +43,7 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: خصوصية تامة - الوصول محصور لصاحب التذكرة (بالبريد أو المعرف) أو المدير
+    // الحجوزات: خصوصية تامة - الوصول محصور لصاحب التذكرة حصراً
     match /bookings/{bookingId} {
       allow create: if true;
       allow get: if isAdmin() || isStaffMember() || (
@@ -54,10 +54,9 @@ service cloud.firestore {
       );
       allow list: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
-          // فرض قيود صارمة: يجب أن يطابق الاستعلام هوية المستخدم الحالية أو بريده حصراً
+          // يسمح فقط بالبحث عن تذاكرك الخاصة (بالبريد أو المعرف)
           (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail == getEmail()) ||
-          (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid) ||
-          (request.query.limit <= 100 && 'busTripId' in request.query.filters)
+          (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid)
         )
       );
       allow update, delete: if isAdmin() || isStaffMember();
@@ -73,7 +72,6 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isStaffMember());
     }
 
-    // منع أي وصول غير مصرح به لبقية القاعدة
     match /{path=**} {
       allow read, write: if isAdmin();
     }

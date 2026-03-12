@@ -36,7 +36,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, limit, orderBy } from "firebase/firestore";
+import { collection, query, where, doc, limit } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -71,22 +71,23 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام التذاكر: يعتمد على البريد الإلكتروني إذا كان موجوداً، وإلا يعتمد على الـ UID للضيوف
+  // استعلام التذاكر: يعتمد على البريد الإلكتروني الموثق أو رقم الجلسة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
+    const userEmail = user.email?.toLowerCase().trim();
 
-    // إذا كان المستخدم يملك بريداً إلكترونياً، نبحث عن التذاكر المرتبطة بهذا البريد
-    if (user.email) {
+    // إذا كان المستخدم يملك بريداً إلكترونياً (سواء مسجل أو تم تأكيده)، نبحث بالبريد لضمان استعادة كافة تذاكره التاريخية
+    if (userEmail) {
       return query(
         bookingsRef, 
-        where("userEmail", "==", user.email.toLowerCase().trim()),
+        where("userEmail", "==", userEmail),
         limit(50)
       );
     }
     
-    // للضيوف (Anonymous)، نبحث باستخدام الـ UID الخاص بالجلسة الحالية
+    // للضيوف (Anonymous)، نبحث باستخدام المعرف الفريد للجلسة الحالية
     return query(
       bookingsRef,
       where("userId", "==", user.uid),
@@ -167,7 +168,7 @@ export default function ProfilePage() {
           <div className="bg-slate-50 p-6 rounded-[2rem] border border-dashed flex items-center justify-between no-print">
             <div className="text-right">
               <p className="text-sm font-black text-primary">أنت تتصفح كضيف حالياً</p>
-              <p className="text-[10px] text-muted-foreground">تظهر التذاكر المرتبطة بجهازك فقط. سجل دخولك لحفظها بشكل دائم.</p>
+              <p className="text-[10px] text-muted-foreground">سجل دخولك لتأمين تذاكرك ببريدك الإلكتروني للأبد.</p>
             </div>
             <Smartphone className="h-8 w-8 text-primary opacity-20" />
           </div>
