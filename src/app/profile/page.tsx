@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   Printer,
   Mail,
-  UserCheck
+  UserCheck,
+  Smartphone
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,7 +36,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, limit } from "firebase/firestore";
+import { collection, query, where, doc, limit, orderBy } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -70,13 +71,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام تذاكر المستخدم: يعتمد على البريد الإلكتروني إذا كان مسجلاً، أو رقم الجلسة للضيوف
+  // استعلام التذاكر: يعتمد على البريد الإلكتروني إذا كان موجوداً، وإلا يعتمد على الـ UID للضيوف
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // إذا كان المستخدم يملك بريداً إلكترونياً موثقاً، نستخدم البريد كأولوية لضمان ظهور كافة حجوزاته التاريخية
+    // إذا كان المستخدم يملك بريداً إلكترونياً، نبحث عن التذاكر المرتبطة بهذا البريد
     if (user.email) {
       return query(
         bookingsRef, 
@@ -85,7 +86,7 @@ export default function ProfilePage() {
       );
     }
     
-    // للضيوف الجدد تماماً الذين لم يسجلوا دخولاً بالبريد، نستخدم رقم الجلسة (UID) لعرض حجزهم الحالي
+    // للضيوف (Anonymous)، نبحث باستخدام الـ UID الخاص بالجلسة الحالية
     return query(
       bookingsRef,
       where("userId", "==", user.uid),
@@ -160,6 +161,16 @@ export default function ProfilePage() {
               </div>
             </div>
           </section>
+        )}
+
+        {isGuest && (
+          <div className="bg-slate-50 p-6 rounded-[2rem] border border-dashed flex items-center justify-between no-print">
+            <div className="text-right">
+              <p className="text-sm font-black text-primary">أنت تتصفح كضيف حالياً</p>
+              <p className="text-[10px] text-muted-foreground">تظهر التذاكر المرتبطة بجهازك فقط. سجل دخولك لحفظها بشكل دائم.</p>
+            </div>
+            <Smartphone className="h-8 w-8 text-primary opacity-20" />
+          </div>
         )}
 
         {isAdmin && (
