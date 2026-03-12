@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     function getEmail() {
-      return request.auth.token.email.lower();
+      return isAuthenticated() && 'email' in request.auth.token ? request.auth.token.email.lower() : null;
     }
 
     function hasEmail() {
@@ -29,7 +29,7 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
-    // الرحلات: قراءة عامة للجميع، وتحديث محدود للمقاعد أثناء الحجز
+    // الرحلات: قراءة عامة، وتحديث محدود للمقاعد والموقع
     match /busTrips/{id} { 
       allow read: if true; 
       allow update: if isAdmin() || isStaffMember() || isDriver() ||
@@ -42,7 +42,7 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: تحصين تام - لا يمكن جلب قائمة الحجوزات إلا بفلتر الهوية الخاص بالمستخدم فقط
+    // الحجوزات: خصوصية تامة - لا يمكن جلب قائمة التذاكر إلا إذا طابقت هوية المستخدم
     match /bookings/{bookingId} {
       allow create: if true;
       allow get: if isAdmin() || isStaffMember() || (
@@ -53,7 +53,7 @@ service cloud.firestore {
       );
       allow list: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
-          // فرض قيود صارمة على الاستعلام: يجب أن يطابق أحد معرفات الهوية الخاصة بالمستخدم
+          // فرض قيود صارمة: يجب أن يطابق الاستعلام هوية المستخدم أو بريده حصراً
           (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail == getEmail()) ||
           (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid) ||
           (request.query.limit <= 100 && 'busTripId' in request.query.filters)

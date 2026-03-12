@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
@@ -69,29 +69,26 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام تذاكر المستخدم الحالي فقط - مطابقة حتمية لضمان الخصوصية
+  // استعلام تذاكر المستخدم: يعتمد على البريد الإلكتروني إذا كان مسجلاً، أو رقم الجلسة للضيوف
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // إذا كان المستخدم مديراً، يسمح له برؤية كافة التذاكر (اختياري)
-    // هنا سنبقيه لعرض التذاكر الخاصة فقط لضمان تجربة مستخدم نظيفة
-    
-    // للمسجلين: ابحث بالبريد الإلكتروني الموثق
-    if (user.email && !user.isAnonymous) {
+    // إذا كان المستخدم يملك بريداً إلكترونياً موثقاً (حتى لو ضيف قام بإدخاله)، نستخدم البريد كأولوية قصوى
+    if (user.email) {
       return query(
         bookingsRef, 
         where("userEmail", "==", user.email.toLowerCase().trim())
       );
     }
     
-    // للضيوف أو الحسابات الجديدة: ابحث برقم الجلسة الفريد (UID)
+    // كخيار احتياطي للضيوف الجدد تماماً، نستخدم رقم الجلسة
     return query(
       bookingsRef,
       where("userId", "==", user.uid)
     );
-  }, [firestore, user?.uid, user?.email, user?.isAnonymous]);
+  }, [firestore, user?.uid, user?.email]);
   
   const { data: bookings, isLoading: isBookingsLoading } = useCollection(bookingsQuery);
 

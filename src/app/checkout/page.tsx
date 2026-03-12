@@ -74,7 +74,7 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز بربط مزدوج (UID + Email)
+    // 2. حفظ الحجز بربط مزدوج (UID + Email) لضمان الخصوصية والوصول الدائم
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -98,7 +98,7 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة فورياً من الرحلة (حصرياً لحقل availableSeats و updatedAt)
+    // 3. خصم المقاعد المتاحة فورياً من الرحلة
     if (tripId) {
       const tripDocRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripDocRef, {
