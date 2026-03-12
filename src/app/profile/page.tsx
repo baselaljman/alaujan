@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from "react";
@@ -5,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
@@ -75,7 +76,7 @@ export default function ProfilePage() {
     
     const bookingsRef = collection(firestore, "bookings");
 
-    // إذا كان المستخدم يملك بريداً إلكترونياً موثقاً (حتى لو ضيف قام بإدخاله)، نستخدم البريد كأولوية قصوى
+    // إذا كان المستخدم يملك بريداً إلكترونياً موثقاً، نستخدم البريد كأولوية لضمان ظهور كافة حجوزاته التاريخية
     if (user.email) {
       return query(
         bookingsRef, 
@@ -83,7 +84,7 @@ export default function ProfilePage() {
       );
     }
     
-    // كخيار احتياطي للضيوف الجدد تماماً، نستخدم رقم الجلسة
+    // للضيوف الجدد تماماً الذين لم يسجلوا دخولاً بالبريد، نستخدم رقم الجلسة (UID) لعرض حجزهم الحالي
     return query(
       bookingsRef,
       where("userId", "==", user.uid)
