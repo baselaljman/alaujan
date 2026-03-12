@@ -71,14 +71,14 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام التذاكر: يعتمد على البريد الإلكتروني الموثق أو رقم الجلسة
+  // استعلام التذاكر الحصري والمحمي لضمان الخصوصية
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = user.email?.toLowerCase().trim();
 
-    // إذا كان المستخدم يملك بريداً إلكترونياً (سواء مسجل أو تم تأكيده)، نبحث بالبريد لضمان استعادة كافة تذاكره التاريخية
+    // نعتمد على الفلترة الصارمة بالبريد أو المعرف لضمان عدم ظهور تذاكر الآخرين نهائياً
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -87,7 +87,6 @@ export default function ProfilePage() {
       );
     }
     
-    // للضيوف (Anonymous)، نبحث باستخدام المعرف الفريد للجلسة الحالية
     return query(
       bookingsRef,
       where("userId", "==", user.uid),

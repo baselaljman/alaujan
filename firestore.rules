@@ -17,8 +17,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return hasEmail() && (
-        getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"] || 
-        getEmail().matches(".*@alawajan\\.com")
+        getEmail() in ["atlob.co@gmail.com", "alaujantravel@gmail.com"]
       );
     }
 
@@ -30,10 +29,10 @@ service cloud.firestore {
       return hasEmail() && exists(/databases/$(database)/documents/drivers/$(getEmail()));
     }
 
-    // الرحلات: قراءة عامة، وتحديث محدود للمقاعد والموقع
+    // الرحلات: قراءة عامة للجميع لتمكين الحجز
     match /busTrips/{id} { 
       allow read: if true; 
-      // السماح بتحديث عدد المقاعد المتاحة والموقع المباشر
+      // السماح بتحديث المقاعد المتاحة والموقع المباشر
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription']);
       allow create, delete: if isAdmin() || isStaffMember();
     }
@@ -43,19 +42,20 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: خصوصية تامة - الوصول محصور لصاحب التذكرة حصراً
+    // الحجوزات: حماية خصوصية مطلقة
     match /bookings/{bookingId} {
       allow create: if true;
+      // السماح بجلب تذكرة محددة لصاحبها أو المسؤول
       allow get: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
           resource.data.userId == request.auth.uid || 
-          (hasEmail() && resource.data.userEmail == getEmail())
+          (hasEmail() && resource.data.userEmail.lower() == getEmail())
         )
       );
+      // السماح بالقوائم المفلترة فقط لضمان عدم تسريب البيانات
       allow list: if isAdmin() || isStaffMember() || (
         isAuthenticated() && (
-          // يسمح فقط بالبحث عن تذاكرك الخاصة (بالبريد أو المعرف)
-          (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail == getEmail()) ||
+          (request.query.limit <= 100 && 'userEmail' in request.query.filters && request.query.filters.userEmail.lower() == getEmail()) ||
           (request.query.limit <= 100 && 'userId' in request.query.filters && request.query.filters.userId == request.auth.uid)
         )
       );
@@ -70,10 +70,6 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isStaffMember());
-    }
-
-    match /{path=**} {
-      allow read, write: if isAdmin();
     }
   }
 }

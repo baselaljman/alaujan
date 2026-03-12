@@ -29,7 +29,7 @@ export function initiateAnonymousSignIn(authInstance: Auth): void {
 
 /** Setup Recaptcha Verifier */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  // 1. تنظيف أي محاولة سابقة برمجياً وجسدياً في الـ DOM
+  // 1. تنظيف أي محاولة سابقة برمجياً وجسدياً في الـ DOM لتجنب الخطأ -39
   if (globalRecaptchaVerifier) {
     try {
       if (typeof globalRecaptchaVerifier.clear === 'function') {
@@ -42,7 +42,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   }
 
   // 2. تفريغ الحاوية في الـ DOM تماماً لضمان أنها فارغة 100%
-  // هذا هو الحل الجذري لخطأ "reCAPTCHA placeholder element must be empty"
+  // هذا هو الحل الجذري لخطأ "reCAPTCHA placeholder element must be empty" والخطأ -39
   if (typeof document !== 'undefined') {
     const container = document.getElementById(containerId);
     if (container) {
@@ -54,7 +54,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     }
   }
 
-  // 3. إنشاء المحرك الجديد بحجم "invisible" لتقليل ظهور الصور
+  // 3. إنشاء المحرك الجديد بحجم "invisible" لتقليل ظهور الصور وزيادة الاستقرار
   try {
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
@@ -101,9 +101,9 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'هذا النطاق';
       title = "نطاق غير مصرح به";
       message = `يجب إضافة الرابط التالي في Firebase Console (Authorized Domains):\n${currentOrigin}`;
-    } else if (error.message?.includes('placeholder')) {
+    } else if (error.message?.includes('placeholder') || error.message?.includes('-39')) {
       title = "خطأ في تهيئة الحماية";
-      message = "حدث تعارض في تحميل أداة التحقق. يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى.";
+      message = "حدث تداخل في أداة التحقق. يرجى تحديث الصفحة (Refresh) والمحاولة مرة أخرى.";
     } else if (error.code === 'auth/invalid-phone-number') {
       title = "رقم هاتف غير صحيح";
       message = "يرجى التأكد من كتابة الرقم بشكل صحيح مع مفتاح الدولة.";
