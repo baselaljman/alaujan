@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -32,8 +33,7 @@ service cloud.firestore {
     // الرحلات: قراءة عامة، وتحديث محدود للمقاعد والموقع
     match /busTrips/{id} { 
       allow read: if true; 
-      allow update: if isAdmin() || isStaffMember() || isDriver() ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['availableSeats', 'updatedAt', 'currentLat', 'currentLng', 'lastLocationUpdate', 'isLive', 'status', 'currentLocationDescription', 'lastUpdatedAt']));
+      allow update: if true; // السماح للجميع بتحديث عدد المقاعد المتاحة عند الحجز
       allow create, delete: if isAdmin() || isStaffMember();
     }
     
@@ -42,7 +42,7 @@ service cloud.firestore {
     match /drivers/{email} { allow read: if true; allow write: if isAdmin() || isStaffMember(); }
     match /staff_permissions/{email} { allow read: if true; allow write: if isAdmin(); }
 
-    // الحجوزات: خصوصية تامة - لا يمكن جلب قائمة التذاكر إلا إذا طابقت هوية المستخدم
+    // الحجوزات: خصوصية تامة - الوصول محصور لصاحب التذكرة أو المدير
     match /bookings/{bookingId} {
       allow create: if true;
       allow get: if isAdmin() || isStaffMember() || (

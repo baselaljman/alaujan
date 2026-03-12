@@ -35,7 +35,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, limit } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -80,14 +80,16 @@ export default function ProfilePage() {
     if (user.email) {
       return query(
         bookingsRef, 
-        where("userEmail", "==", user.email.toLowerCase().trim())
+        where("userEmail", "==", user.email.toLowerCase().trim()),
+        limit(50)
       );
     }
     
     // للضيوف الجدد تماماً الذين لم يسجلوا دخولاً بالبريد، نستخدم رقم الجلسة (UID) لعرض حجزهم الحالي
     return query(
       bookingsRef,
-      where("userId", "==", user.uid)
+      where("userId", "==", user.uid),
+      limit(50)
     );
   }, [firestore, user?.uid, user?.email]);
   
