@@ -15,22 +15,26 @@ import { toast } from '@/hooks/use-toast';
 
 let globalRecaptchaVerifier: any = null;
 
-/** تهيئة تسجيل الدخول المجهول لتأمين الجلسة */
-export function initiateAnonymousSignIn(authInstance: Auth): void {
-  signInAnonymously(authInstance).catch(error => {
-    // فشل صامت لا يؤثر على المستخدم
-  });
+/** تهيئة تسجيل الدخول المجهول لتأمين الجلسة وتصديرها بشكل صريح */
+export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void> {
+  try {
+    await signInAnonymously(authInstance);
+  } catch (error) {
+    console.warn("Anonymous Sign-in skipped or failed");
+  }
 }
 
 /** تهيئة reCAPTCHA مع تنظيف شامل للمتصفح لمنع خطأ الإرسال وتداخل المحركات */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
-  if (typeof document === 'undefined') return null as any;
+  if (typeof window === 'undefined') return null as any;
 
+  // تنظيف الحاوية تماماً من أي محاولات سابقة
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = ''; 
   }
 
+  // تدمير المحقق القديم إذا وجد لمنع الخطأ -39
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -39,37 +43,60 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   }
 
   try {
+    // إنشاء محقق جديد بإعدادات متوافقة مع أندرويد وويب
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': () => {},
+      'callback': (response: any) => {
+        // تم التحقق بنجاح
+      },
       'expired-callback': () => {
         if (globalRecaptchaVerifier) globalRecaptchaVerifier.clear();
         globalRecaptchaVerifier = null;
       }
     });
+    
+    // فرض التصيير لضمان الجاهزية
+    globalRecaptchaVerifier.render();
+    
+    return globalRecaptchaVerifier;
   } catch (error: any) {
+    console.error("Recaptcha Initialization Failed:", error);
     throw error;
   }
-  
-  return globalRecaptchaVerifier;
 }
 
-/** إرسال رمز التحقق للهاتف مع معالجة الأخطاء الذكية */
+/** إرسال رمز التحقق للهاتف مع معالجة ذكية لتنسيق الرقم */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
-    let finalPhone = phoneNumber.trim();
-    if (!finalPhone.startsWith('+')) {
-      finalPhone = `+${finalPhone.replace(/^0+/, '')}`;
+    // تنظيف الرقم من أي رموز أو مسافات
+    let cleanPhone = phoneNumber.replace(/\D/g, '');
+    
+    // إذا بدأ الرقم بصفر (مثل 05)، نقوم بحذفه ليتناسب مع مفتاح الدولة
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.substring(1);
     }
 
+    // التأكد من وجود علامة الزائد في البداية
+    const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${cleanPhone}`;
+
+    console.log("Attempting to send SMS to:", finalPhone);
+    
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
-    toast({ title: "تم إرسال الرمز بنجاح", description: "يرجى التحقق من رسائل SMS" });
+    toast({ title: "تم إرسال الرمز", description: "يرجى التحقق من رسائل SMS على هاتفك" });
     return result;
   } catch (error: any) {
-    let msg = "فشل في الإرسال، يرجى تحديث الصفحة والمحاولة مرة أخرى.";
-    if (error.code === 'auth/too-many-requests') msg = "محاولات كثيرة جداً، يرجى الانتظار قليلاً.";
+    console.error("SMS Send Error:", error);
+    let msg = "تعذر إرسال الرمز. تأكد من صحة الرقم ومفتاح الدولة.";
     
-    toast({ variant: "destructive", title: "فشل في الإرسال", description: msg });
+    if (error.code === 'auth/too-many-requests') {
+      msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة لاحقاً.";
+    } else if (error.code === 'auth/invalid-phone-number') {
+      msg = "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية.";
+    } else if (error.code === 'auth/captcha-check-failed') {
+      msg = "فشل في التحقق من الأمان. يرجى تحديث الصفحة.";
+    }
+    
+    toast({ variant: "destructive", title: "خطأ في الإرسال", description: msg });
     throw error;
   }
 }

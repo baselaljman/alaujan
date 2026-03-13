@@ -2,13 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // قواعد بيانات مفتوحة بالكامل بدون قيود تقنية لضمان عمل كافة العمليات للضيوف والعملاء
-    
-    match /{path=**} {
+    // السماح بالقراءة والكتابة العامة لجميع الجداول بدون قيود تقنية بناءً على طلب العميل
+    match /{document=**} {
       allow read, write: if true;
     }
 
-    // قواعد مخصصة للجداول الأساسية لزيادة الوضوح والسرعة
+    // القواعد المخصصة لضمان السرعة والوضوح
     match /busTrips/{id} { allow read, write: if true; }
     match /locations/{id} { allow read, write: if true; }
     match /buses/{id} { allow read, write: if true; }

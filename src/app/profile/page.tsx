@@ -76,7 +76,7 @@ export default function ProfilePage() {
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
-    // البحث عن التذاكر باستخدام البريد الإلكتروني أو المعرف لضمان ظهور تذاكر الضيوف فوراً
+    // استعلام مزدوج لضمان ظهور التذاكر بناءً على الجلسة أو البريد الإلكتروني
     if (userEmail) {
       return query(
         bookingsRef, 
