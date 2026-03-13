@@ -13,9 +13,10 @@ import {
 } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
-let globalRecaptchaVerifier: any = null;
+// متغير عالمي لتتبع محقق reCAPTCHA لمنع التداخل
+let globalRecaptchaVerifier: RecaptchaVerifier | null = null;
 
-/** تهيئة تسجيل الدخول المجهول لتأمين الجلسة وتصديرها بشكل صريح */
+/** تهيئة تسجيل الدخول المجهول لتأمين الجلسة */
 export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void> {
   try {
     await signInAnonymously(authInstance);
@@ -28,25 +29,27 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
 
-  // تنظيف الحاوية تماماً من أي محاولات سابقة
+  // 1. تنظيف الحاوية تماماً من أي محاولات سابقة
   const container = document.getElementById(containerId);
   if (container) {
     container.innerHTML = ''; 
   }
 
-  // تدمير المحقق القديم إذا وجد لمنع الخطأ -39
+  // 2. تدمير المحقق القديم إذا وجد لمنع خطأ التداخل (-39)
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Error clearing previous recaptcha:", e);
+    }
     globalRecaptchaVerifier = null;
   }
 
   try {
-    // إنشاء محقق جديد بإعدادات متوافقة مع أندرويد وويب
+    // 3. إنشاء محقق جديد بإعدادات غير مرئية
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': (response: any) => {
+      'callback': () => {
         // تم التحقق بنجاح
       },
       'expired-callback': () => {
@@ -54,9 +57,6 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
         globalRecaptchaVerifier = null;
       }
     });
-    
-    // فرض التصيير لضمان الجاهزية
-    globalRecaptchaVerifier.render();
     
     return globalRecaptchaVerifier;
   } catch (error: any) {
@@ -70,38 +70,31 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     let finalPhone = phoneNumber.trim();
     
-    // منطق ذكي لحذف الصفر الزائد من الرقم بعد كود الدولة (مثلاً +96605 يصبح +9665)
-    if (finalPhone.startsWith('+')) {
-      // نفترض أن كود الدولة هو أول 4 خانات تقريباً (+XXX)
-      // نبحث عن أول '0' بعد علامة الزائد في موضع الرقم الوطني
-      const plusIndex = finalPhone.indexOf('+');
-      // محاولة رصد الصفر الذي يلي كود الدولة (السعودية +966، سوريا +963)
-      if (finalPhone.includes('+9660')) {
-        finalPhone = finalPhone.replace('+9660', '+966');
-      } else if (finalPhone.includes('+9630')) {
-        finalPhone = finalPhone.replace('+9630', '+963');
+    // منطق ذكي لحذف الصفر الزائد من الرقم بعد كود الدولة لضمان قبول النظام
+    if (finalPhone.includes('+9660')) {
+      finalPhone = finalPhone.replace('+9660', '+966');
+    } else if (finalPhone.includes('+9630')) {
+      finalPhone = finalPhone.replace('+9630', '+963');
+    } else if (!finalPhone.startsWith('+')) {
+      // إذا لم يبدأ بـ + نفترض أنه رقم سعودي ونحذف الصفر الأول إن وجد
+      if (finalPhone.startsWith('0')) {
+        finalPhone = finalPhone.substring(1);
       }
-    } else {
-       if (finalPhone.startsWith('0')) {
-         finalPhone = finalPhone.substring(1);
-       }
-       finalPhone = `+966${finalPhone}`;
+      finalPhone = `+966${finalPhone}`;
     }
 
-    console.log("Attempting to send SMS to:", finalPhone);
-    
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
     toast({ title: "تم إرسال الرمز", description: "يرجى التحقق من رسائل SMS على هاتفك" });
     return result;
   } catch (error: any) {
     console.error("SMS Send Error:", error);
-    let msg = "تعذر إرسال الرمز. يرجى تحديث الصفحة والمحاولة مرة أخرى.";
+    let msg = "تعذر إرسال الرمز. يرجى تحديث الصفحة والمحاولة مرة واحدة فقط.";
     
     if (error.code === 'auth/too-many-requests') {
       msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة لاحقاً.";
     } else if (error.code === 'auth/invalid-phone-number') {
       msg = "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية وبدون أصفار زائدة.";
-    } else if (error.code === 'auth/captcha-check-failed' || error.message.includes('code:-39')) {
+    } else if (error.code === 'auth/captcha-check-failed' || error.message?.includes('code:-39')) {
       msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والضغط مرة واحدة فقط.";
     }
     
