@@ -20,7 +20,8 @@ import {
   Printer,
   Mail,
   UserCheck,
-  Smartphone
+  Smartphone,
+  Edit
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -70,13 +71,14 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
+  // استعلام متطور يضمن جلب التذاكر بناءً على البريد الإلكتروني أو المعرف الشخصي فوراً
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
-    // استعلام مزدوج لضمان ظهور التذاكر بناءً على الجلسة أو البريد الإلكتروني
+    // إذا كان للمستخدم بريد إلكتروني، نبحث به لضمان جلب كافة التذاكر المرتبطة به
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -85,6 +87,7 @@ export default function ProfilePage() {
       );
     }
     
+    // للضيوف، نبحث بـ UID لضمان ظهور التذاكر المحجوزة في نفس الجلسة
     return query(
       bookingsRef,
       where("userId", "==", user.uid),

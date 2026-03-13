@@ -65,19 +65,28 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   }
 }
 
-/** إرسال رمز التحقق للهاتف مع معالجة ذكية لتنسيق الرقم */
+/** إرسال رمز التحقق للهاتف مع معالجة ذكية لتنسيق الرقم وحذف الصفر الزائد */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
-    // تنظيف الرقم من أي رموز أو مسافات
-    let cleanPhone = phoneNumber.replace(/\D/g, '');
+    let finalPhone = phoneNumber.trim();
     
-    // إذا بدأ الرقم بصفر (مثل 05)، نقوم بحذفه ليتناسب مع مفتاح الدولة
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = cleanPhone.substring(1);
+    // منطق ذكي لحذف الصفر الزائد من الرقم بعد كود الدولة (مثلاً +96605 يصبح +9665)
+    if (finalPhone.startsWith('+')) {
+      // نفترض أن كود الدولة هو أول 4 خانات تقريباً (+XXX)
+      // نبحث عن أول '0' بعد علامة الزائد في موضع الرقم الوطني
+      const plusIndex = finalPhone.indexOf('+');
+      // محاولة رصد الصفر الذي يلي كود الدولة (السعودية +966، سوريا +963)
+      if (finalPhone.includes('+9660')) {
+        finalPhone = finalPhone.replace('+9660', '+966');
+      } else if (finalPhone.includes('+9630')) {
+        finalPhone = finalPhone.replace('+9630', '+963');
+      }
+    } else {
+       if (finalPhone.startsWith('0')) {
+         finalPhone = finalPhone.substring(1);
+       }
+       finalPhone = `+966${finalPhone}`;
     }
-
-    // التأكد من وجود علامة الزائد في البداية
-    const finalPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${cleanPhone}`;
 
     console.log("Attempting to send SMS to:", finalPhone);
     
@@ -86,17 +95,17 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     return result;
   } catch (error: any) {
     console.error("SMS Send Error:", error);
-    let msg = "تعذر إرسال الرمز. تأكد من صحة الرقم ومفتاح الدولة.";
+    let msg = "تعذر إرسال الرمز. يرجى تحديث الصفحة والمحاولة مرة أخرى.";
     
     if (error.code === 'auth/too-many-requests') {
       msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة لاحقاً.";
     } else if (error.code === 'auth/invalid-phone-number') {
-      msg = "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية.";
-    } else if (error.code === 'auth/captcha-check-failed') {
-      msg = "فشل في التحقق من الأمان. يرجى تحديث الصفحة.";
+      msg = "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية وبدون أصفار زائدة.";
+    } else if (error.code === 'auth/captcha-check-failed' || error.message.includes('code:-39')) {
+      msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والضغط مرة واحدة فقط.";
     }
     
-    toast({ variant: "destructive", title: "خطأ في الإرسال", description: msg });
+    toast({ variant: "destructive", title: "فشل في الإرسال", description: msg });
     throw error;
   }
 }
