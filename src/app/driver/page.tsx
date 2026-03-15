@@ -18,7 +18,6 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { Capacitor } from '@capacitor/core';
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
@@ -64,11 +63,17 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
+      if (typeof window === 'undefined') return;
+      
+      const { Capacitor } = await import('@capacitor/core');
+
       // تنظيف أي جلسة تتبع قديمة أولاً
       if (watcherIdRef.current) {
         if (Capacitor.isNativePlatform()) {
           try {
-            const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+            const pluginName = '@capacitor-community/background-geolocation';
+            const mod = await import(pluginName);
+            const BackgroundGeolocation = mod.BackgroundGeolocation;
             await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
           } catch (e) {}
         }
@@ -78,7 +83,9 @@ export default function DriverDashboard() {
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        const pluginName = '@capacitor-community/background-geolocation';
+        const mod = await import(pluginName);
+        const BackgroundGeolocation = mod.BackgroundGeolocation;
         
         const id = await BackgroundGeolocation.addWatcher(
           {
@@ -100,7 +107,7 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        if (typeof window !== 'undefined' && "geolocation" in navigator) {
+        if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
               updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
@@ -131,17 +138,20 @@ export default function DriverDashboard() {
   };
 
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
+    if (typeof window === 'undefined') return;
     setIsTracking(false);
+
     if (watcherIdRef.current) {
+      const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform()) {
         try {
-          const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+          const pluginName = '@capacitor-community/background-geolocation';
+          const mod = await import(pluginName);
+          const BackgroundGeolocation = mod.BackgroundGeolocation;
           await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
         } catch (e) {}
       } else {
-        if (typeof window !== 'undefined') {
-          navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
-        }
+        navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
       }
       watcherIdRef.current = null;
     }
