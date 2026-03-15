@@ -21,10 +21,9 @@ import {
   Printer,
   Mail,
   UserCheck,
-  Smartphone,
   Clock,
-  Navigation,
-  MapPin
+  MapPin,
+  Calendar
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -210,7 +209,7 @@ export default function ProfilePage() {
                     <div className="p-8 space-y-8">
                        <div className="flex items-center justify-between text-center px-4">
                          <div className="flex-1">
-                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">من (From)</p>
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">من (FROM)</p>
                            <p className="font-black text-xl text-slate-900">{booking.boardingPoint}</p>
                          </div>
                          <div className="px-4 flex flex-col items-center gap-1 opacity-20">
@@ -218,7 +217,7 @@ export default function ProfilePage() {
                            <Bus className="h-4 w-4" />
                          </div>
                          <div className="flex-1">
-                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">إلى (To)</p>
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">إلى (TO)</p>
                            <p className="font-black text-xl text-slate-900">{booking.droppingPoint}</p>
                          </div>
                        </div>
@@ -226,36 +225,36 @@ export default function ProfilePage() {
                        <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-8 border-t border-dashed border-slate-100">
                           <div>
                              <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">اسم المسافر الرئيسي</p>
-                             <p className="font-bold text-slate-900 truncate">{booking.passengers?.[0]?.fullName}</p>
+                             <p className="font-bold text-slate-900 truncate">{booking.passengers?.[0]?.fullName || "مسافر"}</p>
                           </div>
                           <div className="text-left">
                              <p className="text-[10px] font-bold text-muted-foreground">رقم المقعد</p>
                              <p className="font-black text-primary text-xl">#{booking.seatNumbers?.join(', ')}</p>
                           </div>
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">تاريخ السفر <Clock className="h-2 w-2" /></p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">تاريخ السفر <Calendar className="h-2 w-2" /></p>
                              <p className="font-black text-slate-900 text-sm">
-                               {booking.departureTime ? format(new Date(booking.departureTime), "PPP", { locale: ar }) : "قيد التحديث"}
+                               {booking.departureTime ? format(new Date(booking.departureTime), "d MMMM yyyy", { locale: ar }) : "بانتظار التأكيد"}
                              </p>
                           </div>
                           <div className="text-left">
                              <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">وقت التحرك</p>
                              <p className="font-black text-primary text-lg">
-                               {booking.departureTime ? format(new Date(booking.departureTime), "p", { locale: ar }) : "قيد التحديث"}
+                               {booking.departureTime ? format(new Date(booking.departureTime), "HH:mm", { locale: ar }) : "00:00"}
                              </p>
                           </div>
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground">رقم الرحلة</p>
-                             <p className="font-black text-accent font-mono text-base uppercase">{booking.busTripId}</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم تتبع الرحلة (REF)</p>
+                             <p className="font-black text-primary font-mono text-base uppercase">{booking.busTripId}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground">رقم التتبع (REF)</p>
-                             <p className="font-black text-primary font-mono text-base">{booking.trackingNumber}</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم الحجز</p>
+                             <p className="font-black text-muted-foreground font-mono text-base">{booking.trackingNumber}</p>
                           </div>
                        </div>
 
                        <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
-                          <div className="space-y-1">
+                          <div className="space-y-1 text-right">
                              <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Digital Ticket</p>
                              <p className="text-[10px] font-bold text-slate-400">تاريخ الحجز: {booking.bookingDate ? format(new Date(booking.bookingDate), "PP", { locale: ar }) : ""}</p>
                           </div>

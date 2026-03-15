@@ -113,9 +113,9 @@ export default function AdminTrips() {
     }
 
     setIsSubmitting(true);
-    // توليد رقم رحلة بتنسيق aw001 (عشوائي حالياً لغرض النموذج ولكن بتنسيق ثابت)
+    // توليد رقم رحلة موحد بنسق aw + رقم عشوائي
     const randomSuffix = Math.floor(100 + Math.random() * 899);
-    const nextId = `aw${randomSuffix}`;
+    const tripCode = `aw${randomSuffix}`;
     
     const [hours, minutes] = depTime.split(":").map(Number);
     const finalDepartureTime = setMinutes(setHours(startOfDay(departureDate), hours), minutes);
@@ -123,7 +123,7 @@ export default function AdminTrips() {
     const selectedBus = buses?.find(b => b.id === busId);
     
     const tripData = {
-      id: nextId,
+      id: tripCode,
       busId,
       busLabel: selectedBus ? `${selectedBus.licensePlate} (${selectedBus.model})` : "حافلة غير محددة",
       originId,
@@ -139,10 +139,10 @@ export default function AdminTrips() {
       updatedAt: new Date().toISOString()
     };
 
-    setDocumentNonBlocking(doc(firestore, "busTrips", nextId), tripData, { merge: true });
+    setDocumentNonBlocking(doc(firestore, "busTrips", tripCode), tripData, { merge: true });
     
     setTimeout(() => {
-      toast({ title: "تم الحفظ", description: `الرحلة الدولية ${nextId} أصبحت نشطة في النظام.` });
+      toast({ title: "تم الحفظ", description: `الرحلة الدولية ${tripCode} أصبحت نشطة في النظام.` });
       setIsAdding(false);
       setIsSubmitting(false);
       setBusId("");
@@ -150,73 +150,6 @@ export default function AdminTrips() {
       setDestinationId("");
       setDepartureDate(undefined);
     }, 500);
-  };
-
-  const handleUpdatePassenger = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPassengerData) return;
-    
-    setIsSavingEdit(true);
-    try {
-      const bookingRef = doc(firestore, "bookings", editingPassengerData.bookingId);
-      const bookingSnap = await getDoc(bookingRef);
-      
-      if (bookingSnap.exists()) {
-        const booking = bookingSnap.data();
-        const updatedPassengers = [...(booking.passengers || [])];
-        
-        updatedPassengers[editingPassengerData.passengerIndex] = {
-          ...updatedPassengers[editingPassengerData.passengerIndex],
-          fullName: editingPassengerData.fullName,
-          passportNumber: editingPassengerData.passportNumber,
-          status: editingPassengerData.status || 'Confirmed'
-        };
-        
-        updateDocumentNonBlocking(bookingRef, {
-          passengers: updatedPassengers
-        });
-        
-        toast({ title: "تم التحديث", description: "تم تعديل بيانات المسافر بنجاح" });
-        setIsEditingPassenger(false);
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "خطأ", description: "تعذر تحديث البيانات" });
-    } finally {
-      setIsSavingEdit(false);
-    }
-  };
-
-  const handleTogglePassengerStatus = async (p: any) => {
-    const newStatus = p.status === 'Cancelled' ? 'Confirmed' : 'Cancelled';
-    const confirmMsg = newStatus === 'Cancelled' ? "هل أنت متأكد من إلغاء هذه التذكرة؟" : "هل تريد إعادة تفعيل التذكرة؟";
-    
-    if (!confirm(confirmMsg)) return;
-
-    try {
-      const bookingRef = doc(firestore, "bookings", p.bookingId);
-      const bookingSnap = await getDoc(bookingRef);
-      
-      if (bookingSnap.exists()) {
-        const booking = bookingSnap.data();
-        const updatedPassengers = [...(booking.passengers || [])];
-        
-        updatedPassengers[p.passengerIndex] = {
-          ...updatedPassengers[p.passengerIndex],
-          status: newStatus
-        };
-        
-        updateDocumentNonBlocking(bookingRef, {
-          passengers: updatedPassengers
-        });
-        
-        toast({ 
-          title: newStatus === 'Cancelled' ? "تم الإلغاء" : "تم التفعيل", 
-          description: `تذكرة المسافر ${p.fullName} الآن ${newStatus === 'Cancelled' ? 'ملغاة' : 'مؤكدة'}` 
-        });
-      }
-    } catch (error) {
-      toast({ variant: "destructive", title: "خطأ", description: "حدث خطأ أثناء تغيير الحالة" });
-    }
   };
 
   const handlePrint = () => {
@@ -258,7 +191,7 @@ export default function AdminTrips() {
                 <div className="space-y-3">
                   <Label className="font-bold flex items-center gap-2 justify-end">مدينة الانطلاق <MapPin className="h-3 w-3 text-primary" /></Label>
                   <Select onValueChange={setOriginId} value={originId}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner text-right"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
                     <SelectContent>
                       {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.country})</SelectItem>)}
                     </SelectContent>
@@ -267,7 +200,7 @@ export default function AdminTrips() {
                 <div className="space-y-3">
                   <Label className="font-bold flex items-center gap-2 justify-end">مدينة الوصول <Navigation className="h-3 w-3 text-primary" /></Label>
                   <Select onValueChange={setDestinationId} value={destinationId}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
+                    <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner text-right"><SelectValue placeholder="اختر مدينة" /></SelectTrigger>
                     <SelectContent>
                       {locations?.map(l => <SelectItem key={l.id} value={l.id}>{l.name} ({l.country})</SelectItem>)}
                     </SelectContent>
@@ -303,7 +236,7 @@ export default function AdminTrips() {
               <div className="space-y-3">
                 <Label className="font-bold flex items-center gap-2 justify-end">الحافلة المخصصة <Bus className="h-3 w-3 text-primary" /></Label>
                 <Select onValueChange={setBusId} value={busId}>
-                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="اختر حافلة من الأسطول" /></SelectTrigger>
+                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner text-right"><SelectValue placeholder="اختر حافلة من الأسطول" /></SelectTrigger>
                   <SelectContent>
                     {buses?.map(b => <SelectItem key={b.id} value={b.id}>{b.licensePlate} - {b.model} ({b.capacity} مقعد)</SelectItem>)}
                   </SelectContent>
@@ -403,7 +336,6 @@ export default function AdminTrips() {
                                   <th className="px-6 py-5">اسم المسافر الثلاثي</th>
                                   <th className="px-6 py-5">رقم الجواز / الهوية</th>
                                   <th className="px-6 py-5">الحالة</th>
-                                  <th className="px-6 py-5 text-center no-print">الإجراءات</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
@@ -423,9 +355,6 @@ export default function AdminTrips() {
                                       )}>
                                         {p.status === 'Cancelled' ? 'ملغاة' : 'مؤكدة'}
                                       </Badge>
-                                    </td>
-                                    <td className="px-6 py-4 text-center no-print">
-                                      {/* إجراءات المسافر */}
                                     </td>
                                   </tr>
                                 ))}
