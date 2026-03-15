@@ -48,7 +48,9 @@ import {
   Edit,
   UserX,
   UserCheck,
-  Save
+  Save,
+  Mail,
+  Phone
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
@@ -113,7 +115,6 @@ export default function AdminTrips() {
     }
 
     setIsSubmitting(true);
-    // توليد رقم رحلة موحد بنسق aw + رقم عشوائي
     const randomSuffix = Math.floor(100 + Math.random() * 899);
     const tripCode = `aw${randomSuffix}`;
     
@@ -150,6 +151,117 @@ export default function AdminTrips() {
       setDestinationId("");
       setDepartureDate(undefined);
     }, 500);
+  };
+
+  const handleEditPassenger = (p: any) => {
+    setEditingPassengerData({
+      bookingId: p.bookingId,
+      index: p.passengerIndex,
+      fullName: p.fullName,
+      passportNumber: p.passportNumber,
+      status: p.status || 'Confirmed'
+    });
+    setIsEditingPassenger(true);
+  };
+
+  const handleSavePassenger = async () => {
+    if (!editingPassengerData) return;
+    setIsSavingEdit(true);
+
+    try {
+      const bookingDoc = await getDoc(doc(firestore, "bookings", editingPassengerData.bookingId));
+      if (bookingDoc.exists()) {
+        const passengers = [...bookingDoc.data().passengers];
+        passengers[editingPassengerData.index] = {
+          ...passengers[editingPassengerData.index],
+          fullName: editingPassengerData.fullName,
+          passportNumber: editingPassengerData.passportNumber,
+          status: editingPassengerData.status
+        };
+
+        updateDocumentNonBlocking(doc(firestore, "bookings", editingPassengerData.bookingId), {
+          passengers: passengers
+        });
+        
+        toast({ title: "تم التحديث", description: "تم تحديث بيانات المسافر بنجاح" });
+        setIsEditingPassenger(false);
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "خطأ", description: "فشل تحديث البيانات" });
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleToggleStatus = async (p: any) => {
+    const newStatus = p.status === 'Cancelled' ? 'Confirmed' : 'Cancelled';
+    const bookingDoc = await getDoc(doc(firestore, "bookings", p.bookingId));
+    if (bookingDoc.exists()) {
+      const passengers = [...bookingDoc.data().passengers];
+      passengers[p.passengerIndex].status = newStatus;
+      
+      updateDocumentNonBlocking(doc(firestore, "bookings", p.bookingId), {
+        passengers: passengers
+      });
+      
+      toast({ title: "تم تغيير الحالة", description: `حالة المقعد الآن: ${newStatus === 'Cancelled' ? 'ملغى' : 'مؤكد'}` });
+    }
+  };
+
+  const handlePrintIndividual = (p: any) => {
+    // محاكاة طباعة تذكرة فردية عبر النافذة
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html dir="rtl" lang="ar">
+        <head>
+          <title>تذكرة - ${p.fullName}</title>
+          <style>
+            body { font-family: 'Arial', sans-serif; padding: 40px; text-align: right; }
+            .ticket { border: 2px solid #003d2d; border-radius: 20px; padding: 30px; max-width: 600px; margin: auto; }
+            .header { border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
+            .trip-id { font-family: monospace; font-weight: bold; font-size: 24px; color: #003d2d; }
+            .label { font-size: 12px; color: #666; margin-bottom: 5px; }
+            .value { font-weight: bold; font-size: 18px; margin-bottom: 15px; }
+            @media print { .no-print { display: none; } }
+          </style>
+        </head>
+        <body onload="window.print()">
+          <div class="ticket">
+            <div class="header">
+              <h1 style="color: #003d2d; margin: 0;">شركة العوجان للسفر</h1>
+              <p>تذكرة سفر رسمية - رحلة دولية</p>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="label">اسم المسافر</div>
+                <div class="value">${p.fullName}</div>
+                <div class="label">رقم الجواز</div>
+                <div class="value">${p.passportNumber}</div>
+              </div>
+              <div style="text-align: left;">
+                <div class="label">رقم الرحلة (REF)</div>
+                <div class="trip-id">${p.tripId}</div>
+                <div class="label">رقم المقعد</div>
+                <div class="value">#${p.seatNumber}</div>
+              </div>
+            </div>
+            <hr>
+            <div>
+              <div class="label">من</div>
+              <div class="value">${p.boardingPoint}</div>
+              <div class="label">إلى</div>
+              <div class="value">${p.droppingPoint}</div>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+              <p style="font-size: 10px; color: #999;">يرجى التواجد في المحطة قبل موعد الرحلة بساعة.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handlePrint = () => {
@@ -328,13 +440,14 @@ export default function AdminTrips() {
                             <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
                           </div>
                         ) : (
-                          <div className="rounded-[2rem] border border-primary/10 overflow-hidden shadow-sm">
+                          <div className="rounded-[2rem] border border-primary/10 overflow-hidden shadow-sm overflow-x-auto">
                             <table className="w-full text-right text-sm border-collapse">
                               <thead className="bg-primary/5 border-b-2 border-primary/10 font-black text-primary">
                                 <tr>
                                   <th className="px-6 py-5 text-center border-l">مقعد</th>
-                                  <th className="px-6 py-5">اسم المسافر الثلاثي</th>
-                                  <th className="px-6 py-5">رقم الجواز / الهوية</th>
+                                  <th className="px-6 py-5">المسافر</th>
+                                  <th className="px-6 py-5">الجواز / الهوية</th>
+                                  <th className="px-6 py-5 no-print">إجراءات</th>
                                   <th className="px-6 py-5">الحالة</th>
                                 </tr>
                               </thead>
@@ -345,9 +458,25 @@ export default function AdminTrips() {
                                       <span className="font-black text-primary text-lg">{p.seatNumber}</span>
                                     </td>
                                     <td className="px-6 py-4 font-black text-slate-900">
-                                      <p className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</p>
+                                      <div className="flex flex-col">
+                                        <span className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</span>
+                                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Smartphone className="h-2 w-2" /> {p.phone}</span>
+                                      </div>
                                     </td>
                                     <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
+                                    <td className="px-6 py-4 no-print">
+                                      <div className="flex items-center gap-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEditPassenger(p)}>
+                                          <Edit className="h-4 w-4 text-primary" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleToggleStatus(p)}>
+                                          {p.status === 'Cancelled' ? <UserCheck className="h-4 w-4 text-emerald-600" /> : <UserX className="h-4 w-4 text-red-600" />}
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handlePrintIndividual(p)}>
+                                          <Printer className="h-4 w-4 text-slate-400" />
+                                        </Button>
+                                      </div>
+                                    </td>
                                     <td className="px-6 py-4">
                                       <Badge className={cn(
                                         "text-[9px] font-bold px-3 py-0.5 rounded-full border-none",
@@ -380,6 +509,54 @@ export default function AdminTrips() {
           </Card>
         ))}
       </div>
+
+      <Dialog open={isEditingPassenger} onOpenChange={setIsEditingPassenger}>
+        <DialogContent className="rounded-[2rem] text-right">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات المسافر</DialogTitle>
+            <DialogDescription>تحديث بيانات المسافر في كشف الرحلة</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>الاسم الثلاثي</Label>
+              <Input 
+                value={editingPassengerData?.fullName || ""} 
+                onChange={e => setEditingPassengerData({...editingPassengerData, fullName: e.target.value})}
+                className="rounded-xl h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>رقم الجواز / الهوية</Label>
+              <Input 
+                value={editingPassengerData?.passportNumber || ""} 
+                onChange={e => setEditingPassengerData({...editingPassengerData, passportNumber: e.target.value})}
+                className="rounded-xl h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>حالة المقعد</Label>
+              <Select 
+                value={editingPassengerData?.status || "Confirmed"}
+                onValueChange={val => setEditingPassengerData({...editingPassengerData, status: val})}
+              >
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Confirmed">مؤكد</SelectItem>
+                  <SelectItem value="Cancelled">ملغى</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="flex flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsEditingPassenger(false)} className="flex-1 rounded-xl">إلغاء</Button>
+            <Button onClick={handleSavePassenger} disabled={isSavingEdit} className="flex-1 rounded-xl gap-2">
+              {isSavingEdit ? <Loader2 className="animate-spin h-4 w-4" /> : <><Save className="h-4 w-4" /> حفظ التعديلات</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
