@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Auth,
@@ -92,6 +93,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       if (finalPhone.startsWith('0')) {
         finalPhone = finalPhone.substring(1);
       }
+      // افتراض السعودية إذا لم يبدأ بمفتاح
       finalPhone = `+966${finalPhone}`;
     }
 

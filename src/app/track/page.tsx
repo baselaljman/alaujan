@@ -21,9 +21,10 @@ export default function TrackingPage() {
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
 
+  // جعل البحث غير حساس لحالة الأحرف عبر تحويل المدخل للأحرف الصغيرة دائماً
   const tripRef = useMemoFirebase(() => {
     if (!firestore || !activeTrackingId) return null;
-    return doc(firestore, "busTrips", activeTrackingId);
+    return doc(firestore, "busTrips", activeTrackingId.toLowerCase().trim());
   }, [firestore, activeTrackingId]);
 
   const { data: trip, isLoading } = useDoc(tripRef);
@@ -100,12 +101,12 @@ export default function TrackingPage() {
           <Card className="border-primary/10 shadow-lg">
             <CardHeader className="pb-4 text-right">
               <CardTitle className="text-lg">أدخل رقم الرحلة</CardTitle>
-              <CardDescription>ستجد الرقم في تذكرة الحجز الخاصة بك</CardDescription>
+              <CardDescription>مثلاً: aw701 (يقبل الحروف الكبيرة أو الصغيرة)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
                 <Input
-                  placeholder="مثلاً: aw001"
+                  placeholder="مثلاً: aw701"
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value)}
                   className="h-12 rounded-xl"
@@ -121,7 +122,7 @@ export default function TrackingPage() {
           {activeTrackingId && !isLoading && !trip && (
             <div className="text-center p-12 bg-red-50 text-red-600 rounded-3xl border border-red-100 animate-in fade-in">
               <p className="font-bold">عذراً، لم يتم العثور على رحلة بهذا الرقم</p>
-              <p className="text-xs mt-1">تأكد من كتابة الرقم بشكل صحيح</p>
+              <p className="text-xs mt-1 text-right">ملاحظة: تأكد أن رقم الرحلة يبدأ بـ aw متبوعاً بالأرقام.</p>
             </div>
           )}
 
@@ -150,49 +151,29 @@ export default function TrackingPage() {
                     {trip.status === "Delayed" && "تأخير في الرحلة"}
                     {trip.status === "Arrived" && "تم الوصول"}
                   </Badge>
-                  
-                  {(trip.isLive || trip.status === "Departed") && (
-                    <div className="absolute top-4 left-4 z-10">
-                      <Badge className="bg-red-600 animate-pulse border-none shadow-lg">LIVE</Badge>
-                    </div>
-                  )}
                 </div>
 
                 <CardContent className="p-6 space-y-8 text-right">
-                  {/* عرض المسار الكامل للرحلة */}
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-primary flex items-center gap-2 justify-end mb-4">
-                      <span>مسار الرحلة الكامل ومحطات التوقف</span>
+                      <span>مسار الرحلة والبيانات</span>
                       <Navigation className="h-3 w-3" />
                     </h3>
                     
                     <div className="relative flex flex-col gap-4 pr-4 border-r-2 border-primary/10 mr-2">
-                      {/* نقطة الانطلاق */}
                       <div className="relative">
                         <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-primary border-4 border-white shadow-sm" />
                         <div className="flex justify-between items-center">
                           <p className="font-black text-sm text-primary">{trip.originName}</p>
-                          <Badge variant="outline" className="text-[9px]">نقطة الانطلاق</Badge>
+                          <Badge variant="outline" className="text-[9px]">انطلاق</Badge>
                         </div>
                       </div>
 
-                      {/* محطات التوقف المتوسطة */}
-                      {trip.intermediateStops && trip.intermediateStops.map((stop: any, idx: number) => (
-                        <div key={idx} className="relative">
-                          <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-accent border-4 border-white shadow-sm" />
-                          <div className="flex justify-between items-center">
-                            <p className="font-bold text-sm text-muted-foreground">{stop.name}</p>
-                            <Badge variant="secondary" className="text-[9px] bg-accent/10 text-accent border-none">محطة توقف</Badge>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* نقطة الوصول */}
                       <div className="relative">
                         <div className="absolute -right-[23px] top-1.5 h-4 w-4 rounded-full bg-emerald-600 border-4 border-white shadow-sm" />
                         <div className="flex justify-between items-center">
                           <p className="font-black text-sm text-emerald-700">{trip.destinationName}</p>
-                          <Badge className="text-[9px] bg-emerald-600">نقطة الوصول</Badge>
+                          <Badge className="text-[9px] bg-emerald-600">وصول</Badge>
                         </div>
                       </div>
                     </div>
@@ -202,59 +183,17 @@ export default function TrackingPage() {
                     <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                       <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground font-bold">الموقع المباشر الحالي</p>
+                        <p className="text-[10px] text-muted-foreground font-bold">الموقع المباشر</p>
                         <p className="text-sm font-bold text-primary">{trip.currentLocationDescription || "جاري التحديث..."}</p>
-                        {trip.lastLocationUpdate && (
-                          <p className="text-[9px] text-muted-foreground mt-1">
-                            آخر تحديث: {new Date(trip.lastLocationUpdate).toLocaleTimeString('ar-EG')}
-                          </p>
-                        )}
                       </div>
                     </div>
-
-                    {trip.status === "Delayed" && (
-                      <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-pulse">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <p className="text-xs font-bold text-red-700">تنبيه: تم تسجيل تأخير في الرحلة</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-dashed flex items-center justify-between">
-                    <div className="text-right">
-                      <p className="text-[10px] text-muted-foreground font-bold">موعد الوصول التقديري</p>
-                      <p className="text-sm font-black text-primary">
-                        {trip.arrivalTime ? new Date(trip.arrivalTime).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : "غير محدد"}
-                      </p>
-                    </div>
-                    <Clock className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
             </div>
           )}
         </TabsContent>
-
-        <TabsContent value="parcel">
-           <Card className="border-primary/10 shadow-lg">
-            <CardHeader className="text-right">
-              <CardTitle className="text-lg">تتبع شحنتك</CardTitle>
-              <CardDescription>أدخل رقم تتبع الطرد المكون من (AWJ-PRC-xxxx)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input placeholder="AWJ-PRC-700123" className="h-12 rounded-xl" />
-                <Button className="h-12 px-8 rounded-xl bg-primary shadow-lg">بحث</Button>
-              </div>
-              <div className="p-16 border-2 border-dashed rounded-3xl text-center text-muted-foreground bg-muted/10">
-                <Navigation className="h-10 w-10 mx-auto mb-4 opacity-20" />
-                أدخل الرقم لمشاهدة موقع الحافلة المحملة بطردك مباشرة
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
 }
-

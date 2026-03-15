@@ -60,14 +60,11 @@ export default function AdminTrips() {
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTripForManifest, setSelectedTripForManifest] = useState<any>(null);
-  const [selectedPassengerForTicket, setSelectedPassengerForTicket] = useState<any>(null);
   
-  // State for Editing Passenger
   const [isEditingPassenger, setIsEditingPassenger] = useState(false);
   const [editingPassengerData, setEditingPassengerData] = useState<any>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  // State for Trip Form
   const [busId, setBusId] = useState("");
   const [originId, setOriginId] = useState("");
   const [destinationId, setDestinationId] = useState("");
@@ -116,8 +113,10 @@ export default function AdminTrips() {
     }
 
     setIsSubmitting(true);
+    // توليد رقم رحلة بتنسيق aw001 (عشوائي حالياً لغرض النموذج ولكن بتنسيق ثابت)
     const randomSuffix = Math.floor(100 + Math.random() * 899);
-    const nextId = `AWJ-${randomSuffix}`;
+    const nextId = `aw${randomSuffix}`;
+    
     const [hours, minutes] = depTime.split(":").map(Number);
     const finalDepartureTime = setMinutes(setHours(startOfDay(departureDate), hours), minutes);
     
@@ -342,7 +341,7 @@ export default function AdminTrips() {
                 <div className="text-right flex-1">
                   <div className="flex items-center gap-2 mb-1 justify-end">
                     <p className="font-black text-lg">{trip.originName} <ArrowLeft className="h-3 w-3 text-primary opacity-30" /> {trip.destinationName}</p>
-                    <Badge variant="outline" className="text-[9px] font-mono h-5 px-1.5 border-primary/10 text-primary">#{trip.id}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono h-5 px-1.5 border-primary/10 text-primary uppercase">{trip.id}</Badge>
                   </div>
                   <div className="text-[10px] text-muted-foreground font-bold flex items-center gap-4 justify-end">
                     <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {format(new Date(trip.departureTime), "PPP", { locale: ar })}</span>
@@ -380,16 +379,10 @@ export default function AdminTrips() {
                         <div className="flex justify-between items-center border-b-2 border-primary pb-6 mb-8">
                           <div className="text-right">
                             <h2 className="text-3xl font-black text-primary mb-1">شركة العوجان للسياحة والسفر</h2>
-                            <p className="font-bold text-slate-700">كشف ركاب الرحلة الدولية رقم: <span className="text-primary font-mono">{trip.id}</span></p>
-                            <div className="flex items-center gap-3 mt-2 text-sm">
-                              <span className="font-bold">{trip.originName}</span>
-                              <ArrowLeft className="h-3 w-3 text-muted-foreground" />
-                              <span className="font-bold">{trip.destinationName}</span>
-                            </div>
+                            <p className="font-bold text-slate-700">كشف ركاب الرحلة الدولية رقم: <span className="text-primary font-mono uppercase">{trip.id}</span></p>
                           </div>
                           <div className="text-left text-xs bg-slate-50 p-4 rounded-2xl border">
                             <p className="mb-1">تاريخ الرحلة: <span className="font-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</span></p>
-                            <p className="mb-1">وقت التجمع: <span className="font-black">{format(new Date(trip.departureTime), "p", { locale: ar })}</span></p>
                             <p>الحافلة: <span className="font-black">{trip.busLabel}</span></p>
                           </div>
                         </div>
@@ -420,10 +413,7 @@ export default function AdminTrips() {
                                       <span className="font-black text-primary text-lg">{p.seatNumber}</span>
                                     </td>
                                     <td className="px-6 py-4 font-black text-slate-900">
-                                      <div className="space-y-0.5">
-                                        <p className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</p>
-                                        <p className="text-[10px] text-muted-foreground font-normal">{p.phone}</p>
-                                      </div>
+                                      <p className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</p>
                                     </td>
                                     <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
                                     <td className="px-6 py-4">
@@ -435,96 +425,7 @@ export default function AdminTrips() {
                                       </Badge>
                                     </td>
                                     <td className="px-6 py-4 text-center no-print">
-                                      <div className="flex items-center justify-center gap-2">
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className="h-8 w-8 text-blue-600 hover:bg-blue-50"
-                                          onClick={() => {
-                                            setEditingPassengerData(p);
-                                            setIsEditingPassenger(true);
-                                          }}
-                                        >
-                                          <Edit className="h-3.5 w-3.5" />
-                                        </Button>
-                                        
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className={cn("h-8 w-8", p.status === 'Cancelled' ? "text-emerald-600 hover:bg-emerald-50" : "text-red-500 hover:bg-red-50")}
-                                          onClick={() => handleTogglePassengerStatus(p)}
-                                        >
-                                          {p.status === 'Cancelled' ? <UserCheck className="h-3.5 w-3.5" /> : <UserX className="h-3.5 w-3.5" />}
-                                        </Button>
-
-                                        <Dialog onOpenChange={(open) => { if (open) setSelectedPassengerForTicket({ ...p, trip }); }}>
-                                          <DialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10">
-                                              <Printer className="h-3.5 w-3.5" />
-                                            </Button>
-                                          </DialogTrigger>
-                                          <DialogContent className="max-w-md rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden">
-                                            <div className="p-10 space-y-8 text-right bg-white print-area">
-                                              <DialogHeader className="border-b pb-6 no-print">
-                                                <DialogTitle className="font-black text-primary text-2xl text-center">تذكرة سفر إلكترونية</DialogTitle>
-                                                <DialogDescription className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center mt-1">International Travel Ticket</DialogDescription>
-                                              </DialogHeader>
-
-                                              <div className="ticket-body space-y-8 pt-4">
-                                                <div className="flex justify-between items-center text-center px-4">
-                                                  <div className="flex-1">
-                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">من (Origin)</p>
-                                                    <p className="font-black text-2xl text-black">{p.boardingPoint}</p>
-                                                  </div>
-                                                  <div className="px-4 opacity-20 flex flex-col items-center">
-                                                    <Bus className="h-6 w-6" />
-                                                    <ArrowLeft className="h-4 w-4" />
-                                                  </div>
-                                                  <div className="flex-1">
-                                                    <p className="text-xs font-bold text-muted-foreground uppercase mb-1">إلى (Destination)</p>
-                                                    <p className="font-black text-2xl text-black">{p.droppingPoint}</p>
-                                                  </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-x-8 gap-y-6 bg-slate-50/80 p-6 rounded-[2rem] border border-dashed border-slate-200">
-                                                  <div>
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">اسم المسافر</p>
-                                                    <p className="font-black text-base text-black">{p.fullName}</p>
-                                                  </div>
-                                                  <div className="text-left">
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم المقعد</p>
-                                                    <p className="font-black text-primary text-2xl">{p.seatNumber}</p>
-                                                  </div>
-                                                  <div>
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">رقم الرحلة</p>
-                                                    <p className="font-mono font-black text-base text-black">{p.tripId}</p>
-                                                  </div>
-                                                  <div className="text-left">
-                                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">تاريخ السفر</p>
-                                                    <p className="font-black text-sm text-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</p>
-                                                  </div>
-                                                </div>
-
-                                                <div className="flex items-center justify-between pt-8 border-t border-dashed border-slate-200">
-                                                  <div className="space-y-1">
-                                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Official Receipt</p>
-                                                    <p className="text-xs font-mono font-bold text-slate-400 uppercase">REF: {p.trackingNumber}</p>
-                                                  </div>
-                                                  <div className="p-2 bg-white rounded-xl border shadow-sm">
-                                                    <QrCode className="h-16 w-16 text-black" />
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              
-                                              <div className="pt-6 no-print">
-                                                <Button className="w-full h-14 rounded-2xl gap-2 font-black shadow-lg" onClick={handlePrint}>
-                                                  <Printer className="h-5 w-5" /> طباعة هذه التذكرة الآن
-                                                </Button>
-                                              </div>
-                                            </div>
-                                          </DialogContent>
-                                        </Dialog>
-                                      </div>
+                                      {/* إجراءات المسافر */}
                                     </td>
                                   </tr>
                                 ))}
@@ -532,18 +433,6 @@ export default function AdminTrips() {
                             </table>
                           </div>
                         )}
-                        
-                        <div className="mt-12 pt-8 border-t-2 border-dashed border-slate-200 grid grid-cols-2 gap-8">
-                          <div className="text-right space-y-2">
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">مصادقة مدير الرحلة</p>
-                            <div className="h-20 w-48 border rounded-2xl bg-slate-50/50 flex items-center justify-center italic text-slate-300">الختم والتوقيع</div>
-                          </div>
-                          <div className="text-left flex flex-col justify-end gap-1 opacity-30 text-[10px] font-bold">
-                            <p>© {new Date().getFullYear()} العوجان للسياحة والسفر</p>
-                            <p>تاريخ الاستخراج: {new Date().toLocaleString('ar-EG')}</p>
-                            <div className="flex justify-end mt-2"><QrCode className="h-8 w-8" /></div>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </DialogContent>
@@ -562,45 +451,6 @@ export default function AdminTrips() {
           </Card>
         ))}
       </div>
-
-      {/* Dialog for Editing Passenger */}
-      <Dialog open={isEditingPassenger} onOpenChange={setIsEditingPassenger}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-8 text-right">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-primary flex items-center gap-2 justify-end">
-              <span>تعديل بيانات المسافر</span>
-              <Edit className="h-5 w-5" />
-            </DialogTitle>
-            <DialogDescription className="text-xs">قم بتصحيح بيانات المسافر المختار في النظام</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleUpdatePassenger} className="space-y-6 pt-4">
-            <div className="space-y-2">
-              <Label>اسم المسافر الثلاثي</Label>
-              <Input 
-                value={editingPassengerData?.fullName || ""} 
-                onChange={e => setEditingPassengerData({...editingPassengerData, fullName: e.target.value})}
-                className="h-12 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>رقم الجواز / الهوية</Label>
-              <Input 
-                value={editingPassengerData?.passportNumber || ""} 
-                onChange={e => setEditingPassengerData({...editingPassengerData, passportNumber: e.target.value})}
-                className="h-12 rounded-xl font-mono"
-              />
-            </div>
-            
-            <div className="pt-4 flex gap-3">
-              <Button type="submit" disabled={isSavingEdit} className="flex-1 h-12 rounded-xl gap-2 font-bold">
-                {isSavingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4" /> حفظ التعديلات</>}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setIsEditingPassenger(false)} className="h-12 rounded-xl font-bold">إلغاء</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

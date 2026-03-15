@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from "react";
@@ -21,9 +22,9 @@ import {
   Mail,
   UserCheck,
   Smartphone,
-  Edit,
   Clock,
-  Navigation
+  Navigation,
+  MapPin
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -134,7 +135,7 @@ export default function ProfilePage() {
   if (isUserLoading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <Loader2 className="animate-spin h-10 w-10 text-primary opacity-20" />
-      <p className="text-[10px] font-bold text-muted-foreground animate-pulse">جاري التحقق من الهوية...</p>
+      <p className="text-[10px] font-bold text-muted-foreground animate-pulse">جاري التحقق...</p>
     </div>
   );
 
@@ -156,21 +157,11 @@ export default function ProfilePage() {
                   <Mail className="h-3 w-3" /> {user.email || profile?.email}
                 </div>
                 <div className="flex items-center justify-center md:justify-end gap-2 mt-2">
-                  <Badge className="bg-primary px-5 py-2 rounded-full">{isAdmin ? "المدير العام" : "عضو معتمد"}</Badge>
+                  <Badge className="bg-primary px-5 py-2 rounded-full">{isAdmin ? "إدارة عليا" : "عضوية ذهبية"}</Badge>
                 </div>
               </div>
             </div>
           </section>
-        )}
-
-        {isGuest && (
-          <div className="bg-slate-50 p-6 rounded-[2rem] border border-dashed flex items-center justify-between no-print">
-            <div className="text-right">
-              <p className="text-sm font-black text-primary">أنت تتصفح كضيف حالياً</p>
-              <p className="text-[10px] text-muted-foreground">سجل دخولك لتأمين تذاكرك ببريدك الإلكتروني للأبد.</p>
-            </div>
-            <Smartphone className="h-8 w-8 text-primary opacity-20" />
-          </div>
         )}
 
         {isAdmin && (
@@ -179,11 +170,11 @@ export default function ProfilePage() {
               <div className="flex items-center gap-6">
                 <ShieldCheck className="h-12 w-12" />
                 <div className="text-right">
-                  <h2 className="text-2xl font-black">غرفة التحكم المركزية</h2>
-                  <p className="text-xs opacity-70">إدارة الرحلات والركاب والطرود</p>
+                  <h2 className="text-2xl font-black">مركز التحكم الإداري</h2>
+                  <p className="text-xs opacity-70">إدارة الأسطول والركاب والطرود</p>
                 </div>
               </div>
-              <Button asChild className="rounded-[1.5rem] bg-white text-primary px-10 h-16 shadow-2xl font-black">
+              <Button asChild className="rounded-[1.5rem] bg-white text-primary px-10 h-16 shadow-2xl font-black hover:bg-slate-50">
                 <Link href="/admin">دخول لوحة الإدارة</Link>
               </Button>
             </CardContent>
@@ -192,7 +183,7 @@ export default function ProfilePage() {
 
         <section className="space-y-8">
           <div className="flex items-center justify-between px-4 no-print">
-            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكري الشخصية</h3>
+            <h3 className="font-black text-2xl flex items-center gap-3 text-primary"><TicketIcon className="h-6 w-6" /> تذاكر السفر</h3>
             {hasBookings && <Badge variant="secondary" className="px-4 py-1.5 rounded-xl bg-primary/5 text-primary border-primary/10">{bookings.length} تذكرة</Badge>}
           </div>
           
@@ -206,66 +197,66 @@ export default function ProfilePage() {
                     <div className="p-8 flex items-center justify-between bg-primary/5">
                       <div className="flex items-center gap-3">
                          <Bus className="h-6 w-6 text-primary" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Official Ticket</span>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">Al-Awajan Official Pass</span>
                       </div>
                       <Badge className={cn(
                         "font-black px-4 py-1 rounded-full border-none",
-                        booking.paymentStatus === "Completed" ? "bg-emerald-500" : "bg-amber-500"
+                        booking.paymentStatus === "Completed" ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
                       )}>
                         {booking.paymentStatus === "Completed" ? "حجز مؤكد" : "بانتظار الدفع"}
                       </Badge>
                     </div>
                     
                     <div className="p-8 space-y-8">
-                       <div className="flex items-center justify-between text-center">
+                       <div className="flex items-center justify-between text-center px-4">
                          <div className="flex-1">
-                           <p className="text-[10px] font-bold text-muted-foreground mb-1">من</p>
-                           <p className="font-black text-xl text-slate-900">{booking.boardingPoint || "غير محدد"}</p>
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">من (From)</p>
+                           <p className="font-black text-xl text-slate-900">{booking.boardingPoint}</p>
                          </div>
-                         <div className="flex flex-col items-center gap-1 opacity-20">
-                           <ArrowLeft className="h-5 w-5" />
-                           <span className="text-[8px] font-bold">دولي</span>
+                         <div className="px-4 flex flex-col items-center gap-1 opacity-20">
+                           <ArrowLeft className="h-4 w-4" />
+                           <Bus className="h-4 w-4" />
                          </div>
                          <div className="flex-1">
-                           <p className="text-[10px] font-bold text-muted-foreground mb-1">إلى</p>
-                           <p className="font-black text-xl text-slate-900">{booking.droppingPoint || "غير محدد"}</p>
+                           <p className="text-[10px] font-bold text-muted-foreground mb-1 uppercase">إلى (To)</p>
+                           <p className="font-black text-xl text-slate-900">{booking.droppingPoint}</p>
                          </div>
                        </div>
 
                        <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-8 border-t border-dashed border-slate-100">
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">المسافر الرئيسي <UserIcon className="h-2 w-2" /></p>
-                             <p className="font-bold text-slate-900">{booking.passengers?.[0]?.fullName || "مسافر العوجان"}</p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">اسم المسافر الرئيسي</p>
+                             <p className="font-bold text-slate-900 truncate">{booking.passengers?.[0]?.fullName}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">رقم المقعد <Bus className="h-2 w-2" /></p>
-                             <p className="font-black text-primary text-xl">{booking.seatNumbers?.join(', ')}</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم المقعد</p>
+                             <p className="font-black text-primary text-xl">#{booking.seatNumbers?.join(', ')}</p>
                           </div>
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">تاريخ السفر <Navigation className="h-2 w-2" /></p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">تاريخ السفر <Clock className="h-2 w-2" /></p>
                              <p className="font-black text-slate-900 text-sm">
                                {booking.departureTime ? format(new Date(booking.departureTime), "PPP", { locale: ar }) : "قيد التحديث"}
                              </p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">وقت السفر <Clock className="h-2 w-2" /></p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">وقت التحرك</p>
                              <p className="font-black text-primary text-lg">
                                {booking.departureTime ? format(new Date(booking.departureTime), "p", { locale: ar }) : "قيد التحديث"}
                              </p>
                           </div>
                           <div>
                              <p className="text-[10px] font-bold text-muted-foreground">رقم الرحلة</p>
-                             <p className="font-black text-accent font-mono text-base">{booking.busTripId}</p>
+                             <p className="font-black text-accent font-mono text-base uppercase">{booking.busTripId}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground">رقم التتبع</p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم التتبع (REF)</p>
                              <p className="font-black text-primary font-mono text-base">{booking.trackingNumber}</p>
                           </div>
                        </div>
 
                        <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
                           <div className="space-y-1">
-                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Digital Boarding Pass</p>
+                             <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Al-Awajan Digital Ticket</p>
                              <p className="text-[10px] font-bold text-slate-400">تاريخ الحجز: {booking.bookingDate ? format(new Date(booking.bookingDate), "PP", { locale: ar }) : ""}</p>
                           </div>
                           <QrCode className="h-14 w-14 text-slate-800" />
@@ -273,21 +264,21 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2 justify-center mt-6 no-print">
+                  <div className="flex gap-3 justify-center mt-6 no-print">
                     <Button 
                       variant="outline"
                       onClick={() => window.print()} 
-                      className="rounded-full h-12 px-6 bg-white text-primary border-primary/20 font-black gap-2"
+                      className="rounded-xl h-12 px-6 bg-white text-primary border-primary/10 font-black gap-2"
                     >
                       <Printer className="h-4 w-4" /> طباعة
                     </Button>
                     <Button 
                       onClick={() => downloadTicket(booking.id)} 
                       disabled={isDownloading === booking.id} 
-                      className="rounded-full h-12 px-6 bg-slate-900 text-white font-black gap-2"
+                      className="rounded-xl h-12 px-6 bg-slate-900 text-white font-black gap-2 shadow-lg"
                     >
                       {isDownloading === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} 
-                      تحميل الصورة
+                      تحميل التذكرة
                     </Button>
                   </div>
                 </div>
@@ -296,9 +287,9 @@ export default function ProfilePage() {
           ) : (
             <div className="text-center p-24 bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 no-print">
               <TicketIcon className="h-16 w-16 text-slate-100 mx-auto mb-6" />
-              <p className="text-sm text-slate-400 font-black">لا توجد حجوزات مرتبطة بحسابك حالياً</p>
+              <p className="text-sm text-slate-400 font-black">لا توجد حجوزات مسجلة ببريدك</p>
               <Button asChild variant="link" className="mt-4 text-primary font-bold">
-                 <Link href="/">ابدأ حجز رحلتك الأولى</Link>
+                 <Link href="/">ابدأ رحلتك الأولى مع العوجان</Link>
               </Button>
             </div>
           )}
@@ -306,38 +297,31 @@ export default function ProfilePage() {
 
         {isGuest && (
           <section className="max-w-md mx-auto pt-10 no-print">
-            <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/10 bg-primary/5">
+            <Card className="rounded-[2.5rem] overflow-hidden shadow-2xl border-primary/5 bg-primary/5">
               <CardContent className="p-8">
                 <div className="flex flex-col items-center mb-6">
-                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center mb-3">
-                    <UserCheck className="h-6 w-6 text-white" />
+                  <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-xl">
+                    <UserCheck className="h-7 w-7 text-white" />
                   </div>
-                  <h2 className="text-xl font-black text-primary">تأمين تذاكرك للأبد</h2>
-                  <p className="text-[10px] text-muted-foreground font-bold mt-1 text-center">قم بإنشاء حساب ببريدك الإلكتروني لتجد تذاكرك محفوظة في أي جهاز آخر.</p>
+                  <h2 className="text-xl font-black text-primary">تأمين تذاكر السفر</h2>
+                  <p className="text-[10px] text-muted-foreground font-bold mt-1 text-center">قم بإنشاء حساب ببريدك الإلكتروني لضمان الوصول لتذاكرك من أي هاتف آخر.</p>
                 </div>
                 
                 <form onSubmit={handleAuthAction} className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-bold">البريد الإلكتروني</Label>
-                    <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(email.target.value)} className="rounded-xl h-12 bg-white" required />
+                    <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(e.target.value)} className="rounded-xl h-12 bg-white" required />
                   </div>
                   {authMode !== 'forgot' && (
                     <div className="space-y-2">
                       <Label className="text-xs font-bold">كلمة المرور</Label>
-                      <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(password.target.value)} className="rounded-xl h-12 bg-white" required />
+                      <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="rounded-xl h-12 bg-white" required />
                     </div>
                   )}
                   <Button type="submit" className="w-full h-14 rounded-xl text-base font-black shadow-lg">
                     {authMode === 'login' ? 'دخول النظام' : authMode === 'register' ? 'اشترك الآن' : 'استعادة كلمة المرور'}
                   </Button>
                 </form>
-                <div className="mt-6 text-center">
-                  {authMode === 'login' ? (
-                    <button onClick={() => setAuthMode('register')} className="text-primary text-xs font-black underline">ليس لديك حساب؟ اشترك الآن</button>
-                  ) : (
-                    <button onClick={() => setAuthMode('login')} className="text-primary text-xs font-black underline">لديك حساب؟ سجل دخولك</button>
-                  )}
-                </div>
               </CardContent>
             </Card>
           </section>
@@ -345,8 +329,8 @@ export default function ProfilePage() {
 
         {!isGuest && (
           <div className="pt-10 no-print">
-            <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-red-600 border-red-50 font-black hover:bg-red-50 hover:border-red-100 transition-colors">
-              <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج
+            <Button variant="outline" onClick={handleLogout} className="w-full h-16 rounded-2xl text-red-600 border-red-50 font-black hover:bg-red-50 transition-colors">
+              <LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من الحساب
             </Button>
           </div>
         )}
