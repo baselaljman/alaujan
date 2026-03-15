@@ -1,8 +1,6 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  // تفعيل التصدير الثابت لضمان التوافق مع تطبيقات الجوال (Capacitor)
   output: 'export',
   images: {
     unoptimized: true,
@@ -39,6 +37,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // تفعيل معالجة مكتبات Capacitor لضمان نجاح التجميع في بيئة Next.js
+  transpilePackages: [
+    '@capacitor-community/background-geolocation',
+    '@capacitor/geolocation',
+    '@capacitor/core'
+  ],
 };
 
 export default nextConfig;

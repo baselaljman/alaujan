@@ -66,10 +66,8 @@ export default function DriverDashboard() {
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        // استخدام اسم متغير لتجنب التحليل الساكن في Vercel
-        const pkgName = '@capacitor-community/background-geolocation';
-        const mod = await import(pkgName);
-        const BackgroundGeolocation = mod.BackgroundGeolocation;
+        // تحميل المكتبة ديناميكياً فقط عند الحاجة وفي بيئة الموبايل
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         
         const id = await BackgroundGeolocation.addWatcher(
           {
@@ -91,7 +89,7 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // نظام الويب العادي
+        // نظام الويب العادي للمتصفحات
         if (typeof window !== 'undefined' && "geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
@@ -116,7 +114,8 @@ export default function DriverDashboard() {
       setIsTracking(true);
       toast({ title: "تم تفعيل البث المباشر", description: "البث يعمل الآن وبدقة عالية" });
     } catch (e) {
-      toast({ variant: "destructive", title: "خطأ في التتبع" });
+      console.error("Tracking Error:", e);
+      toast({ variant: "destructive", title: "خطأ في التتبع", description: "تأكد من تفعيل صلاحيات الموقع دائماً" });
       setIsTracking(false);
     }
   };
@@ -125,10 +124,12 @@ export default function DriverDashboard() {
     setIsTracking(false);
     if (watcherIdRef.current) {
       if (Capacitor.isNativePlatform()) {
-        const pkgName = '@capacitor-community/background-geolocation';
-        const mod = await import(pkgName);
-        const BackgroundGeolocation = mod.BackgroundGeolocation;
-        await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        try {
+          const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+          await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        } catch (e) {
+          console.error("Error stopping native tracking:", e);
+        }
       } else {
         if (typeof window !== 'undefined') {
           navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));

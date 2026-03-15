@@ -84,3 +84,4 @@ npx cap open android
 # alaujan
 # alaujan
 # alaujan
+# alaujan
