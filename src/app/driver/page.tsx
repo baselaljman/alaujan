@@ -22,7 +22,6 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
@@ -54,7 +53,7 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    // إرسال التحديث كل 10 ثوانٍ لضمان التتبع المباشر
+    // إرسال التحديث كل 10 ثوانٍ لضمان التتبع المباشر وتوفير البيانات
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -72,7 +71,7 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
-      // 1. طلب التصاريح بشكل صريح (مهم جداً للأندرويد)
+      // 1. طلب تصاريح الموقع بجميع مستوياتها (بما في ذلك الخلفية)
       const permissions = await Geolocation.requestPermissions();
       if (permissions.location !== 'granted') {
         toast({ 
@@ -85,7 +84,7 @@ export default function DriverDashboard() {
 
       setActiveTripId(tripId);
       
-      // 2. بدء مراقبة الموقع
+      // 2. بدء مراقبة الموقع بدقة عالية
       const watchId = await Geolocation.watchPosition(
         {
           enableHighAccuracy: true,
@@ -258,6 +257,7 @@ export default function DriverDashboard() {
           <li>• تأكد من تفعيل الـ GPS في هاتفك قبل الضغط على "بدء الرحلة".</li>
           <li>• يفضل إبقاء التطبيق في الواجهة لضمان دقة البث للركاب.</li>
           <li>• اضغط على "إنهاء الرحلة" فور الوصول للمحطة النهائية لإبلاغ الركاب.</li>
+          <li>• تم تفعيل خاصية البث في الخلفية لضمان استمرار التتبع حتى عند قفل الشاشة.</li>
         </ul>
       </div>
     </div>
