@@ -69,13 +69,13 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
-      // طلب تصاريح الموقع بشكل صريح
+      // طلب تصاريح الموقع بشكل صريح لضمان عملها على الأندرويد
       const permissions = await Geolocation.requestPermissions();
       if (permissions.location !== 'granted') {
         toast({ 
           variant: "destructive", 
           title: "تم رفض الوصول للموقع", 
-          description: "يرجى تفعيل تصاريح الموقع 'السماح دوماً' من إعدادات الهاتف ليعمل البث في الخلفية." 
+          description: "يرجى تفعيل تصاريح الموقع 'السماح دوماً' ليعمل البث في الخلفية." 
         });
         return;
       }
@@ -85,7 +85,7 @@ export default function DriverDashboard() {
       // بدء مراقبة الموقع بدقة عالية
       const watchId = await Geolocation.watchPosition(
         {
-          enableHighAccuracy: true, // ضروري لدقة التتبع
+          enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0
         },
@@ -153,7 +153,7 @@ export default function DriverDashboard() {
       <div className="space-y-2 text-right">
         <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
         <p className="text-muted-foreground text-xs leading-relaxed max-w-xs mx-auto text-center">
-          بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً. يرجى مراجعة الإدارة لربط بريدك بأسطول العوجان.
+          بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً.
         </p>
       </div>
       <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة <RefreshCw className="h-4 w-4 mr-2" /></Button>
@@ -190,15 +190,12 @@ export default function DriverDashboard() {
             <div className="space-y-2">
               <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">جاري البث المباشر للموقع</Badge>
               <h2 className="text-xl font-black text-emerald-900">الرحلة النشطة: {activeTripId}</h2>
-              <p className="text-xs text-emerald-700/70 font-bold">يمكنك تصغير التطبيق، سيستمر البث في الخلفية</p>
+              <p className="text-xs text-emerald-700/70 font-bold">سيستمر البث حتى لو كان الهاتف مقفلاً</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 pt-4">
               <Button onClick={() => stopTracking("Arrived")} className="h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
                 <CheckCircle2 className="h-6 w-6" /> تأكيد الوصول للمحطة النهائية
-              </Button>
-              <Button variant="outline" onClick={() => stopTracking("Delayed")} className="h-14 rounded-2xl border-emerald-200 text-emerald-800 font-bold">
-                توقف مؤقت / تأخير طارئ
               </Button>
             </div>
           </CardContent>
@@ -207,12 +204,11 @@ export default function DriverDashboard() {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
             <h3 className="font-black text-lg text-primary">الرحلات المجدولة لك</h3>
-            <Badge variant="outline" className="border-primary/10 text-primary">{myTrips?.length || 0} رحلة</Badge>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {myTrips?.filter(t => t.status !== "Arrived").map(trip => (
-              <Card key={trip.id} className="border-primary/5 shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all">
+              <Card key={trip.id} className="border-primary/5 shadow-sm rounded-3xl overflow-hidden">
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className="text-right space-y-1">
@@ -220,9 +216,6 @@ export default function DriverDashboard() {
                         <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
                         <Badge className="bg-primary/10 text-primary font-black border-none">{trip.id}</Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground font-bold flex items-center gap-2 justify-end">
-                        <Clock className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleString('ar-EG', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
-                      </p>
                     </div>
                   </div>
                   
@@ -230,33 +223,14 @@ export default function DriverDashboard() {
                     onClick={() => startTracking(trip.id)} 
                     className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 font-black text-lg gap-3 shadow-lg"
                   >
-                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع الآن
+                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع
                   </Button>
                 </CardContent>
               </Card>
             ))}
-
-            {(!myTrips || myTrips.length === 0) && (
-              <div className="text-center p-16 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-primary/5">
-                <Clock className="h-12 w-12 text-primary/10 mx-auto mb-4" />
-                <p className="text-muted-foreground font-bold text-sm">لا توجد رحلات مجدولة حالياً</p>
-              </div>
-            )}
           </div>
         </div>
       )}
-
-      <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10">
-        <h4 className="text-sm font-black text-accent mb-3 flex items-center gap-2 justify-end">
-          تعليمات هامة للقائد
-          <Info className="h-4 w-4" />
-        </h4>
-        <ul className="text-[10px] text-muted-foreground space-y-2 leading-relaxed font-bold text-right">
-          <li>• عند طلب التصاريح، اختر "السماح دوماً" (Allow all the time) لضمان عدم توقف البث عند قفل الهاتف.</li>
-          <li>• تأكد من شحن الهاتف وتوصيله بمصدر طاقة أثناء الرحلة الطويلة.</li>
-          <li>• اضغط على زر "تأكيد الوصول" عند الوصول للمحطة النهائية لإبلاغ الركاب فوراً.</li>
-        </ul>
-      </div>
     </div>
   );
 }

@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     androidScheme: 'https'
+  },
+  plugins: {
+    Geolocation: {
+      // إعدادات إضافية للموقع لضمان الدقة
+    }
   }
 };
 
