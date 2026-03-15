@@ -49,7 +49,8 @@ import {
   UserCheck,
   Save,
   Mail,
-  Phone
+  Phone,
+  CreditCard
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format, setHours, setMinutes, startOfDay } from "date-fns";
@@ -98,6 +99,7 @@ export default function AdminTrips() {
         phone: booking.userPhone,
         email: booking.userEmail,
         paymentStatus: booking.paymentStatus,
+        paymentMethodLabel: booking.paymentMethodLabel || "غير محدد",
         trackingNumber: booking.trackingNumber,
         bookingId: booking.id,
         boardingPoint: booking.boardingPoint,
@@ -117,7 +119,6 @@ export default function AdminTrips() {
 
     setIsSubmitting(true);
     
-    // حساب رقم التتبع الموحد بالتسلسل aw001, aw002...
     const tripNumbers = trips?.map(t => {
       const numPart = t.id.replace('aw', '');
       return isNaN(parseInt(numPart)) ? 0 : parseInt(numPart);
@@ -159,6 +160,13 @@ export default function AdminTrips() {
       setDestinationId("");
       setDepartureDate(undefined);
     }, 500);
+  };
+
+  const handleUpdatePaymentStatus = (bookingId: string, newStatus: string) => {
+    updateDocumentNonBlocking(doc(firestore, "bookings", bookingId), {
+      paymentStatus: newStatus
+    });
+    toast({ title: "تم تحديث الدفع", description: `الحالة الآن: ${newStatus === 'Completed' ? 'مكتمل' : 'معلق'}` });
   };
 
   const handleEditPassenger = (p: any) => {
@@ -437,7 +445,7 @@ export default function AdminTrips() {
                       <Users className="h-4 w-4" /> كشف الركاب
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl manifest-dialog">
+                  <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] p-0 border-none shadow-2xl manifest-dialog">
                     <div className="p-8 space-y-8 text-right print-area">
                       <DialogHeader className="flex flex-row items-center justify-between border-b pb-6 no-print">
                         <div className="flex items-center gap-4">
@@ -477,32 +485,58 @@ export default function AdminTrips() {
                             <table className="w-full text-right text-sm border-collapse">
                               <thead className="bg-primary/5 border-b-2 border-primary/10 font-black text-primary">
                                 <tr>
-                                  <th className="px-6 py-5 text-center border-l">مقعد</th>
-                                  <th className="px-6 py-5">المسافر</th>
-                                  <th className="px-6 py-5">الجواز / الهاتف</th>
-                                  <th className="px-6 py-5 no-print">إجراءات</th>
-                                  <th className="px-6 py-5">الحالة</th>
+                                  <th className="px-4 py-5 text-center border-l">مقعد</th>
+                                  <th className="px-4 py-5">المسافر</th>
+                                  <th className="px-4 py-5">الجواز / الهاتف</th>
+                                  <th className="px-4 py-5">طريقة الدفع</th>
+                                  <th className="px-4 py-5">حالة الدفع</th>
+                                  <th className="px-4 py-5 no-print">إجراءات</th>
+                                  <th className="px-4 py-5">حالة الحجز</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
                                 {passengersList.map((p: any, idx: number) => (
                                   <tr key={idx} className={cn("hover:bg-primary/5 transition-colors", p.status === 'Cancelled' && "bg-red-50/50 opacity-60")}>
-                                    <td className="px-6 py-4 text-center border-l bg-primary/5">
+                                    <td className="px-4 py-4 text-center border-l bg-primary/5">
                                       <span className="font-black text-primary text-lg">{p.seatNumber}</span>
                                     </td>
-                                    <td className="px-6 py-4 font-black text-slate-900">
+                                    <td className="px-4 py-4 font-black text-slate-900">
                                       <div className="flex flex-col">
                                         <span className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</span>
                                         <span className="text-[9px] text-muted-foreground flex items-center gap-1">{p.email}</span>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">
+                                    <td className="px-4 py-4 font-mono text-xs text-slate-500">
                                       <div className="flex flex-col">
                                         <span>جواز: {p.passportNumber}</span>
                                         <span className="text-primary font-bold">هاتف: {p.phone}</span>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-4 no-print">
+                                    <td className="px-4 py-4 text-xs font-bold text-slate-600">
+                                      <div className="flex items-center gap-2">
+                                        <Banknote className="h-3 w-3 opacity-50" />
+                                        {p.paymentMethodLabel}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <Select 
+                                        defaultValue={p.paymentStatus} 
+                                        onValueChange={(val) => handleUpdatePaymentStatus(p.bookingId, val)}
+                                      >
+                                        <SelectTrigger className="h-8 rounded-lg text-[10px] font-bold w-28 bg-white no-print">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Pending">معلق (Pending)</SelectItem>
+                                          <SelectItem value="Completed">مكتمل (Paid)</SelectItem>
+                                          <SelectItem value="Refunded">مسترجع</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <span className="hidden print:inline font-bold">
+                                        {p.paymentStatus === 'Completed' ? 'مدفوع' : 'معلق'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-4 no-print">
                                       <div className="flex items-center gap-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEditPassenger(p)}>
                                           <Edit className="h-4 w-4 text-primary" />
@@ -515,7 +549,7 @@ export default function AdminTrips() {
                                         </Button>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-4">
                                       <Badge className={cn(
                                         "text-[9px] font-bold px-3 py-0.5 rounded-full",
                                         p.status === 'Cancelled' ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
