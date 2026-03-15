@@ -32,17 +32,7 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
 
-  // التحقق من وجود الحاوية في الـ DOM قبل البدء
-  const container = document.getElementById(containerId);
-  if (!container) {
-    console.error(`reCAPTCHA container with id "${containerId}" not found in DOM.`);
-    throw new Error("Recaptcha container not found");
-  }
-
-  // 1. تنظيف الحاوية البصرية تماماً من أي بقايا HTML سابقة
-  container.innerHTML = ''; 
-
-  // 2. تدمير كائن المحقق القديم في الذاكرة إذا وجد لمنع التداخل
+  // 1. تدمير كائن المحقق القديم في الذاكرة إذا وجد لمنع التداخل (إصلاح الخطأ -39)
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -52,15 +42,24 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     globalRecaptchaVerifier = null;
   }
 
+  // 2. التحقق من وجود الحاوية في الـ DOM قبل البدء
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.error(`reCAPTCHA container with id "${containerId}" not found in DOM.`);
+    throw new Error("Recaptcha container not found");
+  }
+
+  // 3. تنظيف الحاوية البصرية تماماً من أي بقايا HTML سابقة
+  container.innerHTML = ''; 
+
   try {
-    // 3. إنشاء محقق جديد بإعدادات غير مرئية لراحة المستخدم
+    // 4. إنشاء محقق جديد بإعدادات غير مرئية
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': () => {
-        // تم التحقق البشري بنجاح
+      'callback': (response: any) => {
+        // تم التحقق بنجاح
       },
       'expired-callback': () => {
-        // تنظيف في حال انتهاء الصلاحية
         if (globalRecaptchaVerifier) globalRecaptchaVerifier.clear();
         globalRecaptchaVerifier = null;
       }
@@ -75,13 +74,12 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 
 /** 
  * إرسال رمز التحقق (OTP) للهاتف.
- * تتضمن منطقاً ذكياً لتصحيح تنسيق الأرقام الدولية وحذف الصفر الزائد.
  */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     let finalPhone = phoneNumber.trim();
     
-    // منطق تصحيح الأرقام: حذف الصفر الزائد ليصبح +9665... بدلاً من +96605...
+    // تصحيح الرقم: حذف الصفر الزائد (مثلاً يحول 05 إلى +9665)
     if (finalPhone.includes('+9660')) {
       finalPhone = finalPhone.replace('+9660', '+966');
     } else if (finalPhone.includes('+9630')) {
@@ -104,8 +102,8 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة بعد ساعة.";
     } else if (error.code === 'auth/invalid-phone-number') {
       msg = "رقم الهاتف غير صحيح، يرجى كتابته بدون أصفار زائدة.";
-    } else if (error.code === 'auth/captcha-check-failed' || error.message?.includes('code:-39')) {
-      msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والمحاولة مرة واحدة فقط.";
+    } else if (error.code === 'auth/captcha-check-failed') {
+      msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والمحاولة مرة أخرى.";
     }
     
     toast({ variant: "destructive", title: "فشل في الإرسال", description: msg });
