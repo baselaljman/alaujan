@@ -23,9 +23,13 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
   }
 }
 
+/**
+ * تهيئة reCAPTCHA مع ضمان تنظيف أي نسخة سابقة لمنع الخطأ -39
+ */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
 
+  // تنظيف أي نسخة سابقة تماماً
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -41,12 +45,15 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     return null as any;
   }
 
+  // تنظيف محتوى الحاوية لضمان عدم وجود أزرار قديمة
   container.innerHTML = ''; 
 
   try {
     globalRecaptchaVerifier = new RecaptchaVerifier(authInstance, containerId, {
       size: 'invisible',
-      'callback': (response: any) => {},
+      'callback': (response: any) => {
+        // تم التحقق بنجاح
+      },
       'expired-callback': () => {
         if (globalRecaptchaVerifier) globalRecaptchaVerifier.clear();
         globalRecaptchaVerifier = null;
@@ -60,12 +67,16 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   }
 }
 
+/**
+ * إرسال رمز OTP مع معالجة تلقائية لأرقام الهواتف الدولية
+ */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
     if (!appVerifier) throw new Error("Verifier not initialized");
 
     let finalPhone = phoneNumber.trim();
     
+    // إزالة الصفر الزائد من البداية لضمان قبول الرقم دولياً
     if (finalPhone.includes('+9660')) {
       finalPhone = finalPhone.replace('+9660', '+966');
     } else if (finalPhone.includes('+9630')) {
@@ -81,10 +92,16 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   } catch (error: any) {
     console.error("SMS Send Error:", error);
     let msg = "تعذر إرسال الرمز. يرجى المحاولة مرة أخرى.";
-    if (error.code === 'auth/too-many-requests') msg = "محاولات كثيرة جداً. جرب لاحقاً.";
+    
+    if (error.code === 'auth/too-many-requests') {
+      msg = "محاولات كثيرة جداً. جرب لاحقاً.";
+    }
+    
+    // التعامل مع خطأ التداخل الشهير -39
     if (error.code === 'auth/captcha-check-failed' || error.message.includes('-39')) {
       msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والمحاولة مرة أخرى.";
     }
+
     toast({ variant: "destructive", title: "فشل الإرسال", description: msg });
     throw error;
   }

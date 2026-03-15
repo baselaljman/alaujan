@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -199,17 +198,17 @@ export default function DriverDashboard() {
             </div>
             
             <div className="space-y-2">
-              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">LIVE BROADCASTING</Badge>
+              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">بث الموقع المباشر نشط</Badge>
               <h2 className="text-xl font-black text-emerald-900">جاري بث موقع الرحلة {activeTripId}</h2>
               <p className="text-xs text-emerald-700/70 font-bold">الموقع المباشر يظهر الآن للركاب على الخريطة</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 pt-4">
               <Button onClick={() => stopTracking("Arrived")} className="h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
-                <CheckCircle2 className="h-6 w-6" /> إنهاء الرحلة (وصلت)
+                <CheckCircle2 className="h-6 w-6" /> إنهاء الرحلة (وصلت للمحطة)
               </Button>
               <Button variant="outline" onClick={() => stopTracking("Delayed")} className="h-14 rounded-2xl border-emerald-200 text-emerald-800 font-bold">
-                إبلاغ عن تأخير (توقف البث)
+                توقف مؤقت / الإبلاغ عن تأخير
               </Button>
             </div>
           </CardContent>
@@ -259,13 +258,13 @@ export default function DriverDashboard() {
 
       <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10">
         <h4 className="text-sm font-black text-accent mb-3 flex items-center gap-2 justify-end">
-          تعليمات هامة للكابتن
+          تعليمات هامة للقائد
           <Info className="h-4 w-4" />
         </h4>
         <ul className="text-[10px] text-muted-foreground space-y-2 leading-relaxed font-bold text-right">
-          <li>• تأكد من تفعيل الـ GPS قبل الضغط على "بدء الرحلة".</li>
-          <li>• يفضل إبقاء الشاشة مفتوحة أو التطبيق في الواجهة لضمان دقة البث.</li>
-          <li>• اضغط على "إنهاء الرحلة" فور الوصول لتوفير البطارية وإبلاغ الركاب.</li>
+          <li>• تأكد من تفعيل الـ GPS في هاتفك قبل الضغط على "بدء الرحلة".</li>
+          <li>• يفضل إبقاء التطبيق في الواجهة لضمان دقة البث للركاب.</li>
+          <li>• اضغط على "إنهاء الرحلة" فور الوصول للمحطة النهائية لإبلاغ الركاب.</li>
         </ul>
       </div>
     </div>
