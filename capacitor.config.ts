@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
       timeout: 10000,
       maximumAge: 0
     }
+  },
+  android: {
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
   }
 };
 
