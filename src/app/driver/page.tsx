@@ -34,7 +34,6 @@ export default function DriverDashboard() {
   const watchIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
 
-  // البحث عن الحافلة المرتبطة ببريد السائق
   const busesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.email) return null;
     return query(collection(firestore, "buses"), where("driverEmail", "==", user.email.toLowerCase().trim()));
@@ -43,7 +42,6 @@ export default function DriverDashboard() {
   const { data: assignedBuses, isLoading: isBusesLoading } = useCollection(busesQuery);
   const myBus = assignedBuses?.[0];
 
-  // البحث عن الرحلات المجدولة لهذه الحافلة
   const tripsQuery = useMemoFirebase(() => {
     if (!firestore || !myBus) return null;
     return query(collection(firestore, "busTrips"), where("busId", "==", myBus.id));
@@ -53,7 +51,6 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    // إرسال التحديث كل 10 ثوانٍ لضمان التتبع المباشر وتوفير البيانات
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -71,7 +68,6 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
-      // 1. طلب تصاريح الموقع بجميع مستوياتها (بما في ذلك الخلفية)
       const permissions = await Geolocation.requestPermissions();
       if (permissions.location !== 'granted') {
         toast({ 
@@ -84,7 +80,6 @@ export default function DriverDashboard() {
 
       setActiveTripId(tripId);
       
-      // 2. بدء مراقبة الموقع بدقة عالية
       const watchId = await Geolocation.watchPosition(
         {
           enableHighAccuracy: true,
