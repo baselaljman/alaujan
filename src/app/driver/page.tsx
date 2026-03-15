@@ -67,6 +67,7 @@ export default function DriverDashboard() {
     try {
       if (typeof window === 'undefined') return;
       
+      // استخدام استيراد ديناميكي معزول تماماً لمنع أخطاء البناء للويب
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
@@ -134,7 +135,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "تأكد من تفعيل صلاحيات الموقع 'دائماً'." 
+        description: "تأكد من تفعيل كافة صلاحيات الموقع." 
       });
       setIsTracking(false);
     }
@@ -206,7 +207,7 @@ export default function DriverDashboard() {
             <h4 className="text-xs font-black text-amber-900 mb-1">خطوة ضرورية للعمل في الخلفية</h4>
             <p className="text-[10px] text-amber-700 leading-relaxed">
               لضمان استمرار البث عند قفل الشاشة، اذهب إلى: <br/>
-              <b>إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الأذونات &gt; الموقع</b> <br/>
+              <b>إعدادات الهاتف {" > "} التطبيقات {" > "} العوجان للسفر {" > "} الأذونات {" > "} الموقع</b> <br/>
               واختر <b>"السماح طوال الوقت"</b>.
             </p>
           </div>
@@ -247,7 +248,7 @@ export default function DriverDashboard() {
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className="text-right">
-                      <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
+                      <h4 className="font-black text-lg">{trip.originName} {" ⬅ "} {trip.destinationName}</h4>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end mt-1">
                         <Activity className="h-2 w-2" /> الحالة: {trip.status === "Departed" ? "على الطريق" : "مجدولة"}
                       </p>
