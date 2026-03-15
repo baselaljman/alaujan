@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef } from "react";
@@ -22,10 +23,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { Capacitor, registerPlugin } from '@capacitor/core';
-
-// استخدام الإضافة لتمكين تتبع الموقع في الخلفية على أندرويد
-const BackgroundGeolocation = registerPlugin<any>("BackgroundGeolocation");
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
@@ -54,14 +53,13 @@ export default function DriverDashboard() {
 
   const { data: myTrips, isLoading: isTripsLoading } = useCollection(tripsQuery);
 
-  const updateFirebaseLocation = (lat: number, lng: number) => {
-    if (!activeTripId) return;
+  const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    // إرسال التحديث كل 15 ثانية لتوفير البيانات والبطارية
-    if (now - lastUpdateRef.current < 15000) return;
+    // إرسال التحديث كل 10 ثوانٍ لضمان التتبع المباشر
+    if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
-    const tripRef = doc(firestore, "busTrips", activeTripId);
+    const tripRef = doc(firestore, "busTrips", tripId);
     
     updateDocumentNonBlocking(tripRef, {
       currentLat: lat,
@@ -74,39 +72,39 @@ export default function DriverDashboard() {
   };
 
   const startTracking = async (tripId: string) => {
-    setActiveTripId(tripId);
-    
     try {
-      if (Capacitor.isNativePlatform()) {
-        const id = await BackgroundGeolocation.addWatcher(
-          {
-            backgroundMessage: "العوجان للسفر: جاري إرسال موقع الحافلة للركاب...",
-            backgroundTitle: "بث موقع الرحلة نشط",
-            requestPermissions: true,
-            stale: false,
-            distanceFilter: 10
-          },
-          (location: any, error: any) => {
-            if (error) {
-              console.error(error);
-              return;
-            }
-            if (location) {
-              updateFirebaseLocation(location.latitude, location.longitude);
-            }
-          }
-        );
-        watchIdRef.current = id;
-      } else {
-        if (navigator.geolocation) {
-          const id = navigator.geolocation.watchPosition(
-            (pos) => updateFirebaseLocation(pos.coords.latitude, pos.coords.longitude),
-            () => toast({ variant: "destructive", title: "خطأ في استقبال GPS" }),
-            { enableHighAccuracy: true }
-          );
-          watchIdRef.current = id.toString();
-        }
+      // 1. طلب التصاريح بشكل صريح (مهم جداً للأندرويد)
+      const permissions = await Geolocation.requestPermissions();
+      if (permissions.location !== 'granted') {
+        toast({ 
+          variant: "destructive", 
+          title: "تم رفض الوصول للموقع", 
+          description: "يجب الموافقة على تصاريح الموقع لتمكين البث للركاب" 
+        });
+        return;
       }
+
+      setActiveTripId(tripId);
+      
+      // 2. بدء مراقبة الموقع
+      const watchId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        },
+        (position, err) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+          if (position) {
+            updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
+          }
+        }
+      );
+
+      watchIdRef.current = watchId;
 
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -122,7 +120,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "يرجى التأكد من تفعيل الموقع الجغرافي للهاتف" 
+        description: "يرجى التأكد من تفعيل GPS الهاتف وإعطاء التصاريح" 
       });
       setIsTracking(false);
     }
@@ -131,11 +129,7 @@ export default function DriverDashboard() {
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
     setIsTracking(false);
     if (watchIdRef.current) {
-      if (Capacitor.isNativePlatform()) {
-        await BackgroundGeolocation.removeWatcher({ id: watchIdRef.current });
-      } else {
-        navigator.geolocation.clearWatch(parseInt(watchIdRef.current));
-      }
+      await Geolocation.clearWatch({ id: watchIdRef.current });
       watchIdRef.current = null;
     }
     
