@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   RefreshCw,
   Navigation,
-  StopCircle,
   Activity
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -44,11 +43,10 @@ export default function DriverDashboard() {
     return query(collection(firestore, "busTrips"), where("busId", "==", myBus.id));
   }, [firestore, myBus]);
 
-  const { data: myTrips, isLoading: isTripsLoading } = useCollection(tripsQuery);
+  const { data: myTrips, isLoading: isTrpsLoading } = useCollection(tripsQuery);
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    // تقليل معدل التحديث للحفاظ على الأداء (كل 10 ثوانٍ)
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -68,15 +66,19 @@ export default function DriverDashboard() {
     try {
       // تنظيف أي جلسة تتبع قديمة أولاً
       if (watcherIdRef.current) {
-        await stopTracking("Departed");
+        if (Capacitor.isNativePlatform()) {
+          try {
+            const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+            await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+          } catch (e) {}
+        }
+        watcherIdRef.current = null;
       }
 
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        // تحميل ديناميكي آمن لمنع أخطاء Build على الويب
-        const mod = await import('@capacitor-community/background-geolocation');
-        const BackgroundGeolocation = mod.BackgroundGeolocation;
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         
         const id = await BackgroundGeolocation.addWatcher(
           {
@@ -98,7 +100,6 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // نظام الويب العادي للمتصفحات
         if (typeof window !== 'undefined' && "geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
@@ -134,12 +135,9 @@ export default function DriverDashboard() {
     if (watcherIdRef.current) {
       if (Capacitor.isNativePlatform()) {
         try {
-          const mod = await import('@capacitor-community/background-geolocation');
-          const BackgroundGeolocation = mod.BackgroundGeolocation;
+          const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
           await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-        } catch (e) {
-          console.error("Error stopping native tracking:", e);
-        }
+        } catch (e) {}
       } else {
         if (typeof window !== 'undefined') {
           navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
@@ -159,7 +157,7 @@ export default function DriverDashboard() {
     }
   };
 
-  if (isBusesLoading || isTripsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  if (isBusesLoading || isTrpsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
   if (!myBus) return (
     <div className="p-12 text-center space-y-6">
@@ -168,7 +166,6 @@ export default function DriverDashboard() {
       </div>
       <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
       <p className="text-sm text-muted-foreground">يرجى مراجعة الإدارة لربط بريدك الإلكتروني بحافلة من الأسطول.</p>
-      <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة <RefreshCw className="h-4 w-4 mr-2" /></Button>
     </div>
   );
 
@@ -185,7 +182,7 @@ export default function DriverDashboard() {
           "h-14 w-14 rounded-2xl flex items-center justify-center transition-all shadow-xl",
           isTracking ? "bg-emerald-600 animate-pulse" : "bg-primary/5 border border-primary/10"
         )}>
-          {isTracking ? <Activity className="h-8 w-8 text-white animate-pulse" /> : <Bus className="h-8 w-8 text-primary" />}
+          {isTracking ? <Activity className="h-8 w-8 text-white" /> : <Bus className="h-8 w-8 text-primary" />}
         </div>
       </header>
 
@@ -247,13 +244,6 @@ export default function DriverDashboard() {
                 </CardContent>
               </Card>
             ))}
-            
-            {myTrips?.filter(t => t.status !== "Arrived").length === 0 && (
-              <div className="text-center p-12 bg-muted/20 rounded-[2rem] border-2 border-dashed">
-                <CheckCircle2 className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-muted-foreground font-bold">لا توجد رحلات مجدولة حالياً</p>
-              </div>
-            )}
           </div>
         </div>
       )}

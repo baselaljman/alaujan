@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // تفعيل معالجة مكتبات Capacitor لضمان نجاح التجميع في بيئة Next.js
   transpilePackages: [
     '@capacitor-community/background-geolocation',
     '@capacitor/geolocation',
