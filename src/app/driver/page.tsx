@@ -51,6 +51,7 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
+    // تقييد التحديثات لتكون كل 10 ثوانٍ لضمان استقرار البث والبطارية
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -68,27 +69,29 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
+      // طلب تصاريح الموقع بشكل صريح
       const permissions = await Geolocation.requestPermissions();
       if (permissions.location !== 'granted') {
         toast({ 
           variant: "destructive", 
           title: "تم رفض الوصول للموقع", 
-          description: "يجب الموافقة على تصاريح الموقع لتمكين البث للركاب" 
+          description: "يرجى تفعيل تصاريح الموقع 'السماح دوماً' من إعدادات الهاتف ليعمل البث في الخلفية." 
         });
         return;
       }
 
       setActiveTripId(tripId);
       
+      // بدء مراقبة الموقع بدقة عالية
       const watchId = await Geolocation.watchPosition(
         {
-          enableHighAccuracy: true,
+          enableHighAccuracy: true, // ضروري لدقة التتبع
           timeout: 10000,
           maximumAge: 0
         },
         (position, err) => {
           if (err) {
-            console.error(err);
+            console.error("Tracking Error:", err);
             return;
           }
           if (position) {
@@ -103,17 +106,17 @@ export default function DriverDashboard() {
       updateDocumentNonBlocking(tripRef, {
         status: "Departed",
         lastUpdatedAt: new Date().toISOString(),
-        currentLocationDescription: "على الطريق",
+        currentLocationDescription: "بدأت الرحلة",
         isLive: true
       });
 
       setIsTracking(true);
-      toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
+      toast({ title: "تم تفعيل البث المباشر", description: "موقع الحافلة يظهر الآن للركاب على الخريطة" });
     } catch (e) {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "يرجى التأكد من تفعيل GPS الهاتف وإعطاء التصاريح" 
+        description: "تأكد من تفعيل الـ GPS في الهاتف." 
       });
       setIsTracking(false);
     }
@@ -132,12 +135,12 @@ export default function DriverDashboard() {
         isLive: false,
         status: newStatus,
         lastUpdatedAt: new Date().toISOString(),
-        currentLocationDescription: newStatus === "Arrived" ? "وصل للمحطة النهائية" : "في المحطة"
+        currentLocationDescription: newStatus === "Arrived" ? "وصل للمحطة النهائية" : "توقف مؤقت"
       });
       setActiveTripId(null);
     }
 
-    toast({ title: "تم التوقف", description: `تم تحديث حالة الرحلة إلى: ${newStatus}` });
+    toast({ title: "تم تحديث الحالة", description: `حالة الرحلة الآن: ${newStatus}` });
   };
 
   if (isBusesLoading || isTripsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -147,10 +150,10 @@ export default function DriverDashboard() {
       <div className="h-20 w-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto border border-red-100 shadow-xl">
         <AlertTriangle className="h-10 w-10 text-red-500" />
       </div>
-      <div className="space-y-2">
-        <h1 className="text-xl font-black">حساب السائق غير مرتبط</h1>
-        <p className="text-muted-foreground text-xs leading-relaxed max-w-xs mx-auto">
-          عذراً، بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً. يرجى مراجعة الإدارة لربط بريدك بحافلة نشطة.
+      <div className="space-y-2 text-right">
+        <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
+        <p className="text-muted-foreground text-xs leading-relaxed max-w-xs mx-auto text-center">
+          بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً. يرجى مراجعة الإدارة لربط بريدك بأسطول العوجان.
         </p>
       </div>
       <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة <RefreshCw className="h-4 w-4 mr-2" /></Button>
@@ -163,7 +166,7 @@ export default function DriverDashboard() {
         <div className="text-right">
           <h1 className="text-2xl font-black text-primary leading-tight">لوحة القائد</h1>
           <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-widest flex items-center gap-1 justify-end">
-             {myBus.licensePlate} | {myBus.model} <Bus className="h-2.5 w-2.5" />
+             لوحة: {myBus.licensePlate} | {myBus.model} <Bus className="h-2.5 w-2.5" />
           </p>
         </div>
         <div className={cn(
@@ -185,17 +188,17 @@ export default function DriverDashboard() {
             </div>
             
             <div className="space-y-2">
-              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">بث الموقع المباشر نشط</Badge>
-              <h2 className="text-xl font-black text-emerald-900">جاري بث موقع الرحلة {activeTripId}</h2>
-              <p className="text-xs text-emerald-700/70 font-bold">الموقع المباشر يظهر الآن للركاب على الخريطة</p>
+              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">جاري البث المباشر للموقع</Badge>
+              <h2 className="text-xl font-black text-emerald-900">الرحلة النشطة: {activeTripId}</h2>
+              <p className="text-xs text-emerald-700/70 font-bold">يمكنك تصغير التطبيق، سيستمر البث في الخلفية</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 pt-4">
               <Button onClick={() => stopTracking("Arrived")} className="h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
-                <CheckCircle2 className="h-6 w-6" /> إنهاء الرحلة (وصلت للمحطة)
+                <CheckCircle2 className="h-6 w-6" /> تأكيد الوصول للمحطة النهائية
               </Button>
               <Button variant="outline" onClick={() => stopTracking("Delayed")} className="h-14 rounded-2xl border-emerald-200 text-emerald-800 font-bold">
-                توقف مؤقت / الإبلاغ عن تأخير
+                توقف مؤقت / تأخير طارئ
               </Button>
             </div>
           </CardContent>
@@ -227,7 +230,7 @@ export default function DriverDashboard() {
                     onClick={() => startTracking(trip.id)} 
                     className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 font-black text-lg gap-3 shadow-lg"
                   >
-                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع
+                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع الآن
                   </Button>
                 </CardContent>
               </Card>
@@ -236,7 +239,7 @@ export default function DriverDashboard() {
             {(!myTrips || myTrips.length === 0) && (
               <div className="text-center p-16 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-primary/5">
                 <Clock className="h-12 w-12 text-primary/10 mx-auto mb-4" />
-                <p className="text-muted-foreground font-bold text-sm">لا توجد رحلات مجدولة لحافلتك حالياً</p>
+                <p className="text-muted-foreground font-bold text-sm">لا توجد رحلات مجدولة حالياً</p>
               </div>
             )}
           </div>
@@ -249,10 +252,9 @@ export default function DriverDashboard() {
           <Info className="h-4 w-4" />
         </h4>
         <ul className="text-[10px] text-muted-foreground space-y-2 leading-relaxed font-bold text-right">
-          <li>• تأكد من تفعيل الـ GPS في هاتفك قبل الضغط على "بدء الرحلة".</li>
-          <li>• يفضل إبقاء التطبيق في الواجهة لضمان دقة البث للركاب.</li>
-          <li>• اضغط على "إنهاء الرحلة" فور الوصول للمحطة النهائية لإبلاغ الركاب.</li>
-          <li>• تم تفعيل خاصية البث في الخلفية لضمان استمرار التتبع حتى عند قفل الشاشة.</li>
+          <li>• عند طلب التصاريح، اختر "السماح دوماً" (Allow all the time) لضمان عدم توقف البث عند قفل الهاتف.</li>
+          <li>• تأكد من شحن الهاتف وتوصيله بمصدر طاقة أثناء الرحلة الطويلة.</li>
+          <li>• اضغط على زر "تأكيد الوصول" عند الوصول للمحطة النهائية لإبلاغ الركاب فوراً.</li>
         </ul>
       </div>
     </div>

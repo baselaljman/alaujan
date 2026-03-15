@@ -1,11 +1,12 @@
-
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.alaujan.app',
   appName: 'Al-Awajan Travel',
-  webDir: 'out', // توجيه Capacitor لمجلد التصدير الخاص بـ Next.js
-  bundledWebRuntime: false
+  webDir: 'out',
+  server: {
+    androidScheme: 'https'
+  }
 };
 
 export default config;
