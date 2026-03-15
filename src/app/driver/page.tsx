@@ -46,7 +46,6 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    // تقييد التحديثات لتكون كل 10 ثوانٍ لضمان استقرار البث والبطارية
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -66,26 +65,17 @@ export default function DriverDashboard() {
     try {
       setActiveTripId(tripId);
       
-      // بدء مراقبة الموقع باستخدام BackgroundGeolocation (الحزمة المجتمعية)
-      // تضمن هذه الحزمة استمرار العمل حتى لو أغلق التطبيق أو قفل الهاتف
       const id = await BackgroundGeolocation.addWatcher(
         {
           backgroundMessage: "يتم الآن بث موقع الحافلة للركاب في الخلفية.",
           backgroundTitle: "البث المباشر نشط - العوجان للسفر",
           requestPermissions: true,
           stale: false,
-          distanceFilter: 10 // تحديث كل 10 أمتار حركة
+          distanceFilter: 10
         },
         (location, error) => {
           if (error) {
             console.error("Background Tracking Error:", error);
-            if (error.code === "NOT_AUTHORIZED") {
-              toast({ 
-                variant: "destructive", 
-                title: "تصريح الموقع مطلوب", 
-                description: "يرجى تفعيل 'السماح دوماً' في إعدادات التطبيق." 
-              });
-            }
             return;
           }
           if (location) {
