@@ -319,12 +319,12 @@ export default function ProfilePage() {
                 <form onSubmit={handleAuthAction} className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs font-bold">البريد الإلكتروني</Label>
-                    <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(e.target.value)} className="rounded-xl h-12 bg-white" required />
+                    <Input type="email" placeholder="example@mail.com" value={email} onChange={e => setEmail(email.target.value)} className="rounded-xl h-12 bg-white" required />
                   </div>
                   {authMode !== 'forgot' && (
                     <div className="space-y-2">
                       <Label className="text-xs font-bold">كلمة المرور</Label>
-                      <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="rounded-xl h-12 bg-white" required />
+                      <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(password.target.value)} className="rounded-xl h-12 bg-white" required />
                     </div>
                   )}
                   <Button type="submit" className="w-full h-14 rounded-xl text-base font-black shadow-lg">

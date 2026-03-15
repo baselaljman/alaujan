@@ -27,7 +27,7 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
 
 /** 
  * تهيئة reCAPTCHA مع تنظيف شامل للمتصفح.
- * تتضمن التحقق من وجود الحاوية في الـ DOM لمنع أخطاء التهيئة.
+ * تتضمن التحقق من وجود الحاوية في الـ DOM وتدمير أي نسخة سابقة (حل الخطأ -39).
  */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
@@ -73,7 +73,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 }
 
 /** 
- * إرسال رمز التحقق (OTP) للهاتف.
+ * إرسال رمز التحقق (OTP) للهاتف مع معالجة ذكية للأرقام.
  */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
