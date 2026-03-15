@@ -161,9 +161,12 @@ export default function ProfilePage() {
         )}
 
         {isDriver && (
-          <Button asChild className="w-full h-14 rounded-2xl bg-emerald-700 hover:bg-emerald-800 font-black shadow-lg gap-2">
+          <Button asChild className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 font-black shadow-xl gap-3 animate-pulse">
             <Link href="/driver">
-              <Bus className="h-5 w-5" /> فتح لوحة السائق وبث الرحلة
+              <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
+                <Bus className="h-5 w-5 text-white" />
+              </div>
+              فتح لوحة القائد وبدء البث المباشر
             </Link>
           </Button>
         )}

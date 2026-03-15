@@ -5,8 +5,20 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Square, Loader2, AlertTriangle, Clock, Info, MapPin, Bus, CheckCircle2 } from "lucide-react";
+import { 
+  Play, 
+  Square, 
+  Loader2, 
+  AlertTriangle, 
+  Clock, 
+  Info, 
+  MapPin, 
+  Bus, 
+  CheckCircle2,
+  RefreshCw,
+  Navigation,
+  ChevronLeft
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
@@ -22,7 +34,6 @@ export default function DriverDashboard() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
-  const [tripStatus, setTripStatus] = useState<TripStatus>("Scheduled");
   const [isTracking, setIsTracking] = useState(false);
   const watchIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
@@ -44,17 +55,6 @@ export default function DriverDashboard() {
 
   const { data: myTrips, isLoading: isTripsLoading } = useCollection(tripsQuery);
 
-  // تعيين الرحلة الافتراضية إذا لم تكن مختارة
-  useEffect(() => {
-    if (myTrips && myTrips.length > 0 && !activeTripId) {
-      const active = myTrips.find(t => t.status === "Departed" || t.status === "Delayed") || myTrips[0];
-      if (active) {
-        setActiveTripId(active.id);
-        setTripStatus(active.status as TripStatus);
-      }
-    }
-  }, [myTrips, activeTripId]);
-
   const updateFirebaseLocation = (lat: number, lng: number) => {
     if (!activeTripId) return;
     const now = Date.now();
@@ -74,11 +74,8 @@ export default function DriverDashboard() {
     });
   };
 
-  const startTracking = async () => {
-    if (!activeTripId) {
-      toast({ variant: "destructive", title: "خطأ", description: "يرجى اختيار رحلة أولاً" });
-      return;
-    }
+  const startTracking = async (tripId: string) => {
+    setActiveTripId(tripId);
     
     try {
       if (Capacitor.isNativePlatform()) {
@@ -101,8 +98,6 @@ export default function DriverDashboard() {
           }
         );
         watchIdRef.current = id;
-        setIsTracking(true);
-        toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
       } else {
         if (navigator.geolocation) {
           const id = navigator.geolocation.watchPosition(
@@ -111,10 +106,19 @@ export default function DriverDashboard() {
             { enableHighAccuracy: true }
           );
           watchIdRef.current = id.toString();
-          setIsTracking(true);
-          toast({ title: "بدأ البث المباشر", description: "يتم استخدام متصفح الويب لمشاركة الموقع" });
         }
       }
+
+      const tripRef = doc(firestore, "busTrips", tripId);
+      updateDocumentNonBlocking(tripRef, {
+        status: "Departed",
+        lastUpdatedAt: new Date().toISOString(),
+        currentLocationDescription: "على الطريق",
+        isLive: true
+      });
+
+      setIsTracking(true);
+      toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
     } catch (e) {
       toast({ 
         variant: "destructive", 
@@ -125,7 +129,7 @@ export default function DriverDashboard() {
     }
   };
 
-  const stopTracking = async () => {
+  const stopTracking = async (newStatus: TripStatus = "Arrived") => {
     setIsTracking(false);
     if (watchIdRef.current) {
       if (Capacitor.isNativePlatform()) {
@@ -138,49 +142,32 @@ export default function DriverDashboard() {
     
     if (activeTripId) {
       const tripRef = doc(firestore, "busTrips", activeTripId);
-      updateDocumentNonBlocking(tripRef, { isLive: false });
-    }
-  };
-
-  const handleStatusChange = (newStatus: TripStatus) => {
-    if (!activeTripId) return;
-    
-    const tripRef = doc(firestore, "busTrips", activeTripId);
-    setTripStatus(newStatus);
-
-    if (newStatus === "Departed") {
-      updateDocumentNonBlocking(tripRef, {
-        status: newStatus,
-        lastUpdatedAt: new Date().toISOString(),
-        currentLocationDescription: "على الطريق"
-      });
-      startTracking();
-    } else {
-      stopTracking();
-      updateDocumentNonBlocking(tripRef, {
+      updateDocumentNonBlocking(tripRef, { 
+        isLive: false,
         status: newStatus,
         lastUpdatedAt: new Date().toISOString(),
         currentLocationDescription: newStatus === "Arrived" ? "وصل للمحطة النهائية" : "في المحطة"
       });
+      setActiveTripId(null);
     }
 
-    toast({ title: "تم تحديث الحالة", description: `الرحلة الآن في حالة: ${newStatus}` });
+    toast({ title: "تم التوقف", description: `تم تحديث حالة الرحلة إلى: ${newStatus}` });
   };
 
   if (isBusesLoading || isTripsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
 
   if (!myBus) return (
-    <div className="p-12 text-center space-y-6 animate-in fade-in zoom-in">
-      <div className="h-20 w-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm border border-red-100">
+    <div className="p-12 text-center space-y-6">
+      <div className="h-20 w-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto border border-red-100 shadow-xl">
         <AlertTriangle className="h-10 w-10 text-red-500" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-xl font-black text-slate-900">حساب السائق غير مرتبط</h1>
+        <h1 className="text-xl font-black">حساب السائق غير مرتبط</h1>
         <p className="text-muted-foreground text-xs leading-relaxed max-w-xs mx-auto">
-          عذراً، بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً. يرجى مراجعة الإدارة لربط بريدك بحافلة من قسم "إدارة الأسطول".
+          عذراً، بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً. يرجى مراجعة الإدارة لربط بريدك بحافلة نشطة.
         </p>
       </div>
-      <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة</Button>
+      <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة <RefreshCw className="h-4 w-4 mr-2" /></Button>
     </div>
   );
 
@@ -190,7 +177,7 @@ export default function DriverDashboard() {
         <div className="text-right">
           <h1 className="text-2xl font-black text-primary leading-tight">لوحة القائد</h1>
           <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-widest flex items-center gap-1 justify-end">
-             {myBus.licensePlate} | {user?.email} <Bus className="h-2.5 w-2.5" />
+             {myBus.licensePlate} | {myBus.model} <Bus className="h-2.5 w-2.5" />
           </p>
         </div>
         <div className={cn(
@@ -201,120 +188,84 @@ export default function DriverDashboard() {
         </div>
       </header>
 
-      <Card className="border-primary/10 shadow-lg rounded-[2.5rem] overflow-hidden bg-white">
-        <CardHeader className="bg-primary/5 border-b py-4">
-          <CardTitle className="text-sm font-black flex items-center gap-2 justify-end text-primary">
-            إدارة رحلات اليوم للحافلة ({myBus.licensePlate})
-            <Clock className="h-4 w-4" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-8">
-          <div className="space-y-4">
+      {isTracking && activeTripId ? (
+        <Card className="border-emerald-200 bg-emerald-50/50 shadow-2xl rounded-[2.5rem] overflow-hidden animate-in zoom-in duration-300">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="relative inline-block">
+              <div className="h-24 w-24 rounded-full bg-emerald-600 animate-ping absolute inset-0 m-auto opacity-20" />
+              <div className="h-20 w-20 rounded-full bg-emerald-600 flex items-center justify-center relative z-10 shadow-2xl">
+                <Navigation className="h-10 w-10 text-white animate-bounce" />
+              </div>
+            </div>
+            
             <div className="space-y-2">
-              <label className="text-xs font-black text-muted-foreground pr-1">1. اختر الرحلة المجدولة</label>
-              <Select 
-                value={activeTripId || ""} 
-                onValueChange={(val) => {
-                  setActiveTripId(val);
-                  const selected = myTrips?.find(t => t.id === val);
-                  if (selected) setTripStatus(selected.status);
-                }}
-                disabled={isTracking}
-              >
-                <SelectTrigger className="h-16 rounded-2xl border-primary/10 font-bold text-right text-lg shadow-sm">
-                  <SelectValue placeholder="اختر الرحلة للبدء" />
-                </SelectTrigger>
-                <SelectContent>
-                  {myTrips?.map(trip => (
-                    <SelectItem key={trip.id} value={trip.id} className="text-right justify-end font-bold">
-                      {trip.id} | {trip.originName} ⬅ {trip.destinationName}
-                    </SelectItem>
-                  ))}
-                  {(!myTrips || myTrips.length === 0) && (
-                    <SelectItem value="none" disabled>لا توجد رحلات مجدولة لحافلتك</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">LIVE BROADCASTING</Badge>
+              <h2 className="text-xl font-black text-emerald-900">جاري بث موقع الرحلة {activeTripId}</h2>
+              <p className="text-xs text-emerald-700/70 font-bold">الموقع المباشر يظهر الآن للركاب على الخريطة</p>
             </div>
 
-            {activeTripId ? (
-              <div className="space-y-6 pt-4 border-t border-dashed animate-in slide-in-from-top-4">
-                <div className="text-center p-4 bg-muted/20 rounded-2xl">
-                   <p className="text-[10px] font-black text-muted-foreground mb-1 uppercase tracking-widest">حالة الرحلة المختارة</p>
-                   <Badge className={cn(
-                     "px-6 py-1.5 rounded-full font-black text-sm",
-                     tripStatus === "Departed" ? "bg-emerald-600" : "bg-primary"
-                   )}>
-                     {tripStatus === "Scheduled" ? "مجدولة" : 
-                      tripStatus === "Departed" ? "في الطريق" : 
-                      tripStatus === "Delayed" ? "متأخرة" : "وصلت"}
-                   </Badge>
-                </div>
+            <div className="grid grid-cols-1 gap-3 pt-4">
+              <Button onClick={() => stopTracking("Arrived")} className="h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
+                <CheckCircle2 className="h-6 w-6" /> إنهاء الرحلة (وصلت)
+              </Button>
+              <Button variant="outline" onClick={() => stopTracking("Delayed")} className="h-14 rounded-2xl border-emerald-200 text-emerald-800 font-bold">
+                إبلاغ عن تأخير (توقف البث)
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-black text-lg text-primary">الرحلات المجدولة لك</h3>
+            <Badge variant="outline" className="border-primary/10 text-primary">{myTrips?.length || 0} رحلة</Badge>
+          </div>
 
-                {tripStatus !== "Departed" ? (
-                  <Button 
-                    onClick={() => handleStatusChange("Departed")} 
-                    className="w-full h-20 text-xl font-black gap-3 rounded-[2rem] bg-primary shadow-2xl hover:scale-[1.02] transition-all"
-                  >
-                    <Play className="h-8 w-8 fill-white" /> بدء الرحلة وبث الموقع المباشر
-                  </Button>
-                ) : (
-                  <div className="space-y-4 animate-in zoom-in duration-300">
-                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-[2rem] flex flex-col items-center gap-4 text-center">
-                      <div className="relative">
-                        <div className="h-4 w-4 rounded-full bg-emerald-600 animate-ping absolute inset-0 m-auto" />
-                        <div className="h-4 w-4 rounded-full bg-emerald-600 relative z-10" />
+          <div className="grid grid-cols-1 gap-4">
+            {myTrips?.filter(t => t.status !== "Arrived").map(trip => (
+              <Card key={trip.id} className="border-primary/5 shadow-sm rounded-3xl overflow-hidden hover:shadow-md transition-all">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="text-right space-y-1">
+                      <div className="flex items-center gap-2 justify-end">
+                        <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
+                        <Badge className="bg-primary/10 text-primary font-black border-none">{trip.id}</Badge>
                       </div>
-                      <div className="space-y-1">
-                        <span className="text-sm font-black text-emerald-800">جاري بث موقعك للركاب الآن</span>
-                        <p className="text-[10px] text-emerald-700 opacity-70">الموقع المباشر يظهر على خرائط تتبع العملاء</p>
-                      </div>
-                      <Badge className="bg-emerald-600 font-black px-6 py-1 text-lg">LIVE</Badge>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <Button variant="outline" onClick={() => handleStatusChange("Delayed")} className="h-16 rounded-[1.5rem] font-black border-red-100 text-red-600 hover:bg-red-50 text-base">
-                        إبلاغ عن تأخير
-                      </Button>
-                      <Button variant="default" onClick={() => handleStatusChange("Arrived")} className="h-16 rounded-[1.5rem] font-black bg-slate-900 shadow-xl text-base gap-2">
-                        <CheckCircle2 className="h-5 w-5" /> إنهاء ووصول
-                      </Button>
+                      <p className="text-xs text-muted-foreground font-bold flex items-center gap-2 justify-end">
+                        <Clock className="h-3 w-3" /> {new Date(trip.departureTime).toLocaleString('ar-EG', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-10 text-center bg-muted/10 rounded-[2rem] border-2 border-dashed border-primary/5">
-                 <MapPin className="h-12 w-12 text-primary/20 mx-auto mb-4" />
-                 <p className="text-muted-foreground font-bold text-sm">بانتظار اختيار رحلة لتفعيل التحكم</p>
+                  
+                  <Button 
+                    onClick={() => startTracking(trip.id)} 
+                    className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 font-black text-lg gap-3 shadow-lg"
+                  >
+                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+
+            {(!myTrips || myTrips.length === 0) && (
+              <div className="text-center p-16 bg-muted/10 rounded-[2.5rem] border-2 border-dashed border-primary/5">
+                <Clock className="h-12 w-12 text-primary/10 mx-auto mb-4" />
+                <p className="text-muted-foreground font-bold text-sm">لا توجد رحلات مجدولة لحافلتك حالياً</p>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      <div className="p-8 bg-accent/5 rounded-[2.5rem] border border-accent/10 text-right">
-        <h4 className="text-sm font-black text-accent mb-4 flex items-center gap-2 justify-end">
-          تعليمات الكابتن (مهم جداً)
+      <div className="p-6 bg-accent/5 rounded-[2rem] border border-accent/10">
+        <h4 className="text-sm font-black text-accent mb-3 flex items-center gap-2 justify-end">
+          تعليمات هامة للكابتن
           <Info className="h-4 w-4" />
         </h4>
-        <ul className="text-xs text-muted-foreground space-y-4 leading-relaxed font-bold">
-          <li className="flex items-start gap-3 justify-end">
-            <span>تأكد من تفعيل الموقع الجغرافي (GPS) في هاتفك قبل الضغط على "بدء الرحلة".</span>
-            <div className="h-5 w-5 rounded-full bg-accent/10 flex items-center justify-center text-[10px] text-accent">1</div>
-          </li>
-          <li className="flex items-start gap-3 justify-end">
-            <span>إذا طلب الهاتف صلاحيات الموقع، اختر <strong>"Allow all the time"</strong> لضمان استمرار البث.</span>
-            <div className="h-5 w-5 rounded-full bg-accent/10 flex items-center justify-center text-[10px] text-accent">2</div>
-          </li>
-          <li className="flex items-start gap-3 justify-end">
-            <span>لا تقم بإغلاق التطبيق؛ اتركه يعمل في الخلفية أثناء القيادة ليتمكن الركاب من تتبعك.</span>
-            <div className="h-5 w-5 rounded-full bg-accent/10 flex items-center justify-center text-[10px] text-accent">3</div>
-          </li>
-          <li className="flex items-start gap-3 justify-end">
-            <span>عند الوصول للمحطة النهائية، اضغط على <strong>"إنهاء ووصول"</strong> لإيقاف البث وتوفير البطارية.</span>
-            <div className="h-5 w-5 rounded-full bg-accent/10 flex items-center justify-center text-[10px] text-accent">4</div>
-          </li>
+        <ul className="text-[10px] text-muted-foreground space-y-2 leading-relaxed font-bold text-right">
+          <li>• تأكد من تفعيل الـ GPS قبل الضغط على "بدء الرحلة".</li>
+          <li>• يفضل إبقاء الشاشة مفتوحة أو التطبيق في الواجهة لضمان دقة البث.</li>
+          <li>• اضغط على "إنهاء الرحلة" فور الوصول لتوفير البطارية وإبلاغ الركاب.</li>
         </ul>
       </div>
     </div>
