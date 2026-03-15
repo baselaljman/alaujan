@@ -74,7 +74,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
 }
 
 /** 
- * إرسال رمز التحقق (OTP) للهاتف مع معالجة ذكية للأرقام.
+ * إرسال رمز التحقق (OTP) للهاتف مع معالجة ذكية للأرقام الدولية.
  */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
@@ -105,7 +105,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     let msg = "تعذر إرسال الرمز. يرجى المحاولة مرة أخرى.";
     
     if (error.code === 'auth/too-many-requests') {
-      msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة بعد ساعة.";
+      msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة لاحقاً.";
     } else if (error.code === 'auth/invalid-phone-number') {
       msg = "رقم الهاتف غير صحيح، يرجى كتابته بدون أصفار زائدة.";
     } else if (error.code === 'auth/captcha-check-failed' || error.message.includes('-39')) {

@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,6 @@ import {
   Banknote,
   MapPin,
   ChevronLeft,
-  QrCode,
   Edit,
   UserX,
   UserCheck,
@@ -97,6 +96,7 @@ export default function AdminTrips() {
         ...p,
         passengerIndex: index,
         phone: booking.userPhone,
+        email: booking.userEmail,
         paymentStatus: booking.paymentStatus,
         trackingNumber: booking.trackingNumber,
         bookingId: booking.id,
@@ -116,8 +116,15 @@ export default function AdminTrips() {
     }
 
     setIsSubmitting(true);
-    const randomSuffix = Math.floor(100 + Math.random() * 899);
-    const tripCode = `aw${randomSuffix}`;
+    
+    // حساب رقم التتبع الموحد بالتسلسل aw001, aw002...
+    const tripNumbers = trips?.map(t => {
+      const numPart = t.id.replace('aw', '');
+      return isNaN(parseInt(numPart)) ? 0 : parseInt(numPart);
+    }) || [];
+    const maxNum = tripNumbers.length > 0 ? Math.max(...tripNumbers) : 0;
+    const nextNum = maxNum + 1;
+    const tripCode = `aw${nextNum.toString().padStart(3, '0')}`;
     
     const [hours, minutes] = depTime.split(":").map(Number);
     const finalDepartureTime = setMinutes(setHours(startOfDay(departureDate), hours), minutes);
@@ -144,7 +151,7 @@ export default function AdminTrips() {
     setDocumentNonBlocking(doc(firestore, "busTrips", tripCode), tripData, { merge: true });
     
     setTimeout(() => {
-      toast({ title: "تم الحفظ", description: `الرحلة الدولية ${tripCode} أصبحت نشطة في النظام.` });
+      toast({ title: "تم الحفظ", description: `تمت برمجة الرحلة الدولية برقم: ${tripCode}` });
       setIsAdding(false);
       setIsSubmitting(false);
       setBusId("");
@@ -160,6 +167,8 @@ export default function AdminTrips() {
       index: p.passengerIndex,
       fullName: p.fullName,
       passportNumber: p.passportNumber,
+      phone: p.phone,
+      email: p.email,
       status: p.status || 'Confirmed'
     });
     setIsEditingPassenger(true);
@@ -181,7 +190,9 @@ export default function AdminTrips() {
         };
 
         updateDocumentNonBlocking(doc(firestore, "bookings", editingPassengerData.bookingId), {
-          passengers: passengers
+          passengers: passengers,
+          userPhone: editingPassengerData.phone,
+          userEmail: editingPassengerData.email
         });
         
         toast({ title: "تم التحديث", description: "تم تحديث بيانات المسافر بنجاح" });
@@ -223,28 +234,16 @@ export default function AdminTrips() {
           <style>
             body { font-family: 'Arial', sans-serif; padding: 40px; text-align: right; background: #fff; }
             .ticket { border: 3px solid #003d2d; border-radius: 30px; padding: 40px; max-width: 650px; margin: auto; position: relative; overflow: hidden; }
-            .ticket::before { content: ""; position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: #003d2d; border-radius: 50%; opacity: 0.05; }
             .header { border-bottom: 2px solid #003d2d; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
             .brand h1 { color: #003d2d; margin: 0; font-size: 28px; font-weight: 900; }
-            .brand p { margin: 5px 0 0; font-size: 12px; color: #666; font-weight: bold; }
             .trip-ref { text-align: left; }
-            .trip-ref .label { font-size: 10px; color: #999; text-transform: uppercase; }
+            .trip-ref .label { font-size: 10px; color: #999; }
             .trip-ref .value { font-family: monospace; font-weight: 900; font-size: 32px; color: #003d2d; line-height: 1; }
-            
-            .info-grid { display: grid; grid-cols: 2; gap: 20px; margin-bottom: 30px; }
             .info-item { margin-bottom: 15px; }
             .label { font-size: 11px; color: #888; margin-bottom: 4px; font-weight: bold; }
             .value { font-weight: 900; font-size: 18px; color: #333; }
-            
             .route-box { background: #f9f9f9; padding: 20px; border-radius: 20px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center; }
-            .route-point { flex: 1; }
-            .route-arrow { px: 20px; color: #003d2d; opacity: 0.3; font-size: 24px; }
-            
-            .footer { margin-top: 40px; border-top: 1px dashed #ddd; pt: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
-            .notice { font-size: 10px; color: #aaa; max-width: 70%; line-height: 1.5; }
-            .qr-placeholder { width: 80px; height: 80px; border: 1px solid #eee; display: flex; items-center; justify-content: center; font-size: 8px; color: #ccc; }
-            
-            @media print { .no-print { display: none; } }
+            .footer { margin-top: 40px; border-top: 1px dashed #ddd; pt: 20px; font-size: 10px; color: #aaa; }
           </style>
         </head>
         <body onload="window.print()">
@@ -252,15 +251,13 @@ export default function AdminTrips() {
             <div class="header">
               <div class="brand">
                 <h1>شركة العوجان للسفر</h1>
-                <p>Al-Awajan Travel & Tourism</p>
-                <p style="font-size: 10px; color: #003d2d;">تذكرة سفر إلكترونية معتمدة</p>
+                <p>تذكرة سفر إلكترونية معتمدة</p>
               </div>
               <div class="trip-ref">
                 <div class="label">رقم تتبع الرحلة (REF)</div>
-                <div class="value">${p.tripId || "aw000"}</div>
+                <div class="value">${p.tripId}</div>
               </div>
             </div>
-
             <div style="display: flex; gap: 40px;">
               <div style="flex: 1;">
                 <div class="info-item">
@@ -272,46 +269,37 @@ export default function AdminTrips() {
                   <div class="value">${p.passportNumber}</div>
                 </div>
               </div>
-              <div style="text-align: left; min-width: 120px;">
+              <div style="text-align: left;">
                 <div class="info-item">
                   <div class="label">رقم المقعد</div>
                   <div style="font-size: 48px; font-weight: 900; color: #003d2d; line-height: 1;">#${p.seatNumber}</div>
                 </div>
               </div>
             </div>
-
             <div class="route-box">
-              <div class="route-point">
-                <div class="label">من (نقطة الصعود)</div>
+              <div style="flex: 1;">
+                <div class="label">من</div>
                 <div class="value">${p.boardingPoint}</div>
               </div>
-              <div class="route-arrow">←</div>
-              <div class="route-point" style="text-align: left;">
-                <div class="label">إلى (نقطة النزول)</div>
+              <div style="padding: 0 20px; font-size: 24px; color: #003d2d;">←</div>
+              <div style="flex: 1; text-align: left;">
+                <div class="label">إلى</div>
                 <div class="value">${p.droppingPoint}</div>
               </div>
             </div>
-
-            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-top: 20px;">
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
               <div class="info-item">
-                <div class="label">تاريخ السفر (Departure Date)</div>
+                <div class="label">تاريخ السفر</div>
                 <div class="value" style="color: #003d2d;">${formattedDate}</div>
               </div>
               <div class="info-item" style="text-align: left;">
-                <div class="label">وقت التحرك (Time)</div>
+                <div class="label">وقت الانطلاق</div>
                 <div class="value" style="font-size: 24px;">${formattedTime}</div>
               </div>
             </div>
-
             <div class="footer">
-              <div class="notice">
-                * يرجى التواجد في محطة الانطلاق قبل موعد الرحلة بساعة واحدة على الأقل.<br>
-                * هذه التذكرة صالحة فقط للرحلة والتاريخ المذكورين أعلاه.<br>
-                * تتبع موقع الحافلة مباشرة عبر موقعنا: alaujantravel.com باستخدام الرمز (${p.tripId})
-              </div>
-              <div class="qr-placeholder">
-                QR CODE
-              </div>
+              * يرجى الحضور قبل موعد الرحلة بساعة.<br>
+              * التتبع متاح عبر الرمز (${p.tripId}) على alaujantravel.com
             </div>
           </div>
         </body>
@@ -332,26 +320,26 @@ export default function AdminTrips() {
             <Navigation className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-primary">غرفة عمليات الرحلات</h1>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">International Fleet Control</p>
+            <h1 className="text-xl font-black text-primary">إدارة الرحلات الدولية</h1>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase mt-1">Unified Tracking System</p>
           </div>
         </div>
         <Button 
           onClick={() => setIsAdding(!isAdding)} 
           className={cn("rounded-xl h-12 font-bold px-6", isAdding ? "bg-red-50 text-red-600 hover:bg-red-100" : "shadow-lg")}
         >
-          {isAdding ? "إلغاء العملية" : <><Plus className="h-4 w-4 ml-2" /> إضافة رحلة دولية</>}
+          {isAdding ? "إلغاء العملية" : <><Plus className="h-4 w-4 ml-2" /> إضافة رحلة awXXX</>}
         </Button>
       </header>
 
       {isAdding && (
         <Card className="rounded-[2.5rem] shadow-2xl animate-in slide-in-from-top-4 duration-500 border-primary/10 no-print">
-          <CardHeader className="bg-primary/5 border-b py-6">
+          <CardHeader className="bg-primary/5 border-b py-6 text-right">
             <CardTitle className="text-lg font-black text-primary flex items-center gap-2 justify-end">
-              <span>تخطيط رحلة دولية جديدة</span>
+              <span>تخطيط مسار دولي جديد</span>
               <Bus className="h-5 w-5" />
             </CardTitle>
-            <CardDescription>أدخل تفاصيل المسار والحافلة لنشر الرحلة للعملاء</CardDescription>
+            <CardDescription>سيتم تعيين رقم تتبع تلقائي بالتسلسل aw001, aw002...</CardDescription>
           </CardHeader>
           <CardContent className="p-8">
             <form onSubmit={handleAddTrip} className="space-y-8">
@@ -396,23 +384,23 @@ export default function AdminTrips() {
                   <Input type="time" value={depTime} onChange={e => setDepTime(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner" />
                 </div>
                 <div className="space-y-3">
-                  <Label className="font-bold flex items-center gap-2 justify-end">سعر التذكرة (ريال) <Banknote className="h-3 w-3 text-primary" /></Label>
-                  <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black text-primary" />
+                  <Label className="font-bold flex items-center gap-2 justify-end">السعر (ريال) <Banknote className="h-3 w-3 text-primary" /></Label>
+                  <Input type="number" value={pricePerSeat} onChange={e => setPricePerSeat(e.target.value)} className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner font-black" />
                 </div>
               </div>
 
               <div className="space-y-3">
-                <Label className="font-bold flex items-center gap-2 justify-end">الحافلة المخصصة <Bus className="h-3 w-3 text-primary" /></Label>
+                <Label className="font-bold flex items-center gap-2 justify-end">الحافلة <Bus className="h-3 w-3 text-primary" /></Label>
                 <Select onValueChange={setBusId} value={busId}>
-                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner text-right"><SelectValue placeholder="اختر حافلة من الأسطول" /></SelectTrigger>
+                  <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-none shadow-inner text-right"><SelectValue placeholder="اختر حافلة" /></SelectTrigger>
                   <SelectContent>
-                    {buses?.map(b => <SelectItem key={b.id} value={b.id}>{b.licensePlate} - {b.model} ({b.capacity} مقعد)</SelectItem>)}
+                    {buses?.map(b => <SelectItem key={b.id} value={b.id}>{b.licensePlate} - {b.model}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-[1.75rem] font-black text-lg shadow-xl hover:scale-[1.01] transition-all">
-                {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : "نشر وبرمجة الرحلة الدولية"}
+              <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-[1.75rem] font-black text-lg shadow-xl">
+                {isSubmitting ? <Loader2 className="animate-spin h-6 w-6" /> : "نشر وبرمجة الرحلة"}
               </Button>
             </form>
           </CardContent>
@@ -420,34 +408,24 @@ export default function AdminTrips() {
       )}
 
       <div className="space-y-4 no-print">
-        <h3 className="font-black text-lg text-primary px-1 flex items-center gap-2 justify-end">
-          <span>جدول الرحلات النشطة</span>
-          <ChevronLeft className="h-5 w-5 text-primary" />
-        </h3>
-        
+        <h3 className="font-black text-lg text-primary px-1 flex items-center gap-2 justify-end">جدول الرحلات</h3>
         {isTripsLoading ? (
           <div className="flex justify-center p-20 opacity-20"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>
-        ) : trips?.length === 0 ? (
-          <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
-            <Bus className="h-16 w-16 mx-auto mb-4 opacity-10" />
-            <p className="text-muted-foreground font-bold">لا توجد رحلات مجدولة حالياً</p>
-          </div>
         ) : trips?.map(trip => (
           <Card key={trip.id} className="rounded-[2rem] border-none shadow-sm ring-1 ring-primary/5 hover:ring-primary/20 transition-all bg-white group no-print">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-5 flex-1 w-full">
-                <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/5 shadow-inner group-hover:bg-primary/10 transition-colors">
+              <div className="flex items-center gap-5 flex-1 w-full text-right">
+                <div className="h-16 w-16 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/5 shadow-inner">
                   <Bus className="h-8 w-8 text-primary" />
                 </div>
-                <div className="text-right flex-1">
+                <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 justify-end">
-                    <p className="font-black text-lg">{trip.originName} <ArrowLeft className="h-3 w-3 text-primary opacity-30" /> {trip.destinationName}</p>
-                    <Badge variant="outline" className="text-[10px] font-mono h-5 px-1.5 border-primary/10 text-primary uppercase">{trip.id}</Badge>
+                    <p className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</p>
+                    <Badge variant="outline" className="text-[12px] font-black border-primary/10 text-primary uppercase">{trip.id}</Badge>
                   </div>
                   <div className="text-[10px] text-muted-foreground font-bold flex items-center gap-4 justify-end">
                     <span className="flex items-center gap-1"><CalendarIcon className="h-3 w-3" /> {format(new Date(trip.departureTime), "PPP", { locale: ar })}</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(trip.departureTime), "p", { locale: ar })}</span>
-                    <span className="flex items-center gap-1 text-primary"><Users className="h-3 w-3" /> {trip.availableSeats}/{trip.totalSeats} مقعد</span>
                   </div>
                 </div>
               </div>
@@ -455,7 +433,7 @@ export default function AdminTrips() {
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <Dialog onOpenChange={(open) => { if (open) setSelectedTripForManifest(trip); }}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="rounded-xl h-12 gap-2 font-bold flex-1 md:flex-none border-primary/10 hover:bg-primary/5">
+                    <Button variant="outline" className="rounded-xl h-12 gap-2 font-bold flex-1 md:flex-none">
                       <Users className="h-4 w-4" /> كشف الركاب
                     </Button>
                   </DialogTrigger>
@@ -468,7 +446,7 @@ export default function AdminTrips() {
                           </div>
                           <div className="text-right">
                             <DialogTitle className="text-2xl font-black text-primary">بيان الركاب الرسمي</DialogTitle>
-                            <DialogDescription className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Passenger Manifest - {trip.id}</DialogDescription>
+                            <DialogDescription className="text-xs text-muted-foreground font-bold tracking-widest mt-1">Passenger Manifest - {trip.id}</DialogDescription>
                           </div>
                         </div>
                         <Button variant="outline" className="rounded-xl gap-2 font-bold h-12 px-6" onClick={handlePrint}>
@@ -480,7 +458,7 @@ export default function AdminTrips() {
                         <div className="flex justify-between items-center border-b-2 border-primary pb-6 mb-8">
                           <div className="text-right">
                             <h2 className="text-3xl font-black text-primary mb-1">شركة العوجان للسياحة والسفر</h2>
-                            <p className="font-bold text-slate-700">كشف ركاب الرحلة الدولية رقم: <span className="text-primary font-mono uppercase">{trip.id}</span></p>
+                            <p className="font-bold text-slate-700">كشف ركاب الرحلة: <span className="text-primary font-mono font-black">{trip.id}</span></p>
                           </div>
                           <div className="text-left text-xs bg-slate-50 p-4 rounded-2xl border">
                             <p className="mb-1">تاريخ الرحلة: <span className="font-black">{format(new Date(trip.departureTime), "PPP", { locale: ar })}</span></p>
@@ -492,8 +470,7 @@ export default function AdminTrips() {
                           <div className="flex justify-center p-20"><Loader2 className="h-12 w-12 animate-spin text-primary opacity-20" /></div>
                         ) : passengersList.length === 0 ? (
                           <div className="text-center p-20 bg-muted/10 rounded-[2.5rem] border-2 border-dashed">
-                            <Users className="h-16 w-16 mx-auto mb-4 opacity-10" />
-                            <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة حالياً</p>
+                            <p className="text-muted-foreground font-bold">لا توجد حجوزات مؤكدة لهذه الرحلة</p>
                           </div>
                         ) : (
                           <div className="rounded-[2rem] border border-primary/10 overflow-hidden shadow-sm overflow-x-auto">
@@ -502,7 +479,7 @@ export default function AdminTrips() {
                                 <tr>
                                   <th className="px-6 py-5 text-center border-l">مقعد</th>
                                   <th className="px-6 py-5">المسافر</th>
-                                  <th className="px-6 py-5">الجواز / الهوية</th>
+                                  <th className="px-6 py-5">الجواز / الهاتف</th>
                                   <th className="px-6 py-5 no-print">إجراءات</th>
                                   <th className="px-6 py-5">الحالة</th>
                                 </tr>
@@ -516,10 +493,15 @@ export default function AdminTrips() {
                                     <td className="px-6 py-4 font-black text-slate-900">
                                       <div className="flex flex-col">
                                         <span className={cn(p.status === 'Cancelled' && "line-through")}>{p.fullName}</span>
-                                        <span className="text-[9px] text-muted-foreground flex items-center gap-1"><Smartphone className="h-2 w-2" /> {p.phone}</span>
+                                        <span className="text-[9px] text-muted-foreground flex items-center gap-1">{p.email}</span>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">{p.passportNumber}</td>
+                                    <td className="px-6 py-4 font-mono text-xs text-slate-500">
+                                      <div className="flex flex-col">
+                                        <span>جواز: {p.passportNumber}</span>
+                                        <span className="text-primary font-bold">هاتف: {p.phone}</span>
+                                      </div>
+                                    </td>
                                     <td className="px-6 py-4 no-print">
                                       <div className="flex items-center gap-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleEditPassenger(p)}>
@@ -535,7 +517,7 @@ export default function AdminTrips() {
                                     </td>
                                     <td className="px-6 py-4">
                                       <Badge className={cn(
-                                        "text-[9px] font-bold px-3 py-0.5 rounded-full border-none",
+                                        "text-[9px] font-bold px-3 py-0.5 rounded-full",
                                         p.status === 'Cancelled' ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
                                       )}>
                                         {p.status === 'Cancelled' ? 'ملغاة' : 'مؤكدة'}
@@ -552,12 +534,7 @@ export default function AdminTrips() {
                   </DialogContent>
                 </Dialog>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => { if(confirm("هل أنت متأكد من حذف هذه الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} 
-                  className="text-red-500 rounded-full hover:bg-red-50 h-12 w-12 shrink-0 transition-colors no-print"
-                >
+                <Button variant="ghost" size="icon" onClick={() => { if(confirm("حذف الرحلة؟")) deleteDocumentNonBlocking(doc(firestore, "busTrips", trip.id)) }} className="text-red-500 rounded-full h-12 w-12 no-print">
                   <Trash2 className="h-5 w-5" />
                 </Button>
               </div>
@@ -568,47 +545,41 @@ export default function AdminTrips() {
 
       <Dialog open={isEditingPassenger} onOpenChange={setIsEditingPassenger}>
         <DialogContent className="rounded-[2rem] text-right">
-          <DialogHeader>
-            <DialogTitle>تعديل بيانات المسافر</DialogTitle>
-            <DialogDescription>تحديث بيانات المسافر في كشف الرحلة</DialogDescription>
+          <DialogHeader className="text-right">
+            <DialogTitle>تعديل بيانات الراكب</DialogTitle>
+            <DialogDescription>تحديث بيانات المسافر في الرحلة {selectedTripForManifest?.id}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>الاسم الثلاثي</Label>
-              <Input 
-                value={editingPassengerData?.fullName || ""} 
-                onChange={e => setEditingPassengerData({...editingPassengerData, fullName: e.target.value})}
-                className="rounded-xl h-12"
-              />
+              <Label>الاسم الكامل</Label>
+              <Input value={editingPassengerData?.fullName || ""} onChange={e => setEditingPassengerData({...editingPassengerData, fullName: e.target.value})} className="rounded-xl h-12" />
             </div>
             <div className="space-y-2">
-              <Label>رقم الجواز / الهوية</Label>
-              <Input 
-                value={editingPassengerData?.passportNumber || ""} 
-                onChange={e => setEditingPassengerData({...editingPassengerData, passportNumber: e.target.value})}
-                className="rounded-xl h-12"
-              />
+              <Label>رقم الجواز</Label>
+              <Input value={editingPassengerData?.passportNumber || ""} onChange={e => setEditingPassengerData({...editingPassengerData, passportNumber: e.target.value})} className="rounded-xl h-12" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>رقم الهاتف</Label>
+                <Input value={editingPassengerData?.phone || ""} onChange={e => setEditingPassengerData({...editingPassengerData, phone: e.target.value})} className="rounded-xl h-12" />
+              </div>
+              <div className="space-y-2">
+                <Label>البريد الإلكتروني</Label>
+                <Input value={editingPassengerData?.email || ""} onChange={e => setEditingPassengerData({...editingPassengerData, email: e.target.value})} className="rounded-xl h-12" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>حالة المقعد</Label>
-              <Select 
-                value={editingPassengerData?.status || "Confirmed"}
-                onValueChange={val => setEditingPassengerData({...editingPassengerData, status: val})}
-              >
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Confirmed">مؤكد</SelectItem>
-                  <SelectItem value="Cancelled">ملغى</SelectItem>
-                </SelectContent>
+              <Select value={editingPassengerData?.status || "Confirmed"} onValueChange={val => setEditingPassengerData({...editingPassengerData, status: val})}>
+                <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="Confirmed">مؤكد</SelectItem><SelectItem value="Cancelled">ملغى</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter className="flex flex-row gap-2">
             <Button variant="outline" onClick={() => setIsEditingPassenger(false)} className="flex-1 rounded-xl">إلغاء</Button>
             <Button onClick={handleSavePassenger} disabled={isSavingEdit} className="flex-1 rounded-xl gap-2">
-              {isSavingEdit ? <Loader2 className="animate-spin h-4 w-4" /> : <><Save className="h-4 w-4" /> حفظ التعديلات</>}
+              {isSavingEdit ? <Loader2 className="animate-spin h-4 w-4" /> : <><Save className="h-4 w-4" /> حفظ البيانات</>}
             </Button>
           </DialogFooter>
         </DialogContent>
