@@ -14,7 +14,6 @@ import {
   Navigation,
   Activity,
   ShieldCheck,
-  Settings,
   ShieldAlert
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -29,7 +28,6 @@ export default function DriverDashboard() {
   const firestore = useFirestore();
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<string>("unknown");
   const watcherIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
 
@@ -72,23 +70,20 @@ export default function DriverDashboard() {
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
-        const { Geolocation } = await import('@capacitor/geolocation');
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        const { Geolocation } = await import('@capacitor/geolocation');
 
-        // 1. طلب الصلاحيات الأساسية أولاً
-        const status = await Geolocation.requestPermissions();
-        setPermissionStatus(status.location);
-
-        if (status.location !== 'granted') {
+        const permissions = await Geolocation.requestPermissions();
+        
+        if (permissions.location !== 'granted') {
           toast({ 
             variant: "destructive", 
-            title: "الصلاحيات مرفوضة", 
-            description: "يرجى تفعيل صلاحيات الموقع من إعدادات الهاتف." 
+            title: "صلاحيات الموقع مطلوبة", 
+            description: "يرجى تفعيل صلاحيات الموقع لهذا التطبيق من الإعدادات." 
           });
           return;
         }
 
-        // 2. تنظيف أي جلسة سابقة
         if (watcherIdRef.current) {
           try {
             await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
@@ -97,7 +92,6 @@ export default function DriverDashboard() {
 
         setActiveTripId(tripId);
 
-        // 3. بدء التتبع في الخلفية
         const id = await BackgroundGeolocation.addWatcher(
           {
             backgroundMessage: "يتم الآن بث موقع الحافلة للركاب في الخلفية.",
@@ -107,10 +101,7 @@ export default function DriverDashboard() {
             distanceFilter: 10
           },
           (location: any, error: any) => {
-            if (error) {
-              console.error("BG Tracking Error:", error);
-              return;
-            }
+            if (error) return;
             if (location) {
               updateFirebaseLocation(tripId, location.latitude, location.longitude);
             }
@@ -118,15 +109,12 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // دعم الويب
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
               updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
             },
-            (error) => {
-              console.error("Web Geo Error:", error);
-            },
+            (error) => console.error(error),
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
           );
           watcherIdRef.current = id.toString();
@@ -141,13 +129,12 @@ export default function DriverDashboard() {
       });
 
       setIsTracking(true);
-      toast({ title: "تم تفعيل البث المباشر", description: "البث يعمل الآن وبدقة عالية" });
+      toast({ title: "بدأ البث المباشر", description: "يمكن للركاب الآن رؤية موقع الحافلة" });
     } catch (e: any) {
-      console.error("Full Tracking Error Object:", e);
       toast({ 
         variant: "destructive", 
-        title: "فشل بدء التتبع", 
-        description: "تأكد من اختيار 'السماح طوال الوقت' في الإعدادات." 
+        title: "خطأ في التتبع", 
+        description: "تأكد من تفعيل صلاحيات الموقع 'دائماً'." 
       });
       setIsTracking(false);
     }
@@ -189,7 +176,7 @@ export default function DriverDashboard() {
         <AlertTriangle className="h-10 w-10 text-red-500" />
       </div>
       <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
-      <p className="text-sm text-muted-foreground">يرجى مراجعة الإدارة لربط بريدك الإلكتروني بحافلة من الأسطول.</p>
+      <p className="text-sm text-muted-foreground">يرجى مراجعة الإدارة لربط بريدك بحافلة من الأسطول.</p>
     </div>
   );
 
@@ -210,7 +197,6 @@ export default function DriverDashboard() {
         </div>
       </header>
 
-      {/* تنبيه الصلاحيات المعزز */}
       <Card className="bg-amber-50 border-amber-200 rounded-[1.5rem] overflow-hidden border-2">
         <CardContent className="p-4 flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
@@ -220,7 +206,7 @@ export default function DriverDashboard() {
             <h4 className="text-xs font-black text-amber-900 mb-1">خطوة ضرورية للعمل في الخلفية</h4>
             <p className="text-[10px] text-amber-700 leading-relaxed">
               لضمان استمرار البث عند قفل الشاشة، اذهب إلى: <br/>
-              <b>إعدادات الهاتف > التطبيقات > العوجان للسفر > الأذونات > الموقع</b> <br/>
+              <b>إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الأذونات &gt; الموقع</b> <br/>
               واختر <b>"السماح طوال الوقت"</b>.
             </p>
           </div>
@@ -263,7 +249,7 @@ export default function DriverDashboard() {
                     <div className="text-right">
                       <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end mt-1">
-                        <Activity className="h-2 w-2" /> الحالة الحالية: {trip.status === "Departed" ? "على الطريق" : "مجدولة"}
+                        <Activity className="h-2 w-2" /> الحالة: {trip.status === "Departed" ? "على الطريق" : "مجدولة"}
                       </p>
                     </div>
                     <Badge className="bg-primary/10 text-primary font-black px-3">{trip.id}</Badge>
@@ -294,7 +280,7 @@ export default function DriverDashboard() {
         <ul className="text-[10px] text-muted-foreground space-y-1 text-right">
           <li>• تأكد من اختيار "السماح طوال الوقت" للموقع ليعمل البث والشاشة مقفلة.</li>
           <li>• سيظهر لك إشعار دائم في أعلى الهاتف طوال فترة البث.</li>
-          <li>• عند الوصول للمحطة النهائية، اضغط "تأكيد الوصول" لإغلاق الرحلة وتوفير البطارية.</li>
+          <li>• عند الوصول للمحطة النهائية، اضغط "تأكيد الوصول" لإغلاق الرحلة.</li>
         </ul>
       </div>
     </div>
