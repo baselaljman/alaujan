@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, Suspense, useRef, useEffect } from "react";
@@ -35,7 +34,7 @@ function BookTripContent() {
   const tripRef = useMemoFirebase(() => (tripId ? doc(firestore, "busTrips", tripId) : null), [firestore, tripId]);
   const { data: trip, isLoading: isTripLoading } = useDoc(tripRef);
 
-  // استعلام المقاعد المحجوزة - أضفنا حداً أقصى للتوافق مع قواعد الحماية وضمان الأداء
+  // استعلام المقاعد المحجوزة
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !tripId) return null;
     return query(
@@ -51,7 +50,6 @@ function BookTripContent() {
     if (!allBookings) return new Set<number>();
     const taken = new Set<number>();
     allBookings.forEach(booking => {
-      // نتحقق فقط من الحجوزات غير الملغاة
       if (booking.status !== 'Cancelled') {
         booking.seatNumbers?.forEach((s: string) => taken.add(parseInt(s)));
       }
@@ -121,11 +119,12 @@ function BookTripContent() {
     if (!phone || isSendingCode) return;
     setIsSendingCode(true);
     try {
+      // تهيئة المحقق مع التنظيف
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
       const result = await sendOtpToPhone(auth, `${countryCode}${phone}`, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      // toast in helper
+      // الخطأ يتم معالجته وعرضه داخل وظيفة الإرسال عبر toast
     } finally {
       setIsSendingCode(false);
     }
@@ -137,9 +136,9 @@ function BookTripContent() {
     try {
       await confirmationResult.confirm(otpCode);
       setIsOtpVerified(true);
-      toast({ title: "تم التحقق", description: "يمكنك المتابعة" });
+      toast({ title: "تم التحقق", description: "يمكنك المتابعة الآن لإتمام الحجز" });
     } catch (error) {
-      toast({ variant: "destructive", title: "خطأ", description: "الرمز غير صحيح" });
+      toast({ variant: "destructive", title: "خطأ", description: "الرمز غير صحيح، يرجى المحاولة مرة أخرى" });
     } finally {
       setIsVerifyingCode(false);
     }
@@ -152,7 +151,7 @@ function BookTripContent() {
       tripId, 
       seats: selectedSeats.join(","), 
       total: finalTotal.toString(), 
-      email,
+      email: email.toLowerCase().trim(),
       phone: `${countryCode}${phone}`,
       extraBags: extraBags.toString(),
       boardingPoint,
@@ -180,6 +179,7 @@ function BookTripContent() {
         </div>
       </header>
 
+      {/* حاوية reCAPTCHA المخفية */}
       <div id="recaptcha-container"></div>
 
       {step === 1 && (

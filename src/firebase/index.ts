@@ -7,7 +7,6 @@ import { getFirestore } from 'firebase/firestore'
 
 /**
  * تهيئة خدمات Firebase بطريقة متوافقة مع التصدير الثابت وبناء Next.js.
- * تمنع هذه الطريقة محاولة الاكتشاف التلقائي للإعدادات التي تسبب أخطاء أثناء البناء.
  */
 export function initializeFirebase() {
   const apps = getApps();
