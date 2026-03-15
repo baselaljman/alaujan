@@ -41,7 +41,8 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     '@capacitor-community/background-geolocation',
     '@capacitor/geolocation',
-    '@capacitor/core'
+    '@capacitor/core',
+    '@capacitor/android'
   ],
 };
 
