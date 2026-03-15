@@ -102,7 +102,7 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
       msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة بعد ساعة.";
     } else if (error.code === 'auth/invalid-phone-number') {
       msg = "رقم الهاتف غير صحيح، يرجى كتابته بدون أصفار زائدة.";
-    } else if (error.code === 'auth/captcha-check-failed') {
+    } else if (error.code === 'auth/captcha-check-failed' || error.message.includes('-39')) {
       msg = "حدث تداخل في نظام الأمان، يرجى تحديث الصفحة والمحاولة مرة أخرى.";
     }
     

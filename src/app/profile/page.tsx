@@ -77,7 +77,7 @@ export default function ProfilePage() {
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
-    // البحث المزدوج لضمان ظهور التذاكر فوراً
+    // البحث المزدوج لضمان ظهور التذاكر فوراً سواء بالبريد أو المعرف
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -152,7 +152,7 @@ export default function ProfilePage() {
               <div className="flex-1 text-center md:text-right space-y-2">
                 <h2 className="text-2xl font-black text-slate-900">{profile?.firstName || "مسافر"} {profile?.lastName || "العوجان"}</h2>
                 <div className="flex items-center justify-center md:justify-end gap-2 text-slate-500 font-bold text-sm">
-                  <Mail className="h-3 w-3" /> {user.email}
+                  <Mail className="h-3 w-3" /> {user.email || profile?.email}
                 </div>
                 <div className="flex items-center justify-center md:justify-end gap-2 mt-2">
                   <Badge className="bg-primary px-5 py-2 rounded-full">{isAdmin ? "المدير العام" : "عضو معتمد"}</Badge>
