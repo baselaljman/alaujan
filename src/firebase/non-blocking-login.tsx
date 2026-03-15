@@ -27,16 +27,20 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
 
 /** 
  * تهيئة reCAPTCHA مع تنظيف شامل للمتصفح.
- * هذه الوظيفة مسؤولة عن منع الخطأ المشهور (auth/error-code:-39).
+ * تتضمن التحقق من وجود الحاوية في الـ DOM لمنع أخطاء التهيئة.
  */
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
 
-  // 1. تنظيف الحاوية البصرية تماماً من أي بقايا HTML سابقة
+  // التحقق من وجود الحاوية في الـ DOM قبل البدء
   const container = document.getElementById(containerId);
-  if (container) {
-    container.innerHTML = ''; 
+  if (!container) {
+    console.error(`reCAPTCHA container with id "${containerId}" not found in DOM.`);
+    throw new Error("Recaptcha container not found");
   }
+
+  // 1. تنظيف الحاوية البصرية تماماً من أي بقايا HTML سابقة
+  container.innerHTML = ''; 
 
   // 2. تدمير كائن المحقق القديم في الذاكرة إذا وجد لمنع التداخل
   if (globalRecaptchaVerifier) {
@@ -77,24 +81,18 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
   try {
     let finalPhone = phoneNumber.trim();
     
-    /**
-     * منطق تصحيح الأرقام:
-     * العديد من المستخدمين يدخلون 05XXXXXXXX مع كود الدولة +966.
-     * النظام يرفض +96605... لذلك نقوم بحذف الصفر الزائد ليصبح +9665...
-     */
+    // منطق تصحيح الأرقام: حذف الصفر الزائد ليصبح +9665... بدلاً من +96605...
     if (finalPhone.includes('+9660')) {
       finalPhone = finalPhone.replace('+9660', '+966');
     } else if (finalPhone.includes('+9630')) {
       finalPhone = finalPhone.replace('+9630', '+963');
     } else if (!finalPhone.startsWith('+')) {
-      // إذا أدخل المستخدم الرقم بدون كود الدولة (مثلاً 05...)
       if (finalPhone.startsWith('0')) {
         finalPhone = finalPhone.substring(1);
       }
       finalPhone = `+966${finalPhone}`;
     }
 
-    // إرسال الطلب لـ Firebase
     const result = await signInWithPhoneNumber(authInstance, finalPhone, appVerifier);
     toast({ title: "تم إرسال الرمز", description: "يرجى التحقق من رسائل SMS على هاتفك" });
     return result;
@@ -102,7 +100,6 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
     console.error("SMS Send Error:", error);
     let msg = "تعذر إرسال الرمز. يرجى المحاولة مرة أخرى.";
     
-    // معالجة الأخطاء الشائعة لتوجيه المستخدم
     if (error.code === 'auth/too-many-requests') {
       msg = "تم إرسال محاولات كثيرة لهذا الرقم. يرجى المحاولة بعد ساعة.";
     } else if (error.code === 'auth/invalid-phone-number') {

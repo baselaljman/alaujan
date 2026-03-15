@@ -71,13 +71,13 @@ export default function ProfilePage() {
   }, [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
 
-  // استعلام جلب التذاكر بناءً على البريد الإلكتروني أو المعرف الشخصي لضمان ظهور التذكرة فوراً
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
+    // البحث المزدوج لضمان ظهور التذاكر فوراً
     if (userEmail) {
       return query(
         bookingsRef, 
