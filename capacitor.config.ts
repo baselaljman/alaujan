@@ -9,7 +9,9 @@ const config: CapacitorConfig = {
   },
   plugins: {
     Geolocation: {
-      // إعدادات إضافية للموقع لضمان الدقة
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     }
   }
 };

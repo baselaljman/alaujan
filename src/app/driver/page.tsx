@@ -1,28 +1,23 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Play, 
-  Square, 
   Loader2, 
   AlertTriangle, 
-  Clock, 
-  Info, 
-  MapPin, 
   Bus, 
   CheckCircle2,
   RefreshCw,
-  Navigation,
-  ChevronLeft
+  Navigation
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
-import { Geolocation } from '@capacitor/geolocation';
+import { BackgroundGeolocation } from '@capacitor-community/background-geolocation';
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
@@ -31,7 +26,7 @@ export default function DriverDashboard() {
   const firestore = useFirestore();
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
-  const watchIdRef = useRef<string | null>(null);
+  const watcherIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
 
   const busesQuery = useMemoFirebase(() => {
@@ -69,38 +64,37 @@ export default function DriverDashboard() {
 
   const startTracking = async (tripId: string) => {
     try {
-      // طلب تصاريح الموقع بشكل صريح لضمان عملها على الأندرويد
-      const permissions = await Geolocation.requestPermissions();
-      if (permissions.location !== 'granted') {
-        toast({ 
-          variant: "destructive", 
-          title: "تم رفض الوصول للموقع", 
-          description: "يرجى تفعيل تصاريح الموقع 'السماح دوماً' ليعمل البث في الخلفية." 
-        });
-        return;
-      }
-
       setActiveTripId(tripId);
       
-      // بدء مراقبة الموقع بدقة عالية
-      const watchId = await Geolocation.watchPosition(
+      // بدء مراقبة الموقع باستخدام BackgroundGeolocation (الحزمة المجتمعية)
+      // تضمن هذه الحزمة استمرار العمل حتى لو أغلق التطبيق أو قفل الهاتف
+      const id = await BackgroundGeolocation.addWatcher(
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
+          backgroundMessage: "يتم الآن بث موقع الحافلة للركاب في الخلفية.",
+          backgroundTitle: "البث المباشر نشط - العوجان للسفر",
+          requestPermissions: true,
+          stale: false,
+          distanceFilter: 10 // تحديث كل 10 أمتار حركة
         },
-        (position, err) => {
-          if (err) {
-            console.error("Tracking Error:", err);
+        (location, error) => {
+          if (error) {
+            console.error("Background Tracking Error:", error);
+            if (error.code === "NOT_AUTHORIZED") {
+              toast({ 
+                variant: "destructive", 
+                title: "تصريح الموقع مطلوب", 
+                description: "يرجى تفعيل 'السماح دوماً' في إعدادات التطبيق." 
+              });
+            }
             return;
           }
-          if (position) {
-            updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
+          if (location) {
+            updateFirebaseLocation(tripId, location.latitude, location.longitude);
           }
         }
       );
 
-      watchIdRef.current = watchId;
+      watcherIdRef.current = id;
 
       const tripRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripRef, {
@@ -111,12 +105,12 @@ export default function DriverDashboard() {
       });
 
       setIsTracking(true);
-      toast({ title: "تم تفعيل البث المباشر", description: "موقع الحافلة يظهر الآن للركاب على الخريطة" });
+      toast({ title: "تم تفعيل البث المباشر", description: "البث يعمل الآن في الخلفية وبدقة عالية" });
     } catch (e) {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "تأكد من تفعيل الـ GPS في الهاتف." 
+        description: "يرجى التأكد من تفعيل الـ GPS وصلاحيات الخلفية." 
       });
       setIsTracking(false);
     }
@@ -124,9 +118,9 @@ export default function DriverDashboard() {
 
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
     setIsTracking(false);
-    if (watchIdRef.current) {
-      await Geolocation.clearWatch({ id: watchIdRef.current });
-      watchIdRef.current = null;
+    if (watcherIdRef.current) {
+      await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+      watcherIdRef.current = null;
     }
     
     if (activeTripId) {
@@ -188,9 +182,9 @@ export default function DriverDashboard() {
             </div>
             
             <div className="space-y-2">
-              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">جاري البث المباشر للموقع</Badge>
+              <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">جاري البث المباشر (خلفية)</Badge>
               <h2 className="text-xl font-black text-emerald-900">الرحلة النشطة: {activeTripId}</h2>
-              <p className="text-xs text-emerald-700/70 font-bold">سيستمر البث حتى لو كان الهاتف مقفلاً</p>
+              <p className="text-xs text-emerald-700/70 font-bold">البث يعمل حتى لو أغلقت التطبيق</p>
             </div>
 
             <div className="grid grid-cols-1 gap-3 pt-4">
