@@ -66,7 +66,7 @@ export default function DriverDashboard() {
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        // استخدام إضافة التتبع في الخلفية للأندرويد
+        // تحميل المكتبة ديناميكياً لتجنب خطأ Module not found أثناء الـ Build
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         
         const id = await BackgroundGeolocation.addWatcher(
@@ -89,7 +89,7 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // استخدام نظام المتصفح العادي عند التشغيل عبر الويب
+        // نظام الويب العادي
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
@@ -101,8 +101,6 @@ export default function DriverDashboard() {
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
           );
           watcherIdRef.current = id.toString();
-        } else {
-          throw new Error("Geolocation is not supported by this browser.");
         }
       }
 
@@ -110,18 +108,13 @@ export default function DriverDashboard() {
       updateDocumentNonBlocking(tripRef, {
         status: "Departed",
         lastUpdatedAt: new Date().toISOString(),
-        currentLocationDescription: "بدأت الرحلة",
         isLive: true
       });
 
       setIsTracking(true);
       toast({ title: "تم تفعيل البث المباشر", description: "البث يعمل الآن وبدقة عالية" });
     } catch (e) {
-      toast({ 
-        variant: "destructive", 
-        title: "خطأ في التتبع", 
-        description: "يرجى التأكد من تفعيل الـ GPS وصلاحيات الموقع." 
-      });
+      toast({ variant: "destructive", title: "خطأ في التتبع" });
       setIsTracking(false);
     }
   };
@@ -143,13 +136,10 @@ export default function DriverDashboard() {
       updateDocumentNonBlocking(tripRef, { 
         isLive: false,
         status: newStatus,
-        lastUpdatedAt: new Date().toISOString(),
-        currentLocationDescription: newStatus === "Arrived" ? "وصل للمحطة النهائية" : "توقف مؤقت"
+        lastUpdatedAt: new Date().toISOString()
       });
       setActiveTripId(null);
     }
-
-    toast({ title: "تم تحديث الحالة", description: `حالة الرحلة الآن: ${newStatus}` });
   };
 
   if (isBusesLoading || isTripsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -159,12 +149,7 @@ export default function DriverDashboard() {
       <div className="h-20 w-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto border border-red-100 shadow-xl">
         <AlertTriangle className="h-10 w-10 text-red-500" />
       </div>
-      <div className="space-y-2 text-right">
-        <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
-        <p className="text-muted-foreground text-xs leading-relaxed max-w-xs mx-auto text-center">
-          بريدك الإلكتروني ({user?.email}) غير مرتب بأي حافلة حالياً.
-        </p>
-      </div>
+      <h1 className="text-xl font-black text-center">حساب غير مرتبط بحافلة</h1>
       <Button variant="outline" className="rounded-xl h-12 px-8" onClick={() => window.location.reload()}>تحديث الصفحة <RefreshCw className="h-4 w-4 mr-2" /></Button>
     </div>
   );
@@ -187,52 +172,33 @@ export default function DriverDashboard() {
       </header>
 
       {isTracking && activeTripId ? (
-        <Card className="border-emerald-200 bg-emerald-50/50 shadow-2xl rounded-[2.5rem] overflow-hidden animate-in zoom-in duration-300">
+        <Card className="border-emerald-200 bg-emerald-50/50 shadow-2xl rounded-[2.5rem] overflow-hidden">
           <CardContent className="p-8 text-center space-y-6">
-            <div className="relative inline-block">
-              <div className="h-24 w-24 rounded-full bg-emerald-600 animate-ping absolute inset-0 m-auto opacity-20" />
-              <div className="h-20 w-20 rounded-full bg-emerald-600 flex items-center justify-center relative z-10 shadow-2xl">
-                <Navigation className="h-10 w-10 text-white animate-bounce" />
-              </div>
+            <div className="h-20 w-20 rounded-full bg-emerald-600 flex items-center justify-center mx-auto shadow-2xl">
+              <Navigation className="h-10 w-10 text-white animate-bounce" />
             </div>
-            
             <div className="space-y-2">
               <Badge className="bg-emerald-600 text-white px-4 py-1 rounded-full font-black animate-pulse">جاري البث المباشر</Badge>
               <h2 className="text-xl font-black text-emerald-900">الرحلة النشطة: {activeTripId}</h2>
-              <p className="text-xs text-emerald-700/70 font-bold">يتم الآن تحديث موقعك للركاب</p>
             </div>
-
-            <div className="grid grid-cols-1 gap-3 pt-4">
-              <Button onClick={() => stopTracking("Arrived")} className="h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
-                <CheckCircle2 className="h-6 w-6" /> تأكيد الوصول للمحطة النهائية
-              </Button>
-            </div>
+            <Button onClick={() => stopTracking("Arrived")} className="w-full h-16 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-lg font-black gap-2 shadow-xl">
+              <CheckCircle2 className="h-6 w-6" /> تأكيد الوصول
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="font-black text-lg text-primary">الرحلات المجدولة لك</h3>
-          </div>
-
+          <h3 className="font-black text-lg text-primary">الرحلات المجدولة لك</h3>
           <div className="grid grid-cols-1 gap-4">
             {myTrips?.filter(t => t.status !== "Arrived").map(trip => (
               <Card key={trip.id} className="border-primary/5 shadow-sm rounded-3xl overflow-hidden">
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="text-right space-y-1">
-                      <div className="flex items-center gap-2 justify-end">
-                        <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
-                        <Badge className="bg-primary/10 text-primary font-black border-none">{trip.id}</Badge>
-                      </div>
-                    </div>
+                    <h4 className="font-black text-lg">{trip.originName} ⬅ {trip.destinationName}</h4>
+                    <Badge className="bg-primary/10 text-primary font-black">{trip.id}</Badge>
                   </div>
-                  
-                  <Button 
-                    onClick={() => startTracking(trip.id)} 
-                    className="w-full h-14 rounded-2xl bg-primary hover:bg-primary/95 font-black text-lg gap-3 shadow-lg"
-                  >
-                    <Play className="h-5 w-5 fill-white" /> بدء الرحلة وبث الموقع
+                  <Button onClick={() => startTracking(trip.id)} className="w-full h-14 rounded-2xl bg-primary font-black text-lg gap-3">
+                    <Play className="h-5 w-5 fill-white" /> بدء البث المباشر
                   </Button>
                 </CardContent>
               </Card>
