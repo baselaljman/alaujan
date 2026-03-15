@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,9 @@ import {
   Mail,
   UserCheck,
   MapPin,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  LayoutDashboard,
+  Shield
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +39,7 @@ import {
   initiateEmailSignUp,
   initiatePasswordReset
 } from "@/firebase";
-import { collection, query, where, doc, limit } from "firebase/firestore";
+import { collection, query, where, doc, limit, getDocs } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { toast } from "@/hooks/use-toast";
 import { toPng } from 'html-to-image';
@@ -55,6 +58,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isDriver, setIsDriver] = useState(false);
   const ticketRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const isAdmin = useMemo(() => {
@@ -62,6 +66,30 @@ export default function ProfilePage() {
     const emailStr = user.email.toLowerCase();
     return ADMIN_EMAILS.some(e => e.toLowerCase() === emailStr) || emailStr.endsWith("@alawajan.com");
   }, [user]);
+
+  // التحقق مما إذا كان المستخدم سائقاً لعرض لوحة القائد
+  useEffect(() => {
+    async function checkDriver() {
+      if (!user?.email || !firestore) return;
+      const emailKey = user.email.toLowerCase().trim();
+      
+      // فحص مجموعة السائقين
+      const driversRef = collection(firestore, "drivers");
+      const q = query(driversRef, where("email", "==", emailKey));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        setIsDriver(true);
+      } else {
+        // فحص ما إذا كان مرتبطاً بحافلة
+        const busesRef = collection(firestore, "buses");
+        const qBus = query(busesRef, where("driverEmail", "==", emailKey));
+        const busSnapshot = await getDocs(qBus);
+        if (!busSnapshot.empty) setIsDriver(true);
+      }
+    }
+    if (user && !user.isAnonymous) checkDriver();
+  }, [user, firestore]);
 
   const profileRef = useMemoFirebase(() => (user?.uid ? doc(firestore, "users", user.uid) : null), [firestore, user?.uid]);
   const { data: profile } = useDoc(profileRef);
@@ -106,7 +134,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8 pb-32 text-right">
       {user && !user.isAnonymous && (
-        <section className="bg-white rounded-[2rem] p-6 shadow-sm border">
+        <section className="bg-white rounded-[2rem] p-6 shadow-sm border animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border shadow-sm">
               <AvatarFallback className="bg-primary/5 text-primary"><UserIcon className="h-8 w-8" /></AvatarFallback>
@@ -114,22 +142,42 @@ export default function ProfilePage() {
             <div>
               <h2 className="text-xl font-black">{profile?.firstName || "كابتن"} {profile?.lastName || "العوجان"}</h2>
               <p className="text-xs text-muted-foreground">{user.email}</p>
-              {isAdmin && <Badge className="mt-1 bg-primary">إدارة</Badge>}
+              <div className="flex gap-2 mt-2">
+                {isAdmin && <Badge className="bg-red-600 font-bold px-3">مسؤول النظام</Badge>}
+                {isDriver && <Badge className="bg-primary font-bold px-3">قائد حافلة</Badge>}
+              </div>
             </div>
           </div>
         </section>
       )}
 
-      {isAdmin && (
-        <Button asChild className="w-full h-14 rounded-2xl bg-slate-900 font-black"><Link href="/admin">لوحة الإدارة</Link></Button>
-      )}
+      <div className="grid grid-cols-1 gap-3">
+        {isAdmin && (
+          <Button asChild className="w-full h-14 rounded-2xl bg-slate-900 font-black shadow-lg gap-2">
+            <Link href="/admin">
+              <Shield className="h-5 w-5" /> دخول لوحة الإدارة
+            </Link>
+          </Button>
+        )}
+
+        {isDriver && (
+          <Button asChild className="w-full h-14 rounded-2xl bg-emerald-700 hover:bg-emerald-800 font-black shadow-lg gap-2">
+            <Link href="/driver">
+              <Bus className="h-5 w-5" /> فتح لوحة السائق وبث الرحلة
+            </Link>
+          </Button>
+        )}
+      </div>
 
       <section className="space-y-6">
-        <h3 className="font-black text-xl text-primary">تذاكرك (تتبع aw001)</h3>
+        <h3 className="font-black text-xl text-primary flex items-center gap-2 justify-end">
+          تذاكرك وحجوزاتك
+          <TicketIcon className="h-5 w-5" />
+        </h3>
         {isBookingsLoading ? <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div> : bookings?.length ? (
           <div className="space-y-10">
             {bookings.map(booking => (
-              <div key={booking.id}>
+              <div key={booking.id} className="animate-in fade-in slide-in-from-bottom-2">
                 <div ref={el => { ticketRefs.current[booking.id] = el; }} className="bg-white shadow-xl rounded-[2.5rem] overflow-hidden border print-area">
                   <div className="p-5 bg-primary/5 border-b flex justify-between items-center">
                     <div className="flex items-center gap-2"><Bus className="h-4 w-4 text-primary" /><span className="text-[10px] font-black uppercase text-primary/60">Al-Awajan Official</span></div>
@@ -166,23 +214,23 @@ export default function ProfilePage() {
       </section>
 
       {(!user || user.isAnonymous) && (
-        <Card className="rounded-[2rem] bg-primary/5 p-8 text-right border-none shadow-sm">
+        <Card className="rounded-[2rem] bg-primary/5 p-8 text-right border-none shadow-sm animate-in zoom-in-95">
           <div className="flex flex-col items-center mb-6">
             <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center mb-2"><UserCheck className="h-6 w-6 text-white" /></div>
-            <h2 className="text-xl font-black">دخول المسافرين</h2>
-            <p className="text-xs text-muted-foreground text-center">لمشاهدة تذاكرك السابقة من أي جهاز</p>
+            <h2 className="text-xl font-black">دخول المسافرين والسائقين</h2>
+            <p className="text-xs text-muted-foreground text-center">سجل دخولك لمشاهدة تذاكرك أو إدارة رحلاتك</p>
           </div>
           <form onSubmit={handleAuthAction} className="space-y-4">
             <div className="space-y-2"><Label>البريد</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded-xl" /></div>
             {authMode !== 'forgot' && <div className="space-y-2"><Label>كلمة المرور</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} className="h-12 rounded-xl" /></div>}
             <Button type="submit" className="w-full h-12 rounded-xl font-bold">{authMode === 'login' ? 'دخول' : 'تسجيل'}</Button>
-            <Button type="button" variant="link" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="w-full">{authMode === 'login' ? 'إنشاء حساب جديد' : 'لديك حساب؟ ادخل هنا'}</Button>
+            <Button type="button" variant="link" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="w-full text-xs">{authMode === 'login' ? 'إنشاء حساب جديد' : 'لديك حساب؟ ادخل هنا'}</Button>
           </form>
         </Card>
       )}
 
       {user && !user.isAnonymous && (
-        <Button variant="outline" onClick={handleLogout} className="w-full h-14 rounded-2xl text-red-600 font-bold"><LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج</Button>
+        <Button variant="outline" onClick={handleLogout} className="w-full h-14 rounded-2xl text-red-600 font-bold border-red-100 hover:bg-red-50"><LogOut className="h-5 w-5 ml-2" /> تسجيل الخروج من الحساب</Button>
       )}
     </div>
   );
