@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // السماح بالقراءة والكتابة العامة لجميع الجداول لضمان سلاسة العمل بدون قيود تقنية بناءً على طلب العميل
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

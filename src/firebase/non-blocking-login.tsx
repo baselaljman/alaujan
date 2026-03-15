@@ -46,7 +46,7 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
   const container = document.getElementById(containerId);
   if (!container) {
     console.error(`reCAPTCHA container with id "${containerId}" not found in DOM.`);
-    throw new Error("Recaptcha container not found");
+    return null as any;
   }
 
   // 3. تنظيف الحاوية البصرية تماماً من أي بقايا HTML سابقة
@@ -77,6 +77,10 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
  */
 export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, appVerifier: RecaptchaVerifier): Promise<ConfirmationResult> {
   try {
+    if (!appVerifier) {
+      throw new Error("Verifier not initialized");
+    }
+
     let finalPhone = phoneNumber.trim();
     
     // تصحيح الرقم: حذف الصفر الزائد (مثلاً يحول 05 إلى +9665)

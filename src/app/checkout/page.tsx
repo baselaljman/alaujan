@@ -24,6 +24,7 @@ function CheckoutContent() {
   const [generatedTicketId, setGeneratedTicketId] = useState("");
 
   const tripId = searchParams.get("tripId") || "";
+  const departureTime = searchParams.get("departureTime") || "";
   const seatsParam = searchParams.get("seats") || "";
   const seats = seatsParam.split(",").filter(s => s !== "");
   const totalAmount = Number(searchParams.get("total") || 0);
@@ -62,7 +63,6 @@ function CheckoutContent() {
     const trackingNumber = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
     setGeneratedTicketId(trackingNumber);
 
-    // 1. إنشاء/تحديث بروفايل المستخدم
     const userProfileRef = doc(firestore, "users", user.uid);
     setDocumentNonBlocking(userProfileRef, {
       id: user.uid,
@@ -74,7 +74,6 @@ function CheckoutContent() {
       createdAt: serverTimestamp() 
     }, { merge: true });
 
-    // 2. حفظ الحجز بربط مزدوج (UID + Email) لضمان الخصوصية والوصول الدائم
     const bookingsRef = collection(firestore, "bookings");
     const bookingData = {
       trackingNumber: trackingNumber,
@@ -88,6 +87,7 @@ function CheckoutContent() {
       passengers: passengers,
       boardingPoint: boardingPoint,
       droppingPoint: droppingPoint,
+      departureTime: departureTime,
       totalAmount: totalAmount,
       bookingDate: new Date().toISOString(),
       paymentStatus: paymentMethod === "cash" ? "Pending" : "Completed",
@@ -98,7 +98,6 @@ function CheckoutContent() {
     };
     addDocumentNonBlocking(bookingsRef, bookingData);
 
-    // 3. خصم المقاعد المتاحة فورياً من الرحلة
     if (tripId) {
       const tripDocRef = doc(firestore, "busTrips", tripId);
       updateDocumentNonBlocking(tripDocRef, {

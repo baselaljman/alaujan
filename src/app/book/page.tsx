@@ -119,12 +119,11 @@ function BookTripContent() {
     if (!phone || isSendingCode) return;
     setIsSendingCode(true);
     try {
-      // تهيئة المحقق مع التنظيف
       const verifier = setupRecaptcha(auth, 'recaptcha-container');
       const result = await sendOtpToPhone(auth, `${countryCode}${phone}`, verifier);
       setConfirmationResult(result);
     } catch (error) {
-      // الخطأ يتم معالجته وعرضه داخل وظيفة الإرسال عبر toast
+      // toast shown in helper
     } finally {
       setIsSendingCode(false);
     }
@@ -156,6 +155,7 @@ function BookTripContent() {
       extraBags: extraBags.toString(),
       boardingPoint,
       droppingPoint,
+      departureTime: trip?.departureTime || "",
       passengers: JSON.stringify(passengers)
     });
     router.push(`/checkout?${queryParams.toString()}`);
@@ -179,7 +179,6 @@ function BookTripContent() {
         </div>
       </header>
 
-      {/* حاوية reCAPTCHA المخفية */}
       <div id="recaptcha-container"></div>
 
       {step === 1 && (

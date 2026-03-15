@@ -21,7 +21,9 @@ import {
   Mail,
   UserCheck,
   Smartphone,
-  Edit
+  Edit,
+  Clock,
+  Navigation
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -77,7 +79,6 @@ export default function ProfilePage() {
     const bookingsRef = collection(firestore, "bookings");
     const userEmail = (user.email || profile?.email || "").toLowerCase().trim();
 
-    // البحث المزدوج لضمان ظهور التذاكر فوراً سواء بالبريد أو المعرف
     if (userEmail) {
       return query(
         bookingsRef, 
@@ -215,7 +216,7 @@ export default function ProfilePage() {
                       </Badge>
                     </div>
                     
-                    <div className="p-8 space-y-10">
+                    <div className="p-8 space-y-8">
                        <div className="flex items-center justify-between text-center">
                          <div className="flex-1">
                            <p className="text-[10px] font-bold text-muted-foreground mb-1">من</p>
@@ -231,31 +232,41 @@ export default function ProfilePage() {
                          </div>
                        </div>
 
-                       <div className="grid grid-cols-2 gap-y-6 pt-8 border-t border-dashed border-slate-100">
+                       <div className="grid grid-cols-2 gap-x-4 gap-y-6 pt-8 border-t border-dashed border-slate-100">
                           <div>
-                             <p className="text-[10px] font-bold text-muted-foreground">المسافر الرئيسي</p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">المسافر الرئيسي <UserIcon className="h-2 w-2" /></p>
                              <p className="font-bold text-slate-900">{booking.passengers?.[0]?.fullName || "مسافر العوجان"}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground">رقم المقعد</p>
-                             <p className="font-black text-primary text-lg">{booking.seatNumbers?.join(', ')}</p>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">رقم المقعد <Bus className="h-2 w-2" /></p>
+                             <p className="font-black text-primary text-xl">{booking.seatNumbers?.join(', ')}</p>
+                          </div>
+                          <div>
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 justify-end">تاريخ السفر <Navigation className="h-2 w-2" /></p>
+                             <p className="font-black text-slate-900 text-sm">
+                               {booking.departureTime ? format(new Date(booking.departureTime), "PPP", { locale: ar }) : "قيد التحديث"}
+                             </p>
+                          </div>
+                          <div className="text-left">
+                             <p className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">وقت السفر <Clock className="h-2 w-2" /></p>
+                             <p className="font-black text-primary text-lg">
+                               {booking.departureTime ? format(new Date(booking.departureTime), "p", { locale: ar }) : "قيد التحديث"}
+                             </p>
                           </div>
                           <div>
                              <p className="text-[10px] font-bold text-muted-foreground">رقم الرحلة</p>
                              <p className="font-black text-accent font-mono text-base">{booking.busTripId}</p>
                           </div>
                           <div className="text-left">
-                             <p className="text-[10px] font-bold text-muted-foreground">تاريخ الحجز</p>
-                             <p className="font-bold text-slate-700 text-xs">
-                               {booking.bookingDate ? format(new Date(booking.bookingDate), "PPP", { locale: ar }) : "قيد المعالجة"}
-                             </p>
+                             <p className="text-[10px] font-bold text-muted-foreground">رقم التتبع</p>
+                             <p className="font-black text-primary font-mono text-base">{booking.trackingNumber}</p>
                           </div>
                        </div>
 
                        <div className="flex items-center justify-between pt-8 border-t-2 border-slate-50">
                           <div className="space-y-1">
                              <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Digital Boarding Pass</p>
-                             <p className="text-xs font-mono font-bold text-slate-400">REF: {booking.trackingNumber}</p>
+                             <p className="text-[10px] font-bold text-slate-400">تاريخ الحجز: {booking.bookingDate ? format(new Date(booking.bookingDate), "PP", { locale: ar }) : ""}</p>
                           </div>
                           <QrCode className="h-14 w-14 text-slate-800" />
                        </div>
