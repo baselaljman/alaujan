@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Navigation,
-  Activity
+  Activity,
+  ShieldCheck,
+  Settings
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -46,6 +48,7 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
+    // تقليل معدل التحديث لتوفير البطارية وضمان الاستقرار (كل 10 ثوانٍ)
     if (now - lastUpdateRef.current < 10000) return;
 
     lastUpdateRef.current = now;
@@ -65,16 +68,17 @@ export default function DriverDashboard() {
     try {
       if (typeof window === 'undefined') return;
       
-      const { Capacitor } = await import('@capacitor/core');
+      const pkgName = '@capacitor/core';
+      const core = await import(pkgName);
+      const Capacitor = core.Capacitor;
 
       // تنظيف أي جلسة تتبع قديمة أولاً
       if (watcherIdRef.current) {
         if (Capacitor.isNativePlatform()) {
           try {
-            const pluginName = '@capacitor-community/background-geolocation';
-            const mod = await import(pluginName);
-            const BackgroundGeolocation = mod.BackgroundGeolocation;
-            await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+            const bgPkg = '@capacitor-community/background-geolocation';
+            const mod = await import(bgPkg);
+            await mod.BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
           } catch (e) {}
         }
         watcherIdRef.current = null;
@@ -83,9 +87,28 @@ export default function DriverDashboard() {
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        const pluginName = '@capacitor-community/background-geolocation';
-        const mod = await import(pluginName);
+        const bgPkg = '@capacitor-community/background-geolocation';
+        const mod = await import(bgPkg);
         const BackgroundGeolocation = mod.BackgroundGeolocation;
+
+        // طلب التصاريح أولاً لضمان الحصول عليها
+        try {
+          // محاولة استيراد مكتبة Geolocation العادية للتحقق من الحالة الأساسية
+          const geoPkg = '@capacitor/geolocation';
+          const geoMod = await import(geoPkg);
+          const status = await geoMod.Geolocation.requestPermissions();
+          
+          if (status.location !== 'granted') {
+            toast({ 
+              variant: "destructive", 
+              title: "صلاحيات الموقع مطلوبة", 
+              description: "يرجى اختيار 'السماح طوال الوقت' من إعدادات التطبيق." 
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn("Standard permission check failed, proceeding with background tracking");
+        }
         
         const id = await BackgroundGeolocation.addWatcher(
           {
@@ -107,6 +130,7 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
+        // دعم الويب للمتصفحات
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
@@ -132,7 +156,11 @@ export default function DriverDashboard() {
       toast({ title: "تم تفعيل البث المباشر", description: "البث يعمل الآن وبدقة عالية" });
     } catch (e) {
       console.error("Tracking Error:", e);
-      toast({ variant: "destructive", title: "خطأ في التتبع", description: "تأكد من تفعيل صلاحيات الموقع" });
+      toast({ 
+        variant: "destructive", 
+        title: "خطأ في التتبع", 
+        description: "يرجى التأكد من اختيار 'السماح طوال الوقت' في إعدادات الموقع." 
+      });
       setIsTracking(false);
     }
   };
@@ -142,13 +170,15 @@ export default function DriverDashboard() {
     setIsTracking(false);
 
     if (watcherIdRef.current) {
-      const { Capacitor } = await import('@capacitor/core');
+      const pkgName = '@capacitor/core';
+      const core = await import(pkgName);
+      const Capacitor = core.Capacitor;
+      
       if (Capacitor.isNativePlatform()) {
         try {
-          const pluginName = '@capacitor-community/background-geolocation';
-          const mod = await import(pluginName);
-          const BackgroundGeolocation = mod.BackgroundGeolocation;
-          await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+          const bgPkg = '@capacitor-community/background-geolocation';
+          const mod = await import(bgPkg);
+          await mod.BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
         } catch (e) {}
       } else {
         navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
@@ -195,6 +225,21 @@ export default function DriverDashboard() {
           {isTracking ? <Activity className="h-8 w-8 text-white" /> : <Bus className="h-8 w-8 text-primary" />}
         </div>
       </header>
+
+      {/* تنبيه مهم للسائق بخصوص الصلاحيات */}
+      {!isTracking && (
+        <Card className="bg-amber-50 border-amber-200 rounded-[1.5rem] overflow-hidden">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Settings className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-right">
+              <h4 className="text-xs font-black text-amber-900 mb-1">تنبيه هام للتشغيل في الخلفية</h4>
+              <p className="text-[10px] text-amber-700 leading-relaxed">
+                لضمان استمرار البث عند إغلاق التطبيق أو قفل الشاشة، يرجى الذهاب إلى إعدادات الهاتف (الموقع) واختيار <b>"السماح طوال الوقت"</b> لتطبيق العوجان.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isTracking && activeTripId ? (
         <Card className="border-emerald-200 bg-emerald-50/50 shadow-2xl rounded-[2.5rem] overflow-hidden">
@@ -259,12 +304,12 @@ export default function DriverDashboard() {
       )}
       
       <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 space-y-3">
-        <h4 className="font-bold text-sm flex items-center gap-2 justify-end">تنبيهات القائد <AlertTriangle className="h-4 w-4 text-amber-600" /></h4>
+        <h4 className="font-bold text-sm flex items-center gap-2 justify-end">تعليمات القائد <ShieldCheck className="h-4 w-4 text-emerald-600" /></h4>
         <ul className="text-[10px] text-muted-foreground space-y-1 text-right">
-          <li>• تأكد من تفعيل خدمة GPS في هاتفك قبل بدء البث.</li>
-          <li>• اختر "السماح دوماً" عند طلب تصاريح الموقع لضمان عدم توقف البث.</li>
-          <li>• سيستمر البث المباشر حتى لو قمت بقفل شاشة الهاتف.</li>
-          <li>• عند الوصول للمحطة النهائية، اضغط "تأكيد الوصول" لإغلاق الرحلة.</li>
+          <li>• تأكد من اختيار "السماح طوال الوقت" للموقع ليعمل البث والشاشة مقفلة.</li>
+          <li>• سيظهر لك إشعار دائم في أعلى الهاتف طوال فترة البث.</li>
+          <li>• عند الوصول للمحطة النهائية، اضغط "تأكيد الوصول" لإغلاق الرحلة وتوفير البطارية.</li>
+          <li>• يمكنك إعادة تشغيل البث في أي وقت إذا شعرت بتوقف التحديث.</li>
         </ul>
       </div>
     </div>
