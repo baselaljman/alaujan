@@ -66,8 +66,10 @@ export default function DriverDashboard() {
       setActiveTripId(tripId);
       
       if (Capacitor.isNativePlatform()) {
-        // تحميل المكتبة ديناميكياً لتجنب خطأ Module not found أثناء الـ Build
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        // استخدام اسم متغير لتجنب التحليل الساكن في Vercel
+        const pkgName = '@capacitor-community/background-geolocation';
+        const mod = await import(pkgName);
+        const BackgroundGeolocation = mod.BackgroundGeolocation;
         
         const id = await BackgroundGeolocation.addWatcher(
           {
@@ -77,7 +79,7 @@ export default function DriverDashboard() {
             stale: false,
             distanceFilter: 10
           },
-          (location, error) => {
+          (location: any, error: any) => {
             if (error) {
               console.error("Background Tracking Error:", error);
               return;
@@ -90,7 +92,7 @@ export default function DriverDashboard() {
         watcherIdRef.current = id;
       } else {
         // نظام الويب العادي
-        if ("geolocation" in navigator) {
+        if (typeof window !== 'undefined' && "geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
               updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
@@ -123,10 +125,14 @@ export default function DriverDashboard() {
     setIsTracking(false);
     if (watcherIdRef.current) {
       if (Capacitor.isNativePlatform()) {
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        const pkgName = '@capacitor-community/background-geolocation';
+        const mod = await import(pkgName);
+        const BackgroundGeolocation = mod.BackgroundGeolocation;
         await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
       } else {
-        navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
+        if (typeof window !== 'undefined') {
+          navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
+        }
       }
       watcherIdRef.current = null;
     }
