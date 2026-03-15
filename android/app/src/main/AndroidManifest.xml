@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Permissions for Location -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    
+    <!-- Critical for Background Tracking (Android 10+) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Foreground Service Permissions (Android 9+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    
+    <!-- Specific Location Service Permission (Android 14+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -27,12 +35,15 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
 
+        <!-- Configuration for Background Geolocation Service -->
         <service
             android:name="com.capacitorjs.plugins.geolocation.GeolocationService"
             android:foregroundServiceType="location"
