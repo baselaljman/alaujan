@@ -102,7 +102,8 @@ export default function AdminTrips() {
         bookingId: booking.id,
         boardingPoint: booking.boardingPoint,
         droppingPoint: booking.droppingPoint,
-        tripId: booking.busTripId
+        tripId: booking.busTripId,
+        departureTime: booking.departureTime
       }))
     ).sort((a: any, b: any) => a.seatNumber - b.seatNumber);
   }, [bookings]);
@@ -209,53 +210,108 @@ export default function AdminTrips() {
   };
 
   const handlePrintIndividual = (p: any) => {
-    // محاكاة طباعة تذكرة فردية عبر النافذة
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const formattedDate = p.departureTime ? format(new Date(p.departureTime), "EEEE, d MMMM yyyy", { locale: ar }) : "قيد التحديث";
+    const formattedTime = p.departureTime ? format(new Date(p.departureTime), "HH:mm", { locale: ar }) : "00:00";
 
     printWindow.document.write(`
       <html dir="rtl" lang="ar">
         <head>
-          <title>تذكرة - ${p.fullName}</title>
+          <title>تذكرة العوجان - ${p.fullName}</title>
           <style>
-            body { font-family: 'Arial', sans-serif; padding: 40px; text-align: right; }
-            .ticket { border: 2px solid #003d2d; border-radius: 20px; padding: 30px; max-width: 600px; margin: auto; }
-            .header { border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 20px; }
-            .trip-id { font-family: monospace; font-weight: bold; font-size: 24px; color: #003d2d; }
-            .label { font-size: 12px; color: #666; margin-bottom: 5px; }
-            .value { font-weight: bold; font-size: 18px; margin-bottom: 15px; }
+            body { font-family: 'Arial', sans-serif; padding: 40px; text-align: right; background: #fff; }
+            .ticket { border: 3px solid #003d2d; border-radius: 30px; padding: 40px; max-width: 650px; margin: auto; position: relative; overflow: hidden; }
+            .ticket::before { content: ""; position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: #003d2d; border-radius: 50%; opacity: 0.05; }
+            .header { border-bottom: 2px solid #003d2d; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .brand h1 { color: #003d2d; margin: 0; font-size: 28px; font-weight: 900; }
+            .brand p { margin: 5px 0 0; font-size: 12px; color: #666; font-weight: bold; }
+            .trip-ref { text-align: left; }
+            .trip-ref .label { font-size: 10px; color: #999; text-transform: uppercase; }
+            .trip-ref .value { font-family: monospace; font-weight: 900; font-size: 32px; color: #003d2d; line-height: 1; }
+            
+            .info-grid { display: grid; grid-cols: 2; gap: 20px; margin-bottom: 30px; }
+            .info-item { margin-bottom: 15px; }
+            .label { font-size: 11px; color: #888; margin-bottom: 4px; font-weight: bold; }
+            .value { font-weight: 900; font-size: 18px; color: #333; }
+            
+            .route-box { background: #f9f9f9; padding: 20px; border-radius: 20px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center; }
+            .route-point { flex: 1; }
+            .route-arrow { px: 20px; color: #003d2d; opacity: 0.3; font-size: 24px; }
+            
+            .footer { margin-top: 40px; border-top: 1px dashed #ddd; pt: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .notice { font-size: 10px; color: #aaa; max-width: 70%; line-height: 1.5; }
+            .qr-placeholder { width: 80px; height: 80px; border: 1px solid #eee; display: flex; items-center; justify-content: center; font-size: 8px; color: #ccc; }
+            
             @media print { .no-print { display: none; } }
           </style>
         </head>
         <body onload="window.print()">
           <div class="ticket">
             <div class="header">
-              <h1 style="color: #003d2d; margin: 0;">شركة العوجان للسفر</h1>
-              <p>تذكرة سفر رسمية - رحلة دولية</p>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div class="label">اسم المسافر</div>
-                <div class="value">${p.fullName}</div>
-                <div class="label">رقم الجواز</div>
-                <div class="value">${p.passportNumber}</div>
+              <div class="brand">
+                <h1>شركة العوجان للسفر</h1>
+                <p>Al-Awajan Travel & Tourism</p>
+                <p style="font-size: 10px; color: #003d2d;">تذكرة سفر إلكترونية معتمدة</p>
               </div>
-              <div style="text-align: left;">
-                <div class="label">رقم الرحلة (REF)</div>
-                <div class="trip-id">${p.tripId}</div>
-                <div class="label">رقم المقعد</div>
-                <div class="value">#${p.seatNumber}</div>
+              <div class="trip-ref">
+                <div class="label">رقم تتبع الرحلة (REF)</div>
+                <div class="value">${p.tripId || "aw000"}</div>
               </div>
             </div>
-            <hr>
-            <div>
-              <div class="label">من</div>
-              <div class="value">${p.boardingPoint}</div>
-              <div class="label">إلى</div>
-              <div class="value">${p.droppingPoint}</div>
+
+            <div style="display: flex; gap: 40px;">
+              <div style="flex: 1;">
+                <div class="info-item">
+                  <div class="label">اسم المسافر</div>
+                  <div class="value">${p.fullName}</div>
+                </div>
+                <div class="info-item">
+                  <div class="label">رقم الجواز / الهوية</div>
+                  <div class="value">${p.passportNumber}</div>
+                </div>
+              </div>
+              <div style="text-align: left; min-width: 120px;">
+                <div class="info-item">
+                  <div class="label">رقم المقعد</div>
+                  <div style="font-size: 48px; font-weight: 900; color: #003d2d; line-height: 1;">#${p.seatNumber}</div>
+                </div>
+              </div>
             </div>
-            <div style="margin-top: 20px; text-align: center;">
-              <p style="font-size: 10px; color: #999;">يرجى التواجد في المحطة قبل موعد الرحلة بساعة.</p>
+
+            <div class="route-box">
+              <div class="route-point">
+                <div class="label">من (نقطة الصعود)</div>
+                <div class="value">${p.boardingPoint}</div>
+              </div>
+              <div class="route-arrow">←</div>
+              <div class="route-point" style="text-align: left;">
+                <div class="label">إلى (نقطة النزول)</div>
+                <div class="value">${p.droppingPoint}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-top: 20px;">
+              <div class="info-item">
+                <div class="label">تاريخ السفر (Departure Date)</div>
+                <div class="value" style="color: #003d2d;">${formattedDate}</div>
+              </div>
+              <div class="info-item" style="text-align: left;">
+                <div class="label">وقت التحرك (Time)</div>
+                <div class="value" style="font-size: 24px;">${formattedTime}</div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <div class="notice">
+                * يرجى التواجد في محطة الانطلاق قبل موعد الرحلة بساعة واحدة على الأقل.<br>
+                * هذه التذكرة صالحة فقط للرحلة والتاريخ المذكورين أعلاه.<br>
+                * تتبع موقع الحافلة مباشرة عبر موقعنا: alaujantravel.com باستخدام الرمز (${p.tripId})
+              </div>
+              <div class="qr-placeholder">
+                QR CODE
+              </div>
             </div>
           </div>
         </body>
