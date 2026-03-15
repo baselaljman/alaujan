@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Auth,
@@ -27,7 +26,6 @@ export async function initiateAnonymousSignIn(authInstance: Auth): Promise<void>
 export function setupRecaptcha(authInstance: Auth, containerId: string): RecaptchaVerifier {
   if (typeof window === 'undefined') return null as any;
 
-  // 1. تدمير المحقق القديم لمنع الخطأ -39 (التدخل الأمني)
   if (globalRecaptchaVerifier) {
     try {
       globalRecaptchaVerifier.clear();
@@ -37,14 +35,12 @@ export function setupRecaptcha(authInstance: Auth, containerId: string): Recaptc
     globalRecaptchaVerifier = null;
   }
 
-  // 2. التحقق من وجود الحاوية في الـ DOM قبل التهيئة
   const container = document.getElementById(containerId);
   if (!container) {
     console.error(`reCAPTCHA container with id "${containerId}" not found.`);
     return null as any;
   }
 
-  // 3. تنظيف الحاوية لضمان بيئة عمل نظيفة
   container.innerHTML = ''; 
 
   try {
@@ -70,7 +66,6 @@ export async function sendOtpToPhone(authInstance: Auth, phoneNumber: string, ap
 
     let finalPhone = phoneNumber.trim();
     
-    // تصحيح الرقم دولياً (حذف الصفر الزائد)
     if (finalPhone.includes('+9660')) {
       finalPhone = finalPhone.replace('+9660', '+966');
     } else if (finalPhone.includes('+9630')) {
