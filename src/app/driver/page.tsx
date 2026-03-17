@@ -14,7 +14,8 @@ import {
   Navigation,
   Activity,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Settings
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -67,24 +68,25 @@ export default function DriverDashboard() {
     try {
       if (typeof window === 'undefined') return;
       
-      // استخدام استيراد ديناميكي معزول تماماً لمنع أخطاء البناء للويب
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         const { Geolocation } = await import('@capacitor/geolocation');
 
+        // طلب الأذونات الأساسية أولاً (Foreground)
         const permissions = await Geolocation.requestPermissions();
         
         if (permissions.location !== 'granted') {
           toast({ 
             variant: "destructive", 
             title: "صلاحيات الموقع مطلوبة", 
-            description: "يرجى تفعيل صلاحيات الموقع لهذا التطبيق من الإعدادات." 
+            description: "يرجى تفعيل صلاحيات الموقع من إعدادات الهاتف." 
           });
           return;
         }
 
+        // تنظيف أي جلسة سابقة
         if (watcherIdRef.current) {
           try {
             await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
@@ -93,16 +95,20 @@ export default function DriverDashboard() {
 
         setActiveTripId(tripId);
 
+        // بدء التتبع في الخلفية
         const id = await BackgroundGeolocation.addWatcher(
           {
             backgroundMessage: "يتم الآن بث موقع الحافلة للركاب في الخلفية.",
             backgroundTitle: "البث المباشر نشط - العوجان للسفر",
-            requestPermissions: true,
+            requestPermissions: true, // سيحاول طلب صلاحيات الخلفية إذا كانت مدعومة
             stale: false,
             distanceFilter: 10
           },
           (location: any, error: any) => {
-            if (error) return;
+            if (error) {
+              console.error("BG Location Error:", error);
+              return;
+            }
             if (location) {
               updateFirebaseLocation(tripId, location.latitude, location.longitude);
             }
@@ -110,6 +116,7 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
+        // نظام الويب العادي
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (position) => {
@@ -132,10 +139,11 @@ export default function DriverDashboard() {
       setIsTracking(true);
       toast({ title: "بدأ البث المباشر", description: "يمكن للركاب الآن رؤية موقع الحافلة" });
     } catch (e: any) {
+      console.error("Start Tracking Error:", e);
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "تأكد من تفعيل كافة صلاحيات الموقع." 
+        description: "يرجى تفعيل 'السماح طوال الوقت' في إعدادات الموقع." 
       });
       setIsTracking(false);
     }
@@ -145,18 +153,17 @@ export default function DriverDashboard() {
     if (typeof window === 'undefined') return;
     setIsTracking(false);
 
-    if (watcherIdRef.current) {
+    try {
       const { Capacitor } = await import('@capacitor/core');
-      if (Capacitor.isNativePlatform()) {
-        try {
-          const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
-          await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-        } catch (e) {}
-      } else {
+      if (Capacitor.isNativePlatform() && watcherIdRef.current) {
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+      } else if (watcherIdRef.current) {
         navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
       }
-      watcherIdRef.current = null;
-    }
+    } catch (e) {}
+    
+    watcherIdRef.current = null;
     
     if (activeTripId) {
       const tripRef = doc(firestore, "busTrips", activeTripId);
@@ -206,8 +213,8 @@ export default function DriverDashboard() {
           <div className="text-right">
             <h4 className="text-xs font-black text-amber-900 mb-1">خطوة ضرورية للعمل في الخلفية</h4>
             <p className="text-[10px] text-amber-700 leading-relaxed">
-              لضمان استمرار البث عند قفل الشاشة، اذهب إلى: <br/>
-              <b>إعدادات الهاتف {" > "} التطبيقات {" > "} العوجان للسفر {" > "} الأذونات {" > "} الموقع</b> <br/>
+              لضمان استمرار البث، اذهب إلى: <br/>
+              <b>إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الموقع</b> <br/>
               واختر <b>"السماح طوال الوقت"</b>.
             </p>
           </div>

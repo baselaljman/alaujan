@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
         path: false,
       };
     }
-    // تجاهل الحزم التي قد تسبب مشاكل في تجميع الويب
+    // تجاهل الحزم التي قد تسبب مشاكل في تجميع الويب أثناء البناء
     config.externals = [...(config.externals || []), {
       '@capacitor-community/background-geolocation': 'commonjs @capacitor-community/background-geolocation',
       '@capacitor/geolocation': 'commonjs @capacitor/geolocation',
