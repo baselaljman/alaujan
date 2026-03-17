@@ -14,8 +14,7 @@ import {
   Navigation,
   Activity,
   ShieldCheck,
-  ShieldAlert,
-  Settings
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -49,7 +48,7 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    if (now - lastUpdateRef.current < 10000) return;
+    if (now - lastUpdateRef.current < 8000) return; // تحديث كل 8 ثوانٍ
 
     lastUpdateRef.current = now;
     const tripRef = doc(firestore, "busTrips", tripId);
@@ -74,39 +73,36 @@ export default function DriverDashboard() {
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         const { Geolocation } = await import('@capacitor/geolocation');
 
-        // طلب الأذونات الأساسية أولاً (Foreground)
-        const permissions = await Geolocation.requestPermissions();
-        
-        if (permissions.location !== 'granted') {
+        // طلب تصاريح الموقع الأساسية أولاً
+        const perm = await Geolocation.requestPermissions();
+        if (perm.location !== 'granted') {
           toast({ 
             variant: "destructive", 
-            title: "صلاحيات الموقع مطلوبة", 
-            description: "يرجى تفعيل صلاحيات الموقع من إعدادات الهاتف." 
+            title: "عذراً", 
+            description: "يجب الموافقة على صلاحيات الموقع لبدء الرحلة." 
           });
           return;
         }
 
-        // تنظيف أي جلسة سابقة
+        // تنظيف أي جلسة قديمة
         if (watcherIdRef.current) {
-          try {
-            await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
-          } catch (e) {}
+          try { await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current }); } catch (e) {}
         }
 
         setActiveTripId(tripId);
 
-        // بدء التتبع في الخلفية
+        // بدء التتبع مع إشعار دائم لضمان استمرار الخدمة في الخلفية
         const id = await BackgroundGeolocation.addWatcher(
           {
-            backgroundMessage: "يتم الآن بث موقع الحافلة للركاب في الخلفية.",
-            backgroundTitle: "البث المباشر نشط - العوجان للسفر",
-            requestPermissions: true, // سيحاول طلب صلاحيات الخلفية إذا كانت مدعومة
+            backgroundMessage: "يتم الآن بث موقع الحافلة للركاب مباشرة.",
+            backgroundTitle: "البث المباشر نشط",
+            requestPermissions: true,
             stale: false,
             distanceFilter: 10
           },
-          (location: any, error: any) => {
+          (location, error) => {
             if (error) {
-              console.error("BG Location Error:", error);
+              console.error(error);
               return;
             }
             if (location) {
@@ -116,13 +112,11 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // نظام الويب العادي
+        // نظام الويب
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
-            (position) => {
-              updateFirebaseLocation(tripId, position.coords.latitude, position.coords.longitude);
-            },
-            (error) => console.error(error),
+            (pos) => updateFirebaseLocation(tripId, pos.coords.latitude, pos.coords.longitude),
+            (err) => console.error(err),
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
           );
           watcherIdRef.current = id.toString();
@@ -130,29 +124,23 @@ export default function DriverDashboard() {
       }
 
       const tripRef = doc(firestore, "busTrips", tripId);
-      updateDocumentNonBlocking(tripRef, {
-        status: "Departed",
-        lastUpdatedAt: new Date().toISOString(),
-        isLive: true
-      });
+      updateDocumentNonBlocking(tripRef, { status: "Departed", isLive: true });
 
       setIsTracking(true);
-      toast({ title: "بدأ البث المباشر", description: "يمكن للركاب الآن رؤية موقع الحافلة" });
+      toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
     } catch (e: any) {
-      console.error("Start Tracking Error:", e);
+      console.error("Tracking Error:", e);
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "يرجى تفعيل 'السماح طوال الوقت' في إعدادات الموقع." 
+        description: "تأكد من اختيار 'السماح طوال الوقت' في إعدادات الموقع للهاتف." 
       });
       setIsTracking(false);
     }
   };
 
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
-    if (typeof window === 'undefined') return;
     setIsTracking(false);
-
     try {
       const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform() && watcherIdRef.current) {
@@ -166,11 +154,9 @@ export default function DriverDashboard() {
     watcherIdRef.current = null;
     
     if (activeTripId) {
-      const tripRef = doc(firestore, "busTrips", activeTripId);
-      updateDocumentNonBlocking(tripRef, { 
+      updateDocumentNonBlocking(doc(firestore, "busTrips", activeTripId), { 
         isLive: false,
-        status: newStatus,
-        lastUpdatedAt: new Date().toISOString()
+        status: newStatus
       });
       setActiveTripId(null);
     }
@@ -292,5 +278,24 @@ export default function DriverDashboard() {
         </ul>
       </div>
     </div>
+  );
+}
+
+function Activity({ className }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
   );
 }
