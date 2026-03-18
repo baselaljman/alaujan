@@ -48,7 +48,7 @@ export default function DriverDashboard() {
 
   const updateFirebaseLocation = (tripId: string, lat: number, lng: number) => {
     const now = Date.now();
-    if (now - lastUpdateRef.current < 8000) return; // تحديث كل 8 ثوانٍ
+    if (now - lastUpdateRef.current < 8000) return; 
 
     lastUpdateRef.current = now;
     const tripRef = doc(firestore, "busTrips", tripId);
@@ -73,36 +73,33 @@ export default function DriverDashboard() {
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         const { Geolocation } = await import('@capacitor/geolocation');
 
-        // طلب تصاريح الموقع الأساسية أولاً
         const perm = await Geolocation.requestPermissions();
         if (perm.location !== 'granted') {
           toast({ 
             variant: "destructive", 
-            title: "عذراً", 
+            title: "صلاحيات ناقصة", 
             description: "يجب الموافقة على صلاحيات الموقع لبدء الرحلة." 
           });
           return;
         }
 
-        // تنظيف أي جلسة قديمة
         if (watcherIdRef.current) {
           try { await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current }); } catch (e) {}
         }
 
         setActiveTripId(tripId);
 
-        // بدء التتبع مع إشعار دائم لضمان استمرار الخدمة في الخلفية
         const id = await BackgroundGeolocation.addWatcher(
           {
             backgroundMessage: "يتم الآن بث موقع الحافلة للركاب مباشرة.",
             backgroundTitle: "البث المباشر نشط",
-            requestPermissions: true,
+            requestPermissions: false,
             stale: false,
             distanceFilter: 10
           },
           (location, error) => {
             if (error) {
-              console.error(error);
+              console.error("Watcher Error:", error);
               return;
             }
             if (location) {
@@ -112,7 +109,6 @@ export default function DriverDashboard() {
         );
         watcherIdRef.current = id;
       } else {
-        // نظام الويب
         if ("geolocation" in navigator) {
           const id = navigator.geolocation.watchPosition(
             (pos) => updateFirebaseLocation(tripId, pos.coords.latitude, pos.coords.longitude),
@@ -129,11 +125,12 @@ export default function DriverDashboard() {
       setIsTracking(true);
       toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
     } catch (e: any) {
-      console.error("Tracking Error:", e);
+      console.error("Critical Tracking Error:", e);
+      const msg = e.message || "فشل بدء التتبع";
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: "تأكد من اختيار 'السماح طوال الوقت' في إعدادات الموقع للهاتف." 
+        description: msg.includes("permission") ? "يرجى التأكد من اختيار 'السماح طوال الوقت' في الإعدادات." : `عذراً: ${msg}`
       });
       setIsTracking(false);
     }
