@@ -1,92 +1,45 @@
-
 # العوجان للسياحة والسفر | Al-Awajan Travel
 
 تطبيق متطور لحجز الرحلات الدولية والطرود، مصمم ليعمل كـ Web App و Mobile App (Android/iOS) بهوية بصرية فاخرة.
 
 ## 🛠 التقنيات المستخدمة (Tech Stack)
 - **الإطار الأساسي (Framework)**: Next.js 15 (App Router).
-- **مكتبة الواجهة (UI Library)**: React 19.
-- **التصميم (Styling)**: Tailwind CSS مع مكونات Shadcn UI.
-- **قواعد البيانات (Backend)**: Firebase (Firestore & Authentication).
 - **الجوال (Mobile)**: Capacitor JS.
 
 ---
 
-## 🚀 دليل تحويل التطبيق إلى أندرويد (خطوة بخطوة)
+## 🚀 دليل رفع المشروع على GitHub (حل مشكلة Authentication)
 
-لتحويل هذا المشروع إلى تطبيق أندرويد وتشغيله على المحاكي، اتبع الخطوات التالية بدقة:
+في حال واجهت خطأ `Authentication failed` عند استخدام `git push` في Firebase Studio، اتبع هذه الأوامر بالترتيب:
 
-### 1. تجهيز المكتبات الأساسية
-تأكد من تثبيت كافة الاعتمادات الخاصة بـ Capacitor (تمت إضافتها بالفعل في `package.json`):
-```bash
-npm install
-```
+1. **تحديث رابط المستودع بالتوكن (Token):**
+   قم باستبدال `<YOUR_GITHUB_TOKEN>` بالتوكن الذي أنشأته من إعدادات GitHub:
+   ```bash
+   git remote set-url origin https://<YOUR_GITHUB_TOKEN>@github.com/baselaljman/alaujan.git
+   ```
 
-### 2. بناء ملفات الويب (Build)
-يجب تحويل كود React إلى ملفات ثابتة يفهمها الأندرويد:
-```bash
-npm run build
-```
-*سيظهر لك مجلد جديد باسم `out` في جذر المشروع.*
-
-### 3. إضافة منصة الأندرويد
-قم بإنشاء مجلد مشروع الأندرويد داخل التطبيق:
-```bash
-npx cap add android
-```
-
-### 4. إعدادات Firebase للأندرويد (مهم جداً)
-- اذهب إلى مجلد المشروع وابحث عن ملف `google-services.json`.
-- قم بنسخه ولصقه في المسار التالي داخل مجلد الأندرويد الجديد:
-  `android/app/google-services.json`
-
-### 5. تفعيل تصاريح الموقع الجغرافي
-افتح ملف `android/app/src/main/AndroidManifest.xml` وأضف هذه الأسطر قبل وسم `<application>`:
-```xml
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-feature android:name="android.hardware.location.gps" />
-```
-
-### 6. مزامنة الملفات (Sync)
-لنقل ملفات الويب (HTML/JS) والإعدادات إلى مجلد الأندرويد:
-```bash
-npx cap sync
-```
-
-### 7. التشغيل على المحاكي
-افتح المشروع في Android Studio للبدء بالبناء النهائي والتشغيل:
-```bash
-npx cap open android
-```
-- من داخل Android Studio، اختر المحاكي (Emulator) ثم اضغط على زر **Run (السهم الأخضر)**.
+2. **الرفع مرة أخرى:**
+   ```bash
+   git push -u origin main
+   ```
 
 ---
 
-## 📌 ملاحظات تقنية هامة
-- تم ضبط `next.config.ts` ليعمل بنظام `output: 'export'` لضمان التوافق مع تطبيقات الجوال.
-- تم ضبط `capacitor.config.ts` ليوجه مسار الويب إلى مجلد `out`.
-- في حال قمت بأي تعديل على الكود البرمجي، يجب عليك دائماً تشغيل `npm run build` ثم `npx cap sync` لتظهر التعديلات في التطبيق.
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
-# alaujan
+## 📱 دليل بناء تطبيق الأندرويد
+
+1. **بناء ملفات الويب:**
+   ```bash
+   npm run build
+   ```
+2. **مزامنة الملفات مع الأندرويد:**
+   ```bash
+   npx cap sync
+   ```
+3. **التشغيل من خلال Android Studio:**
+   ```bash
+   npx cap open android
+   ```
+
+## 📌 ملاحظات هامة
+- تم ضبط `next.config.ts` لتجاهل مكتبات الموبايل أثناء البناء لضمان نجاح التصدير الثابت.
+- يجب تفعيل صلاحية "الموقع دائماً" (Always Allow) في إعدادات الهاتف ليعمل البث في الخلفية.

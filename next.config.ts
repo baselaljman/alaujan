@@ -37,12 +37,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  transpilePackages: [
-    '@capacitor/core',
-    '@capacitor/android',
-    '@capacitor/geolocation',
-    '@capacitor-community/background-geolocation'
-  ],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -51,15 +45,15 @@ const nextConfig: NextConfig = {
         path: false,
       };
     }
-    // تجنب تضمين مكتبات Capacitor في جانب الخادم أثناء عملية البناء
-    if (isServer) {
-      config.externals.push(
-        '@capacitor-community/background-geolocation',
-        '@capacitor/geolocation',
-        '@capacitor/core',
-        '@capacitor/android'
-      );
-    }
+    
+    // إخفاء مكتبات Capacitor عن محرك البحث أثناء عملية البناء (Build) لمنع خطأ Module not found
+    config.externals = [...(config.externals || []), 
+      '@capacitor/core', 
+      '@capacitor/android', 
+      '@capacitor/geolocation', 
+      '@capacitor-community/background-geolocation'
+    ];
+
     return config;
   },
 };
