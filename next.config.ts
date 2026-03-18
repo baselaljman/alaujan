@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
       };
     }
     
-    // إخفاء مكتبات Capacitor عن محرك البحث أثناء عملية البناء (Build) لمنع خطأ Module not found
+    // منع Next.js من محاولة تحميل مكتبات Capacitor أثناء عملية البناء
     config.externals = [...(config.externals || []), 
       '@capacitor/core', 
       '@capacitor/android', 
