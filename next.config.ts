@@ -38,10 +38,10 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: [
-    '@capacitor-community/background-geolocation',
-    '@capacitor/geolocation',
     '@capacitor/core',
-    '@capacitor/android'
+    '@capacitor/android',
+    '@capacitor/geolocation',
+    '@capacitor-community/background-geolocation'
   ],
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -51,12 +51,6 @@ const nextConfig: NextConfig = {
         path: false,
       };
     }
-    // تجاهل الحزم التي قد تسبب مشاكل في تجميع الويب أثناء البناء
-    config.externals = [...(config.externals || []), {
-      '@capacitor-community/background-geolocation': 'commonjs @capacitor-community/background-geolocation',
-      '@capacitor/geolocation': 'commonjs @capacitor/geolocation',
-      '@capacitor/core': 'commonjs @capacitor/core'
-    }];
     return config;
   },
 };

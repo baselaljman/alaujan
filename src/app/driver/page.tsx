@@ -70,8 +70,12 @@ export default function DriverDashboard() {
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
-        const { Geolocation } = await import('@capacitor/geolocation');
+        // تحميل ديناميكي حقيقي لتجنب مشاكل require
+        const bgGeoMod = await import('@capacitor-community/background-geolocation');
+        const geoMod = await import('@capacitor/geolocation');
+        
+        const BackgroundGeolocation = bgGeoMod.BackgroundGeolocation;
+        const Geolocation = geoMod.Geolocation;
 
         const perm = await Geolocation.requestPermissions();
         if (perm.location !== 'granted') {
@@ -110,6 +114,7 @@ export default function DriverDashboard() {
         watcherIdRef.current = id;
       } else {
         if ("geolocation" in navigator) {
+          setActiveTripId(tripId);
           const id = navigator.geolocation.watchPosition(
             (pos) => updateFirebaseLocation(tripId, pos.coords.latitude, pos.coords.longitude),
             (err) => console.error(err),
@@ -126,11 +131,10 @@ export default function DriverDashboard() {
       toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
     } catch (e: any) {
       console.error("Critical Tracking Error:", e);
-      const msg = e.message || "فشل بدء التتبع";
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: msg.includes("permission") ? "يرجى التأكد من اختيار 'السماح طوال الوقت' في الإعدادات." : `عذراً: ${msg}`
+        description: `عذراً: ${e.message || 'فشل البدء'}`
       });
       setIsTracking(false);
     }
@@ -141,8 +145,8 @@ export default function DriverDashboard() {
     try {
       const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform() && watcherIdRef.current) {
-        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
-        await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        const bgGeoMod = await import('@capacitor-community/background-geolocation');
+        await bgGeoMod.BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
       } else if (watcherIdRef.current) {
         navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
       }
@@ -197,7 +201,7 @@ export default function DriverDashboard() {
             <h4 className="text-xs font-black text-amber-900 mb-1">خطوة ضرورية للعمل في الخلفية</h4>
             <p className="text-[10px] text-amber-700 leading-relaxed">
               لضمان استمرار البث، اذهب إلى: <br/>
-              <b>إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الموقع</b> <br/>
+              إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الموقع <br/>
               واختر <b>"السماح طوال الوقت"</b>.
             </p>
           </div>
