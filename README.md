@@ -2,17 +2,21 @@
 
 تطبيق متطور لحجز الرحلات الدولية والطرود، مصمم ليعمل كـ Web App و Mobile App (Android/iOS) بهوية بصرية فاخرة.
 
-## 🚀 حل مشكلة رفع المشروع على GitHub (Authentication 403)
+## 🚀 حل مشكلة رفع المشروع على GitHub (403 Forbidden)
 
-في حال واجهت خطأ `Permission denied` أو `403` عند محاولة الرفع، اتبع هذه الخطوات البرمجية الدقيقة:
+إذا واجهت خطأ `Permission denied to baselaljman` بالرغم من استخدام التوكن، اتبع هذه الخطوات:
 
-1. **إعداد الرابط مع التوكن (Token):**
-   قم باستبدال `<YOUR_GITHUB_TOKEN>` بالتوكن الذي أنشأته من إعدادات GitHub (Developer Settings > Personal Access Tokens):
+1. **التأكد من صلاحيات التوكن (PAT):**
+   - عند إنشاء التوكن في GitHub، تأكد من اختيار صلاحية `repo` (Full control of private repositories).
+   - تأكد من أنك قمت بنسخ التوكن بالكامل.
+
+2. **تحديث الرابط وحذف التخزين المؤقت:**
+   نفذ الأمر التالي في Terminal (استبدل `<YOUR_TOKEN>` بالتوكن الحقيقي):
    ```bash
-   git remote set-url origin https://<YOUR_GITHUB_TOKEN>@github.com/baselaljman/alaujan.git
+   git remote set-url origin https://<YOUR_TOKEN>@github.com/baselaljman/alaujan.git
    ```
 
-2. **الرفع المباشر:**
+3. **الرفع النهائي:**
    ```bash
    git push -u origin main
    ```
@@ -21,7 +25,6 @@
 - **الإطار الأساسي**: Next.js 15 (App Router).
 - **الجوال**: Capacitor JS.
 
-## 📌 ملاحظات هامة للإدارة
-- تم تفعيل التصدير الثابت لضمان السرعة.
-- تم ضبط `next.config.ts` لتجاهل أخطاء التتبع أثناء البناء لضمان نجاح الـ Build.
+## 📌 ملاحظات تقنية للإدارة
+- تم ضبط `next.config.ts` لتجاهل أخطاء التتبع أثناء البناء لضمان نجاح التصدير الثابت (`next build`).
 - ملف `AndroidManifest.xml` يبدأ من السطر الأول تماماً لحل مشاكل التوافق مع Android Studio.
