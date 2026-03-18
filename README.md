@@ -2,29 +2,25 @@
 
 تطبيق متطور لحجز الرحلات الدولية والطرود، مصمم ليعمل كـ Web App و Mobile App (Android/iOS) بهوية بصرية فاخرة.
 
-## 🚀 حل مشكلة رفع المشروع على GitHub (403 Forbidden)
+## 🚀 حل مشكلة الرفع على GitHub (خطأ 403 Forbidden)
 
-إذا واجهت خطأ `Permission denied to baselaljman` بالرغم من استخدام التوكن، اتبع هذه الخطوات:
+إذا واجهت خطأ `Permission denied` أو `403` عند الرفع، اتبع هذه الخطوات البرمجية الدقيقة:
 
-1. **التأكد من صلاحيات التوكن (PAT):**
-   - عند إنشاء التوكن في GitHub، تأكد من اختيار صلاحية `repo` (Full control of private repositories).
-   - تأكد من أنك قمت بنسخ التوكن بالكامل.
-
-2. **تحديث الرابط وحذف التخزين المؤقت:**
-   نفذ الأمر التالي في Terminal (استبدل `<YOUR_TOKEN>` بالتوكن الحقيقي):
+1. **تحديث رابط المستودع مع التوكن (Token):**
+   نفذ هذا الأمر في Terminal (استبدل `<YOUR_TOKEN>` بالتوكن الحقيقي الذي أنشأته من إعدادات GitHub):
    ```bash
    git remote set-url origin https://<YOUR_TOKEN>@github.com/baselaljman/alaujan.git
    ```
 
-3. **الرفع النهائي:**
+2. **الرفع النهائي:**
    ```bash
    git push -u origin main
    ```
 
-## 🛠 التقنيات المستخدمة
-- **الإطار الأساسي**: Next.js 15 (App Router).
-- **الجوال**: Capacitor JS.
+## 🛠 ملاحظات تقنية للمطورين
+- **Next.js Config**: تم استخدام `transpilePackages` بدلاً من `externals` لحل مشكلة `WebpackError` أثناء التجميع في Vercel.
+- **Android Support**: تم ضبط `AndroidManifest.xml` ليبدأ من السطر الأول تماماً لضمان التوافق مع Android Studio.
+- **Geolocation**: يعتمد التطبيق على Capacitor Community Background Geolocation للبث المباشر.
 
-## 📌 ملاحظات تقنية للإدارة
-- تم ضبط `next.config.ts` لتجاهل أخطاء التتبع أثناء البناء لضمان نجاح التصدير الثابت (`next build`).
-- ملف `AndroidManifest.xml` يبدأ من السطر الأول تماماً لحل مشاكل التوافق مع Android Studio.
+---
+© 2024 العوجان للسياحة والسفر - جميع الحقوق محفوظة.

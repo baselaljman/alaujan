@@ -37,22 +37,19 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-      };
-    }
-    
-    // منع Next.js من محاولة تحميل مكتبات الموبايل أثناء عملية البناء لضمان نجاح التصدير
-    config.externals = [...(config.externals || []), 
-      '@capacitor/core', 
-      '@capacitor/android', 
-      '@capacitor/geolocation', 
-      '@capacitor-community/background-geolocation'
-    ];
+  // استخدام transpilePackages هو الحل الرسمي لدمج مكتبات الموبايل مع Next.js 15
+  transpilePackages: [
+    '@capacitor/core',
+    '@capacitor/android',
+    '@capacitor/geolocation',
+    '@capacitor-community/background-geolocation'
+  ],
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+    };
 
     return config;
   },
