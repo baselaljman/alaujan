@@ -37,23 +37,13 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // الحل الرسمي لدمج مكتبات Capacitor مع Next.js 15
+  // الحل الرسمي والوحيد لدمج مكتبات Capacitor مع Next.js 15 لضمان نجاح البناء (Build)
   transpilePackages: [
     '@capacitor/core',
     '@capacitor/android',
     '@capacitor/geolocation',
     '@capacitor-community/background-geolocation'
   ],
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push({
-        '@capacitor/core': 'commonjs @capacitor/core',
-        '@capacitor/geolocation': 'commonjs @capacitor/geolocation',
-        '@capacitor-community/background-geolocation': 'commonjs @capacitor-community/background-geolocation'
-      });
-    }
-    return config;
-  },
 };
 
 export default nextConfig;
