@@ -67,7 +67,6 @@ export default function DriverDashboard() {
   const startTracking = async (tripId: string) => {
     setIsInitializing(true);
     try {
-      // استيراد ديناميكي آمن
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
