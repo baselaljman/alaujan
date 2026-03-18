@@ -70,7 +70,6 @@ export default function DriverDashboard() {
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
-        // استيراد ديناميكي مباشر لضمان التضمين في الحزمة النهائية
         const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
         const { Geolocation } = await import('@capacitor/geolocation');
 
@@ -131,7 +130,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: `عذراً: ${e.message || 'فشل البدء'}`
+        description: `عذراً: ${e.message || 'المكتبة غير متوفرة'}`
       });
       setIsTracking(false);
     }
@@ -241,7 +240,7 @@ export default function DriverDashboard() {
                     <div className="text-right">
                       <h4 className="font-black text-lg">{trip.originName} {" ⬅ "} {trip.destinationName}</h4>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 justify-end mt-1">
-                        <Activity className="h-2 w-2" /> الحالة: {trip.status === "Departed" ? "على الطريق" : "مجدولة"}
+                        <ActivityIcon className="h-2 w-2" /> الحالة: {trip.status === "Departed" ? "على الطريق" : "مجدولة"}
                       </p>
                     </div>
                     <Badge className="bg-primary/10 text-primary font-black px-3">{trip.id}</Badge>
@@ -279,7 +278,7 @@ export default function DriverDashboard() {
   );
 }
 
-function Activity({ className }: { className?: string }) {
+function ActivityIcon({ className }: { className?: string }) {
   return (
     <svg 
       xmlns="http://www.w3.org/2000/svg" 
