@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
         path: false,
       };
     }
-    // تجنب تضمين مكتبات Capacitor في جانب الخادم (SSR)
+    // تجنب تضمين مكتبات Capacitor في جانب الخادم (SSR) أثناء عملية البناء
     if (isServer) {
       config.externals.push('@capacitor-community/background-geolocation', '@capacitor/geolocation', '@capacitor/core');
     }
