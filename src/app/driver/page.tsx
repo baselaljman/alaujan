@@ -70,12 +70,9 @@ export default function DriverDashboard() {
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
-        // تحميل ديناميكي حقيقي لتجنب مشاكل require
-        const bgGeoMod = await import('@capacitor-community/background-geolocation');
-        const geoMod = await import('@capacitor/geolocation');
-        
-        const BackgroundGeolocation = bgGeoMod.BackgroundGeolocation;
-        const Geolocation = geoMod.Geolocation;
+        // استيراد ديناميكي مباشر لضمان التضمين في الحزمة النهائية
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        const { Geolocation } = await import('@capacitor/geolocation');
 
         const perm = await Geolocation.requestPermissions();
         if (perm.location !== 'granted') {
@@ -145,8 +142,8 @@ export default function DriverDashboard() {
     try {
       const { Capacitor } = await import('@capacitor/core');
       if (Capacitor.isNativePlatform() && watcherIdRef.current) {
-        const bgGeoMod = await import('@capacitor-community/background-geolocation');
-        await bgGeoMod.BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
       } else if (watcherIdRef.current) {
         navigator.geolocation.clearWatch(parseInt(watcherIdRef.current));
       }
