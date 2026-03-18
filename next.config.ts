@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
       };
     }
     
-    // منع Next.js من محاولة تحميل مكتبات Capacitor أثناء عملية البناء
+    // منع Next.js من محاولة تحميل مكتبات الموبايل أثناء عملية البناء لضمان نجاح التصدير
     config.externals = [...(config.externals || []), 
       '@capacitor/core', 
       '@capacitor/android', 
