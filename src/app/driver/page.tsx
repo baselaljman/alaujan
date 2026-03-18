@@ -67,7 +67,7 @@ export default function DriverDashboard() {
   const startTracking = async (tripId: string) => {
     setIsInitializing(true);
     try {
-      // استيراد ديناميكي صريح لضمان حزم المكتبة في تطبيق الأندرويد
+      // استيراد ديناميكي صريح باستخدام المسار الكامل لضمان نجاح عملية الـ Build
       const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
       const { Geolocation } = await import('@capacitor/geolocation');
 
@@ -97,10 +97,7 @@ export default function DriverDashboard() {
           distanceFilter: 10
         },
         (location, error) => {
-          if (error) {
-            console.error("Watcher Error:", error);
-            return;
-          }
+          if (error) return;
           if (location) {
             updateFirebaseLocation(tripId, location.latitude, location.longitude);
           }
@@ -114,11 +111,10 @@ export default function DriverDashboard() {
       setIsTracking(true);
       toast({ title: "بدأ البث المباشر", description: "موقعك يظهر الآن للركاب على الخريطة" });
     } catch (e: any) {
-      console.error("Critical Tracking Error:", e);
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: e.message || "تأكد من تفعيل صلاحيات الموقع دائماً من إعدادات الهاتف."
+        description: "تأكد من تفعيل صلاحيات الموقع دائماً من إعدادات الهاتف."
       });
       setIsTracking(false);
     } finally {

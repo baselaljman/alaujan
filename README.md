@@ -18,9 +18,9 @@
    ```
 
 ## 🛠 ملاحظات تقنية للمطورين
-- **Next.js Config**: تم استخدام `transpilePackages` بدلاً من `externals` لحل مشكلة `WebpackError` أثناء التجميع في Vercel.
+- **Next.js Config**: تم استخدام `transpilePackages` لضمان توافق مكتبات Capacitor مع نظام ESM ونجاح عملية الـ Build في Vercel.
 - **Android Support**: تم ضبط `AndroidManifest.xml` ليبدأ من السطر الأول تماماً لضمان التوافق مع Android Studio.
-- **Geolocation**: يعتمد التطبيق على Capacitor Community Background Geolocation للبث المباشر.
+- **Geolocation**: يعتمد التطبيق على `@capacitor-community/background-geolocation` للبث المباشر للموقع في الخلفية.
 
 ---
-© 2024 العوجان للسياحة والسفر - جميع الحقوق محفوظة.# alaujan
+© 2024 العوجان للسياحة والسفر - جميع الحقوق محفوظة.

@@ -37,20 +37,21 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // استخدام transpilePackages هو الحل الرسمي لدمج مكتبات الموبايل مع Next.js 15
+  // الحل الرسمي لدمج مكتبات Capacitor مع Next.js 15
   transpilePackages: [
     '@capacitor/core',
     '@capacitor/android',
     '@capacitor/geolocation',
     '@capacitor-community/background-geolocation'
   ],
-  webpack: (config) => {
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      path: false,
-    };
-
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push({
+        '@capacitor/core': 'commonjs @capacitor/core',
+        '@capacitor/geolocation': 'commonjs @capacitor/geolocation',
+        '@capacitor-community/background-geolocation': 'commonjs @capacitor-community/background-geolocation'
+      });
+    }
     return config;
   },
 };
