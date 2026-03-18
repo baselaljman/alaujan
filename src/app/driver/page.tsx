@@ -28,6 +28,7 @@ export default function DriverDashboard() {
   const firestore = useFirestore();
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const watcherIdRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
 
@@ -64,9 +65,8 @@ export default function DriverDashboard() {
   };
 
   const startTracking = async (tripId: string) => {
+    setIsInitializing(true);
     try {
-      if (typeof window === 'undefined') return;
-      
       const { Capacitor } = await import('@capacitor/core');
       
       if (Capacitor.isNativePlatform()) {
@@ -77,9 +77,10 @@ export default function DriverDashboard() {
         if (perm.location !== 'granted') {
           toast({ 
             variant: "destructive", 
-            title: "صلاحيات ناقصة", 
-            description: "يجب الموافقة على صلاحيات الموقع لبدء الرحلة." 
+            title: "صلاحيات الموقع", 
+            description: "يجب اختيار 'السماح طوال الوقت' من إعدادات الهاتف ليعمل البث في الخلفية." 
           });
+          setIsInitializing(false);
           return;
         }
 
@@ -130,9 +131,11 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: `عذراً: ${e.message || 'المكتبة غير متوفرة'}`
+        description: "تأكد من تفعيل صلاحيات الموقع دائماً من إعدادات الهاتف."
       });
       setIsTracking(false);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -197,7 +200,7 @@ export default function DriverDashboard() {
             <h4 className="text-xs font-black text-amber-900 mb-1">خطوة ضرورية للعمل في الخلفية</h4>
             <p className="text-[10px] text-amber-700 leading-relaxed">
               لضمان استمرار البث، اذهب إلى: <br/>
-              إعدادات الهاتف &gt; التطبيقات &gt; العوجان للسفر &gt; الموقع <br/>
+              إعدادات الهاتف {" > "} التطبيقات {" > "} العوجان للسفر {" > "} الموقع <br/>
               واختر <b>"السماح طوال الوقت"</b>.
             </p>
           </div>
@@ -247,13 +250,14 @@ export default function DriverDashboard() {
                   </div>
                   
                   <Button 
+                    disabled={isInitializing}
                     onClick={() => startTracking(trip.id)} 
                     className={cn(
                       "w-full h-14 rounded-2xl font-black text-lg gap-3 shadow-md",
                       trip.status === "Departed" ? "bg-amber-600 hover:bg-amber-700" : "bg-primary"
                     )}
                   >
-                    {trip.status === "Departed" ? (
+                    {isInitializing ? <Loader2 className="h-5 w-5 animate-spin" /> : trip.status === "Departed" ? (
                       <><RefreshCw className="h-5 w-5" /> إعادة تشغيل البث المباشر</>
                     ) : (
                       <><Play className="h-5 w-5 fill-white" /> بدء البث المباشر للرحلة</>
