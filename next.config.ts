@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // الحل الرسمي والوحيد لدمج مكتبات Capacitor مع Next.js 15 لضمان نجاح البناء (Build)
   transpilePackages: [
     '@capacitor/core',
     '@capacitor/android',

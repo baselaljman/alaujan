@@ -21,8 +21,6 @@ import { cn } from "@/lib/utils";
 import { useFirestore, updateDocumentNonBlocking, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { doc, collection, query, where } from "firebase/firestore";
 import { Capacitor } from '@capacitor/core';
-import { Geolocation } from '@capacitor/geolocation';
-import { BackgroundGeolocation } from '@capacitor-community/background-geolocation';
 
 type TripStatus = "Scheduled" | "Departed" | "Delayed" | "Arrived";
 
@@ -72,13 +70,17 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "منصة غير مدعومة", 
-        description: "يجب تشغيل هذه الميزة من داخل تطبيق الأندرويد أو iOS الفعلي." 
+        description: "يجب تشغيل هذه الميزة من داخل تطبيق الأندرويد الفعلي." 
       });
       return;
     }
 
     setIsInitializing(true);
     try {
+      // استيراد ديناميكي صريح لضمان نجاح البناء (Build)
+      const { Geolocation } = await import('@capacitor/geolocation');
+      const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+
       const perm = await Geolocation.requestPermissions();
       if (perm.location !== 'granted') {
         toast({ 
@@ -126,7 +128,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: e.message || "تأكد من تفعيل صلاحيات الموقع دائماً من إعدادات الهاتف."
+        description: e.message || "تأكد من تثبيت كافة المكتبات وتفعيل الصلاحيات."
       });
       setIsTracking(false);
     } finally {
@@ -137,6 +139,7 @@ export default function DriverDashboard() {
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
     setIsTracking(false);
     try {
+      const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
       if (watcherIdRef.current) {
         await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
       }
