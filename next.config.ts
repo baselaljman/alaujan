@@ -43,6 +43,16 @@ const nextConfig: NextConfig = {
     '@capacitor/geolocation',
     '@capacitor-community/background-geolocation'
   ],
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...(config.externals || []), {
+        '@capacitor/core': '@capacitor/core',
+        '@capacitor/geolocation': '@capacitor/geolocation',
+        '@capacitor-community/background-geolocation': '@capacitor-community/background-geolocation'
+      }];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -77,7 +77,7 @@ export default function DriverDashboard() {
 
     setIsInitializing(true);
     try {
-      // استيراد ديناميكي صريح لضمان نجاح البناء (Build)
+      // استيراد ديناميكي صريح لضمان عدم حدوث خطأ أثناء البناء الساكن
       const { Geolocation } = await import('@capacitor/geolocation');
       const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
 
