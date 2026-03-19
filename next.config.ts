@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -37,6 +38,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // إدراج الحزم المسببة للمشاكل ليتم معالجتها من قبل Next.js
   transpilePackages: [
     '@capacitor/core',
     '@capacitor/android',
@@ -45,11 +47,12 @@ const nextConfig: NextConfig = {
   ],
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(config.externals || []), {
-        '@capacitor/core': '@capacitor/core',
-        '@capacitor/geolocation': '@capacitor/geolocation',
-        '@capacitor-community/background-geolocation': '@capacitor-community/background-geolocation'
-      }];
+      // إخبار Webpack بتجاهل الحزم التي تعمل فقط على الجوال أثناء بناء الخادم
+      config.externals = [...(config.externals || []), 
+        '@capacitor/core',
+        '@capacitor/geolocation',
+        '@capacitor-community/background-geolocation'
+      ];
     }
     return config;
   },

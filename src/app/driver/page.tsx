@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useRef, useEffect } from "react";
@@ -66,6 +67,7 @@ export default function DriverDashboard() {
   };
 
   const startTracking = async (tripId: string) => {
+    // التأكد من أننا على منصة تدعم Capacitor قبل محاولة الاستيراد
     if (!Capacitor.isNativePlatform()) {
       toast({ 
         variant: "destructive", 
@@ -77,7 +79,8 @@ export default function DriverDashboard() {
 
     setIsInitializing(true);
     try {
-      // استيراد ديناميكي صريح لضمان عدم حدوث خطأ أثناء البناء الساكن
+      // استيراد ديناميكي صريح لضمان عدم حدوث خطأ أثناء البناء الساكن (Static Build)
+      // هذه الطريقة تمنع Webpack من محاولة تحليل المكتبة أثناء export
       const { Geolocation } = await import('@capacitor/geolocation');
       const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
 
@@ -128,7 +131,7 @@ export default function DriverDashboard() {
       toast({ 
         variant: "destructive", 
         title: "خطأ في التتبع", 
-        description: e.message || "تأكد من تثبيت كافة المكتبات وتفعيل الصلاحيات."
+        description: "تأكد من عمل الحزم بشكل صحيح داخل بيئة الأندرويد."
       });
       setIsTracking(false);
     } finally {
@@ -139,9 +142,11 @@ export default function DriverDashboard() {
   const stopTracking = async (newStatus: TripStatus = "Arrived") => {
     setIsTracking(false);
     try {
-      const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
-      if (watcherIdRef.current) {
-        await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+      if (Capacitor.isNativePlatform()) {
+        const { BackgroundGeolocation } = await import('@capacitor-community/background-geolocation');
+        if (watcherIdRef.current) {
+          await BackgroundGeolocation.removeWatcher({ id: watcherIdRef.current });
+        }
       }
     } catch (e) {}
     

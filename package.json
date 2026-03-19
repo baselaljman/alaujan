@@ -1,3 +1,4 @@
+
 {
   "name": "nextn",
   "version": "0.1.0",
@@ -15,7 +16,7 @@
     "cap:open-android": "npx cap open android"
   },
   "dependencies": {
-    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor-community/background-geolocation": "1.2.26",
     "@capacitor/android": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",
